@@ -2,18 +2,15 @@ local max, min, Round, Lerp, halfValue2 = math.max, math.min, math.Round, Lerp, 
 hg.organism.module.lungs = {}
 local module = hg.organism.module.lungs
 
--- Language detection
 local function GetLanguage()
 	return GetConVar("gmod_language"):GetString() == "ru" and "ru" or "en"
 end
 
--- Localized strings
 local LANG = {
 	en = {},
 	ru = {}
 }
 
--- Low oxygen phrases
 LANG.en.lowoxy = {
 	"I'm gonna faint right now... There's not enough oxygen.",
 	"There's not enough oxygen... I can't hold much longer...",
@@ -30,7 +27,6 @@ LANG.ru.lowoxy = {
 	"Нужно дышать воздухом... или я потеряю сознание прямо здесь..."
 }
 
--- Not enough air intake
 LANG.en.not_enough_intake = {
 	"I need to breathe...",
 	"I'm struggling to breathe...",

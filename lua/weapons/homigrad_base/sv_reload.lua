@@ -34,7 +34,6 @@ end
 
 if SERVER then return end
 
--- Create font for caliber display
 surface.CreateFont("CaliberFont", {
     font = "Bahnschrift",
     size = ScreenScale(8),
@@ -43,13 +42,11 @@ surface.CreateFont("CaliberFont", {
     shadow = true
 })
 
--- Variable to store when caliber should be shown
 local caliberShowTime = 0
-local caliberShowDuration = 2 -- Show for 2 seconds
+local caliberShowDuration = 2
 local caliberText = ""
 local caliberAlpha = 0
 
--- Hook into the reload key press
 hook.Add("PlayerBindPress", "ShowCaliberOnReload", function(ply, bind, pressed)
     if not pressed then return end
     if not string.find(bind, "+reload") then return end
@@ -57,58 +54,44 @@ hook.Add("PlayerBindPress", "ShowCaliberOnReload", function(ply, bind, pressed)
     local wep = ply:GetActiveWeapon()
     if not IsValid(wep) or not wep.ishgwep then return end
     
-    -- Get the weapon's caliber from Primary.Ammo
-    local caliber = wep.Primary.Ammo or "Unknown"
+    -- Don't show caliber for gambler shotgun
+    if wep.PrintName == "GAMBLER SHOTGUN" then return end
     
-    -- Get current ammo type if weapon has multiple types
+    local caliber = wep.Primary.Ammo or "Unknown"
     if wep.RealAmmoType then
         caliber = wep.RealAmmoType
     end
-    
-    -- Format the caliber text
+
     caliberText = "Caliber: " .. caliber
     caliberShowTime = CurTime() + caliberShowDuration
     caliberAlpha = 0
 end)
 
--- Draw the caliber on HUD
 hook.Add("HUDPaint", "DrawCaliberDisplay", function()
     if CurTime() > caliberShowTime then 
-        -- Fade out
         caliberAlpha = Lerp(FrameTime() * 5, caliberAlpha, 0)
         if caliberAlpha < 0.01 then return end
     else
-        -- Fade in
         caliberAlpha = Lerp(FrameTime() * 10, caliberAlpha, 255)
     end
     
     local scrW, scrH = ScrW(), ScrH()
     local x = scrW * 0.75
     local y = scrH * 0.85
-    
-    -- Background
     local bgColor = Color(0, 0, 0, 150 * (caliberAlpha / 255))
     local textColor = Color(255, 255, 255, caliberAlpha)
-    
-    -- Get text dimensions
+
     surface.SetFont("CaliberFont")
     local textW, textH = surface.GetTextSize(caliberText)
-    
-    -- Draw background box
-    draw.RoundedBox(4, x - textW / 2 - 10, y - textH / 2 - 5, 
-                    textW + 20, textH + 10, bgColor)
-    
-    -- Draw caliber text
-    draw.SimpleText(caliberText, "CaliberFont", x, y, 
-                   textColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    
-    -- Optional: Show current magazine ammo info
+    draw.RoundedBox(4, x - textW / 2 - 10, y - textH / 2 - 5, textW + 20, textH + 10, bgColor)
+
+    draw.SimpleText(caliberText, "CaliberFont", x, y, textColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+
     local wep = LocalPlayer():GetActiveWeapon()
     if IsValid(wep) and wep.ishgwep then
         local ammoText = string.format("%d / %d", wep:Clip1(), wep:GetMaxClip1())
         local ammoColor = Color(200, 200, 200, caliberAlpha * 0.8)
-        
-        draw.SimpleText(ammoText, "CaliberFont", x, y + textH + 5, 
-                       ammoColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+
+        draw.SimpleText(ammoText, "CaliberFont", x, y + textH + 5, ammoColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     end
 end)

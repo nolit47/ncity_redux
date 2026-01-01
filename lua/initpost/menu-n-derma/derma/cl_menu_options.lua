@@ -349,7 +349,6 @@ function PANEL:CreateOption( strCategory, bType, cConVar, bDecimals, strTitle, s
                 return
             end
             
-            -- Use RunConsoleCommand instead of SetBool for engine convars
             local newValue = not cConVar:GetBool()
             RunConsoleCommand(cConVar:GetName(), newValue and "1" or "0")
             btn.On = newValue

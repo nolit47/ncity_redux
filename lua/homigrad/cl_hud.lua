@@ -391,8 +391,6 @@ hook.Add("Think", "hg-radial-menu", function()
 
 		firstTime2 = true
 	end
-
-	-- Open radial menu on G key (press to open, release to activate)
 	if input.IsKeyDown(KEY_G) then
 		if firstTimeG then
 			firstTimeG = false
@@ -560,6 +558,11 @@ hook.Add("HUDPaint", "Homigrad_ReloadCaliberDisplay", function()
         caliberAlpha = 0
         return 
     end
+    if wep.PrintName == "GAMBLER SHOTGUN" then
+        caliberAlpha = 0
+        return
+    end
+    
     local isReloading = (wep.reload and wep.reload > CurTime())
     local isChecking = wep.checkingammo
     local isTimedShow = caliberDisplayTimer > CurTime()
