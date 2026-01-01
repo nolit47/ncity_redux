@@ -1,0 +1,252 @@
+-- "addons\\homigrad\\lua\\initpost\\menu-n-derma\\derma\\cl_menu_panel.lua"
+-- Retrieved by https://github.com/lewisclark/glua-steal
+----
+local PANEL = {}
+
+local Selects = {
+    {Title = "Disconnect", Func = function(luaMenu) RunConsoleCommand("disconnect") end},
+    {Title = "Main Menu", Func = function(luaMenu) gui.ActivateGameUI() luaMenu:Close() end},
+    {Title = "Discord", Func = function(luaMenu) luaMenu:Close() gui.OpenURL("https://video.twimg.com/ext_tw_video/2005410113121857537/pu/vid/avc1/724x720/Gh87yTwkgiE2ItR_.mp4")  end},
+    --{Title = "How to play", Func = function(luaMenu) gui.OpenURL("http://zcity-help.ru/zcity_wiki.htm?") end},
+    {Title = "Wikipedia", Func = function(luaMenu) luaMenu:Close() gui.OpenURL("https://www.youtube.com/watch?v=JvCUh8sm4oo") end},
+    {Title = "Appearance", Func = function(luaMenu) luaMenu:Close() RunConsoleCommand("hg_appearance_menu") end},
+	{Title = "Achievements", Func = function(luaMenu) luaMenu:Close() RunConsoleCommand("hg_achievements") end},
+    {Title = "Settings", Func = function(luaMenu) luaMenu:Close() RunConsoleCommand("hg_settings") end},
+    {Title = "Return", Func = function(luaMenu) luaMenu:Close() end},
+}
+
+surface.CreateFont("ZC_MM_Title", {
+    font = "Bahnschrift",
+    size = ScreenScale(40),
+    weight = 800,
+    antialias = true
+})
+local red_select = Color(245,45,45)
+-- local Title = markup.Parse("error")
+
+local Pluv = Material("pluv/pluvkid.jpg")
+
+function PANEL:InitializeMarkup()
+	local gm = gmod.GetGamemode().Name .. " | " .. string.NiceName(zb ~= nil and zb.GetRoundName or game.GetMap())
+
+    if hg.PluvTown.Active then
+        local text = "<font=ZC_MM_Title><colour=255,15,15,255>    </colour>City</font>\n<font=ZCity_Small>" .. gm .. "</font>"
+
+        self.SelectedPluv = table.Random(hg.PluvTown.PluvMats)
+
+        return markup.Parse(text)
+    end
+
+    local text = "<font=ZC_MM_Title><colour=255,15,15,255>Z</colour>-City</font>\n<font=ZCity_Small>" .. gm .. "</font>"
+    return markup.Parse(text)
+end
+
+local color_red = Color(255,25,25,45)
+
+function PANEL:Init()
+    self:SetAlpha( 0 )
+    self:SetSize( ScrW(), ScrH() )
+    self:Center()
+    self:SetTitle( "" )
+    self:SetDraggable( false )
+    self:SetBorder( false )
+    self:SetColorBG(Color(10,10,19,235))
+    self:SetDraggable( false )
+    self:ShowCloseButton( false )
+
+    self.Title, self.TitleShadow = self:InitializeMarkup()
+
+    timer.Simple(0,function()
+        self:First()
+    end)
+
+    self.lDock = vgui.Create("DPanel",self)
+    local lDock = self.lDock
+    lDock:Dock( LEFT )
+    lDock:SetSize( ScrW()/2, ScrH() ) -- ЕСЛИ ЧТО ТУТ БЫЛО ВМЕСТО ScrW() ScreenScale(200) (на случай если чето сломается хотя не должно)
+    lDock:DockMargin( ScreenScale(30), ScreenScaleH(40), ScreenScale(10), ScreenScaleH(70) )
+    lDock.Paint = function(this, w, h)
+        if hg.PluvTown.Active then
+            surface.SetDrawColor(color_white)
+            surface.SetMaterial(self.SelectedPluv or Pluv)
+            surface.DrawTexturedRect(0, ScreenScale(27), ScreenScale(35), ScreenScale(27))
+        end
+
+        self.Title:Draw(0, ScreenScale(50), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, 255, TEXT_ALIGN_LEFT)
+    end
+
+    self.Buttons = {}
+    for k,v in ipairs(Selects) do
+        self:AddSelect( lDock, v.Title, v.Func )
+    end
+
+    self.rDock = vgui.Create("DPanel",self)
+    local rDock = self.rDock
+    rDock:Dock( RIGHT )
+    rDock:SetSize( ScrW()/2, ScrH() ) -- ЕСЛИ ЧТО ТУТ БЫЛО ВМЕСТО ScrW() ScreenScale(200) (на случай если чето сломается хотя не должно)
+    rDock:DockMargin( ScreenScale(15), ScreenScaleH(70), ScreenScale(10), ScreenScaleH(10) )
+    rDock.Paint = function(this, w, h) end
+
+    local zteam = vgui.Create("DLabel",rDock)
+    zteam:Dock(BOTTOM)
+    zteam:SetFont("ZCity_Tiny")
+    zteam:SetTextColor(Color(255,255,255,25))
+    zteam:SetText("by uzelezz with sadsalat, mr.point, zac90, deka, mannytko")
+    zteam:SetContentAlignment(3)
+
+    hg.GetServerInfo(function(tbl)
+        for _,v in pairs(tbl) do 
+            self:AddServerCard(v)
+        end
+    end)
+
+    --local Title = vgui.Create("DLabel",lDock)
+    --Title:Dock( TOP )
+    --Title:SetFont( "ZCity_Big" )
+    --Title:SetTall( ScreenScale( 35 ) )
+    --Title:SetText( "Z-City\n"..engine.ActiveGamemode() )
+    --Title:SizeToContents()
+end
+
+--[[
+["5.42.211.48:24215"]:
+		["addr"]	=	5.42.211.48:24215
+		["map"]	=	hmcd_metropolis_extended
+		["max_players"]	=	20
+		["name"]	=	Z-City 1 | Beta | RU
+		["players"]	=	20
+["5.42.211.48:24217"]:
+		["addr"]	=	5.42.211.48:24217
+		["map"]	=	hmcd_metropolis_extended
+		["max_players"]	=	20
+		["name"]	=	Z-City 2 | Beta | RU
+		["players"]	=	18
+]]
+local cardcolor = Color(15,15,25,220)
+local green_color = Color(55,225,55)
+function PANEL:AddServerCard(serverTbl)
+    local main = self
+    local card = vgui.Create("DPanel",self.rDock)
+    card:Dock(TOP)
+    card:SetSize(500,ScreenScaleH(45))
+    card:DockMargin(5,5,5,5)
+    card:DockPadding(15,5,15,15)
+    card.Info = serverTbl
+    function card:Paint(w,h)
+        draw.RoundedBox( 4, 0, 0, w, h, cardcolor )
+
+        draw.RoundedBox( 0, 0, h-h/5, w, h/5, cardcolor )
+        draw.RoundedBox( 0, 2.5, h-h/5 +3, w* (card.Info["players"]/card.Info["max_players"]) - 5 , h/6, color_red )
+    end
+
+    local lbl = vgui.Create("DLabel",card)
+    lbl:Dock(BOTTOM)
+    lbl:SetFont("ZCity_Tiny")
+    lbl:SetText(card.Info["players"].."/"..card.Info["max_players"])
+    lbl:SizeToContents()
+    lbl:SetTall(ScreenScaleH(17))
+
+    local lbl = vgui.Create("DLabel",card)
+    lbl:Dock(LEFT)
+    lbl:SetFont("ZCity_Small")
+    lbl:SetText(card.Info["name"])
+    lbl:SizeToContents()
+    lbl:SetTall(ScreenScaleH(19))
+
+    local connectButton = vgui.Create("DButton",card)
+    connectButton:Dock(RIGHT)
+    connectButton:SetFont("ZCity_Small")
+    connectButton:SetText("Connect")
+    connectButton:SizeToContents()
+    connectButton:SetTall(ScreenScaleH(19))
+    connectButton.HoverLerp = 0
+    connectButton.RColor = Color(255,255,255)
+    function connectButton:Paint(w,h)
+        return false
+    end
+
+    function connectButton:Think()
+        self.HoverLerp = LerpFT(0.2,self.HoverLerp or 0,self:IsHovered() and 1 or 0)
+        local v = self.HoverLerp
+        self:SetTextColor( self.RColor:Lerp( green_color, v ) )
+    end
+
+    function connectButton:DoClick()
+        permissions.AskToConnect( card.Info["addr"] )
+    end
+end
+
+function PANEL:First( ply )
+    --self:MoveTo(self:GetX(), self:GetY() - self:GetTall()/2, 0.5, 0, 0.2, function() end)
+    self:AlphaTo( 255, 0.1, 0, nil )
+end
+
+local gradient_d = surface.GetTextureID("vgui/gradient-d")
+local gradient_r = surface.GetTextureID("vgui/gradient-r")
+local gradient_l = surface.GetTextureID("vgui/gradient-l")
+
+function PANEL:Paint(w,h)
+    draw.RoundedBox( 0, 0, 0, w, h, self.ColorBG )
+    hg.DrawBlur(self, 5)
+
+    --if self.DrawBorder then
+    --    surface.SetDrawColor(self.ColorBR)
+    --    surface.DrawOutlinedRect(0,0,w,h,1.5)
+    --end
+    surface.SetDrawColor( self.ColorBG )
+    surface.SetTexture( gradient_l )
+    surface.DrawTexturedRect(0,0,w,h)
+end
+
+function PANEL:AddSelect( pParent, strTitle, fFunc )
+    local id = #self.Buttons + 1
+    self.Buttons[id] = vgui.Create( "DLabel", pParent )
+    local btn = self.Buttons[id]
+    btn:SetText( strTitle )
+    btn:SetMouseInputEnabled( true )
+    btn:SizeToContents()
+    btn:SetFont( "ZCity_Small" )
+    btn:SetTall( ScreenScale( 15 ) )
+    btn:Dock(BOTTOM)
+    btn:DockMargin(0,ScreenScale(2),0,0)
+    btn.Func = fFunc
+    btn.RColor = Color(225,225,225)
+    local luaMenu = self 
+    function btn:DoClick()
+        btn.Func(luaMenu)
+    end
+
+    function btn:Think()
+        self.HoverLerp = LerpFT(0.2,self.HoverLerp or 0,self:IsHovered() and 1 or 0)
+        local v = self.HoverLerp
+        self:SetTextColor( self.RColor:Lerp( red_select, v ) )
+    end
+end
+
+function PANEL:Close()
+    self:AlphaTo( 0, 0.1, 0, function() self:Remove() end)
+    self:SetKeyboardInputEnabled(false)
+    self:SetMouseInputEnabled(false)
+end
+
+vgui.Register( "ZMainMenu", PANEL, "ZFrame")
+
+hook.Add("OnPauseMenuShow","OpenMainMenu",function()
+    local run = hook.Run("OnShowZCityPause")
+    if run then
+        return run
+    end
+
+    if MainMenu and IsValid(MainMenu) then
+        MainMenu:Close()
+        MainMenu = nil
+        return false
+    end
+
+    MainMenu = vgui.Create("ZMainMenu")
+    MainMenu:MakePopup()
+    return false
+end)
+
+
+-- уже потом сделаю... как домой вернусь

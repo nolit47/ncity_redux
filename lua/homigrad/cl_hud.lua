@@ -1,0 +1,604 @@
+-- "addons\\homigrad\\lua\\homigrad\\cl_hud.lua"
+-- Retrieved by https://github.com/lewisclark/glua-steal
+hide = {
+	["CHudHealth"] = true,
+	["CHudBattery"] = true,
+	["CHudAmmo"] = false,
+	["CHudSecondaryAmmo"] = true,
+	["CHudCrosshair"] = true
+}
+
+hook.Add("HUDShouldDraw", "homigrad", function(name) if hide[name] then return false end end)
+hook.Add("HUDDrawTargetID", "homigrad", function() return false end)
+hook.Add("DrawDeathNotice", "homigrad", function() return false end)
+
+--local hg_coolvetica = ConVarExists("hg_coolvetica") and GetConVar("hg_coolvetica") or CreateClientConVar("hg_coolvetica", "0", true, false, "changes every text to coolvetica because its good", 0, 1)
+local hg_font = ConVarExists("hg_font") and GetConVar("hg_font") or CreateClientConVar("hg_font", "Bahnschrift", true, false, "change every text font to selected because ui customization is cool")
+local font = function() -- hg_coolvetica:GetBool() and "Coolvetica" or "Bahnschrift"
+    local usefont = "Bahnschrift"
+
+    if hg_font:GetString() != "" then
+        usefont = hg_font:GetString()
+    end
+
+    return usefont
+end
+
+--atlaschat.coolvetica
+surface.CreateFont("HomigradFont", {
+	font = font(),
+	size = ScreenScale(10),
+	weight = 1100,
+	outline = false
+})
+
+surface.CreateFont("ScoreboardPlayer", {
+	font = font(),
+	size = ScreenScale(7),
+	weight = 1100,
+	outline = false
+})
+
+surface.CreateFont("HomigradFontBig", {
+	font = font(),
+	size = ScreenScale(12),
+	weight = 1100,
+	outline = false,
+	shadow = true
+})
+
+surface.CreateFont("HomigradFontMedium", {
+	font = font(),
+	size = ScreenScale(8),
+	weight = 1100,
+	outline = false,
+})
+
+surface.CreateFont("HomigradFontLarge", {
+	font = font(),
+	size = ScreenScale(15),
+	weight = 1100,
+	outline = false
+})
+
+surface.CreateFont("HomigradFontGigantoNormous", {
+	font = font(),
+	size = ScreenScale(25),
+	weight = 1100,
+	outline = false,
+	shadow = false
+})
+
+surface.CreateFont("HomigradFontSmall", {
+	font = font(),
+	size = 17,
+	weight = 1100,
+	outline = false
+})
+
+local w, h
+ 
+hook.Add("HUDPaint", "homigrad-dev", function()
+	if engine.ActiveGamemode() ~= "sandbox" then return end
+	w, h = ScrW(), ScrH()
+end)
+
+--draw.SimpleText(lply:Health(),"HomigradFontBig",100,h - 50,white,TEXT_ALIGN_CENTER,TEXT_ALIGN_CENTER)
+function draw.CirclePart(x, y, radius, seg, parts, pos)
+	local cir = {}
+	table.insert(cir, {
+		x = x,
+		y = y,
+		u = 0.5,
+		v = 0.5
+	})
+
+	for i = 0, seg do
+		local a = math.rad((i / seg) * -360 / parts - pos * 360 / parts) + math.pi
+		table.insert(cir, {
+			x = x + math.sin(a) * radius,
+			y = y + math.cos(a) * radius,
+			u = math.sin(a) / 2 + 0.5,
+			v = math.cos(a) / 2 + 0.5
+		})
+		--draw.DrawText("asd","HomigradFontBig",x + math.sin(a) * radius,y + math.cos(a) * radius)
+	end
+
+	--local a = math.rad(0)
+	--table.insert(cir, {x = x + math.sin(a) * radius, y = y + math.cos(a) * radius, u = math.sin(a) / 2 + 0.5, v = math.cos(a) / 2 + 0.5})
+	render.PushFilterMin(TEXFILTER.ANISOTROPIC)
+	surface.DrawPoly(cir)
+	render.PopFilterMin()
+end
+
+if IsValid(MENUPANELHUYHUY) then
+	MENUPANELHUYHUY:Remove()
+	MENUPANELHUYHUY = nil
+end
+
+hg.radialOptions = hg.radialOptions or {}
+local colBlack = Color(0, 0, 0, 152)
+local colWhite = Color(255, 255, 255, 255)
+local colWhiteTransparent = Color(176, 40, 40, 100)
+local colTransparent = Color(0, 0, 0, 0)
+local matHuy = Material("vgui/white")
+local vecXY = Vector(0, 0)
+local vecDown = Vector(0, 1)
+local isMouseIntersecting = false
+local isMouseOnRadial = false
+local current_option = 1
+local current_option_select = 1
+local hook_Run = hook.Run
+local function dropWeapon()
+	RunConsoleCommand("drop")
+end
+
+hook.Add("radialOptions", "5", function()
+	local organism = lply.organism or {}
+	if not organism.otrub and IsValid(lply:GetActiveWeapon()) and lply:GetActiveWeapon():GetClass() ~= "weapon_hands_sh" then
+		local tbl = {dropWeapon, "Drop Weapon"}
+		hg.radialOptions[#hg.radialOptions + 1] = tbl
+	end
+end)
+
+local incoentCol = Color(128,0,0)
+local taitorCol = Color(155,0,0)
+
+local menuPanel
+
+local function CreateRadialMenu()
+	local sizeX, sizeY = ScrW(), ScrH()
+	hg.radialOptions = {}
+	local paining = lply.organism and lply.organism.pain and (lply.organism.pain > 65 or lply.organism.brain > 0.2) or false
+	local functions = hook.GetTable()["radialOptions"]
+	for i, func in SortedPairs(functions) do
+		func()
+	end
+	//hook_Run("radialOptions")
+	local options1 = hg.radialOptions
+	if IsValid(MENUPANELHUYHUY) then
+		MENUPANELHUYHUY:Remove()
+		MENUPANELHUYHUY = nil
+	end
+
+	MENUPANELHUYHUY = vgui.Create("DPanel")
+	menuPanel = MENUPANELHUYHUY
+	menuPanel:SetPos(ScrW() / 2 - sizeX / 2, ScrH() / 2 - sizeY / 2)
+	menuPanel:SetSize(sizeX, sizeY)
+	menuPanel:MakePopup()
+	menuPanel:SetKeyBoardInputEnabled(false)
+	menuPanel:SetAlpha(0)
+	menuPanel:AlphaTo(255,0.2)
+	input.SetCursorPos(sizeX / 2, sizeY / 2)
+
+	function menuPanel:Close()
+		if not IsValid(menuPanel) then return end
+		menuPanel:AlphaTo(0,0.1,0,function()
+			if IsValid(menuPanel) then
+				menuPanel:Remove()
+				menuPanel = nil
+			end
+		end)
+	end
+
+	local thinkwait = 0
+	menuPanel.Think = function()
+		if menuPanel:GetAlpha() < 255 then return end
+		if thinkwait > CurTime() then return end
+		thinkwait = CurTime() + 0.25
+		table.Empty(hg.radialOptions)
+		local functions = hook.GetTable()["radialOptions"]
+		
+		for i, func in SortedPairs(functions) do
+			//if i == "zmeyka_test" then continue end
+			func()
+		end
+	end
+	local sizePan = 0
+	menuPanel.Paint = function(self, w, h)
+		local x, y = input.GetCursorPos()
+		x = x - sizeX / 2
+		y = y - sizeY / 2
+		vecXY.x = x
+		vecXY.y = y
+		local deg = (vecXY:GetNormalized() - vecDown):Angle()
+		//deg[2] = deg[2] - 180
+		deg = math.NormalizeAngle((deg[2] - 180) * 2) + 180
+		
+		local options = {}
+		if paining then
+			options = table.Copy(options1)
+			options[#options + 1] = {function() end, ""}
+			options[#options + 1] = {function() end, ""}
+			options[#options + 1] = {function() end, ""}
+			options[#options + 1] = {function() end, ""}
+			options[#options + 1] = {function() end, ""}
+		else
+			options = options1
+		end
+
+		sizePan = LerpFT( menuPanel:GetAlpha() > 100 and 0.05 or 0.25,sizePan,(menuPanel:GetAlpha()/255))
+		local viewLerp = Lerp(math.ease.OutExpo(sizePan),0,1)
+		for num, option in ipairs(options) do
+			local num = num - 1
+			local r = ScrH() * 0.45 * viewLerp
+			local partDeg = 360 / #options
+			local sqrt = math.sqrt(x ^ 2 + y ^ 2)
+			isMouseOnRadial = sqrt <= r and sqrt > 4
+			isMouseIntersecting = isMouseOnRadial and deg > num * partDeg and deg < (num + 1) * partDeg
+			if isMouseIntersecting then current_option = num + 1 end
+			if option[3] then
+				surface.SetMaterial(matHuy)
+				surface.SetDrawColor(isMouseIntersecting and colBlack or colBlack)
+				draw.CirclePart(w / 2, h / 2, r, 40, #options, num)
+				local count = #option[4]
+				
+				local selectedPart = count - (math.floor((r - sqrt) / (r / count)))
+				
+				current_option_select = selectedPart
+				for i, opt in pairs(option[4]) do
+					local selected = selectedPart == i
+					surface.SetMaterial(matHuy)
+					surface.SetDrawColor((selected and isMouseIntersecting) and colWhiteTransparent or colTransparent)
+					draw.CirclePart(w / 2, h / 2, r * (i / count), 40, #options, num)
+					local a = -partDeg * num - partDeg / 2
+					a = math.rad(a) + math.pi
+
+					if paining then
+						math.randomseed(math.Round(CurTime() / 5 + num + i, 0))
+						opt = ""//hg.get_status_message(ply)
+						math.randomseed(os.time())
+					end
+
+					draw.DrawText(opt, "HomigradFont", ScrW() / 2 + math.sin(a + i / 20) * r * (i / count - 0.5 / count), ScrH() / 2 + math.cos(a + i / 20) * r * (i / count - 0.5 / count), colWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				end
+
+				continue
+			end
+
+			surface.SetMaterial(matHuy)	
+			surface.SetDrawColor(isMouseIntersecting and colWhiteTransparent or colBlack)
+			draw.CirclePart(w / 2, h / 2, r, 30, #options, num)
+			local a = -partDeg * num - partDeg / 2
+			a = math.rad(a) + math.pi
+			local txt = option[2]
+			if paining then
+				math.randomseed(math.Round(CurTime() / 5 + num, 0))
+				txt = hg.get_status_message(ply)
+				math.randomseed(os.time())
+			end
+			draw.DrawText(txt, "HomigradFont", ScrW() / 2 + math.sin(a) * r * 0.75, ScrH() / 2 + math.cos(a) * r * 0.75, colWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			
+			local col = Color(0,0,0)
+			if !(paining) then
+				draw.SimpleText(lply:GetPlayerName(),"HomigradFontGigantoNormous",ScrW() * 0.0215* viewLerp,ScrH() * 0.042, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+				draw.SimpleText( ( (lply.role and lply.role.name) or ""),"HomigradFontGigantoNormous" ,ScrW() * 0.0215 * viewLerp,ScrH() * 0.098, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+
+				local col = lply:GetPlayerColor():ToColor()
+				draw.SimpleText(lply:GetPlayerName(),"HomigradFontGigantoNormous",ScrW() * 0.02 * viewLerp,ScrH() * 0.04, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+				draw.SimpleText( ( (lply.role and lply.role.name) or ""),"HomigradFontGigantoNormous" ,ScrW() * 0.02 * viewLerp,ScrH() * 0.095, lply.role and lply.role.color or incoentCol, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+			end
+		end
+	end
+end
+
+local function PressRadialMenu()
+	local options = hg.radialOptions
+	--print(options[current_option][1])
+	if lply.organism and lply.organism.pain and lply.organism.pain > 65 then
+		hook_Run("RadialMenuPressed")
+
+		if IsValid(menuPanel) then
+			menuPanel:Close()
+		end
+
+		return
+	end
+
+	hook_Run("RadialMenuPressed")
+
+	if IsValid(menuPanel) and options[current_option] and isMouseOnRadial then
+		local func = options[current_option][1]
+		if isfunction(func) then func(current_option_select) end
+	end
+
+	if IsValid(menuPanel) then
+		menuPanel:Close()
+	end
+end
+
+local firstTime = true
+local firstTime2 = true
+local firstTime3 = true
+local firstTime4 = true
+local firstTimeG = true
+local firstTimeGRelease = true
+
+hook.Add("HG_OnOtrub", "resetshit", function(ply)
+	if ply == lply then
+		hook_Run("RadialMenuPressed")
+
+		if IsValid(menuPanel) then
+			menuPanel:Close()
+		end
+	end
+end)
+
+hook.Add( "PlayerBindPress", "PlayerBindPressExample2huy", function( ply, bind, pressed )
+	if string.find(bind, "+menu") then
+		if input.IsKeyDown(KEY_Q) then
+			return nil
+		end
+
+		if (lply.organism and lply.organism.otrub) then
+			return (bind == "+menu") or nil
+		end
+
+		if (bind == "+menu") then
+			if pressed then
+				CreateRadialMenu()
+			else
+				PressRadialMenu()
+			end
+		else
+			if lply:IsAdmin() then return end
+		end
+
+		return true
+	end
+end)
+
+hook.Add("Think", "hg-radial-menu", function()
+	if not lply:Alive() or (lply.organism and lply.organism.otrub) then
+
+		if IsValid(menuPanel) then
+			hook_Run("RadialMenuPressed")
+			menuPanel:Close()
+		end
+
+		return
+	end
+	
+	if (engine.ActiveGamemode() ~= "sandbox" and input.IsKeyDown(KEY_Q)) or (engine.ActiveGamemode() == "sandbox" and input.IsKeyDown(KEY_C)) then
+		if firstTime then
+			firstTime = false
+			--CreateRadialMenu()
+		end
+
+		firstTime4 = true
+	else
+		if firstTime4 then
+			firstTime4 = false
+			--PressRadialMenu()
+		end
+
+		firstTime = true
+	end
+
+	if input.IsMouseDown(MOUSE_LEFT) then
+		if firstTime2 then
+			firstTime2 = false
+			--print("pressed")
+		end
+
+		firstTime3 = true
+	else
+		if firstTime3 then
+			firstTime3 = false
+			--print("released")
+			PressRadialMenu()
+		end
+
+		firstTime2 = true
+	end
+
+	-- Open radial menu on G key (press to open, release to activate)
+	if input.IsKeyDown(KEY_G) then
+		if firstTimeG then
+			firstTimeG = false
+			CreateRadialMenu()
+		end
+		firstTimeGRelease = true
+	else
+		if firstTimeGRelease then
+			firstTimeGRelease = false
+			PressRadialMenu()
+		end
+		firstTimeG = true
+	end
+end)
+
+local list = {{"arteria", 1, true}, {"bleed", 200, true}, {"hurt", 1, true}, {"brain", 0.25, true}, {"skull", 0.25, true}, {"jaw", 0.5, true}, {"spine1", 1, true}, {"spine2", 1, true}, {"spine3", 1, true}, {"chest", 1, true}, {"pelvis", 1, true}, {"heart", 0.25, true}, {"stomach", 1, true}, {"intestines", 1, true}, {"trachea", 0.5, true}, {"lleg", 2, true}, {"rleg", 2, true}, {"larm", 2, true}, {"rarm", 2, true}}
+local function getEye()
+	 
+	local att = lply:LookupAttachment("eyes")
+	if not att then return lply:GetEyeTrace() end
+	att = lply:GetAttachment(att)
+	local tr = {}
+	tr.start = att.Pos
+	tr.endpos = att.Pos + lply:GetAimVector() * 75
+	tr.filter = {lply}
+	return util.TraceLine(tr)
+end
+
+local wound4Bones = {
+	["ValveBiped.Bip01_Head1"] = "головы",
+	["ValveBiped.Bip01_L_UpperArm"] = "левого плеча",
+	["ValveBiped.Bip01_L_Forearm"] = "Левого предплечья",
+	["ValveBiped.Bip01_L_Hand"] = "Левой кисти",
+	["ValveBiped.Bip01_R_UpperArm"] = "Правого плеча",
+	["ValveBiped.Bip01_R_Forearm"] = "Правого предплечья",
+	["ValveBiped.Bip01_R_Hand"] = "Правой руки",
+	["ValveBiped.Bip01_Pelvis"] = "живота",
+	["ValveBiped.Bip01_Spine2"] = "груди",
+	["ValveBiped.Bip01_L_Thigh"] = "левого бедра",
+	["ValveBiped.Bip01_L_Calf"] = "левой голени",
+	["ValveBiped.Bip01_L_Foot"] = "левой ступни",
+	["ValveBiped.Bip01_R_Thigh"] = "правого бедро",
+	["ValveBiped.Bip01_R_Calf"] = "правой голени",
+	["ValveBiped.Bip01_R_Foot"] = "правой ступни"
+}
+
+local font_size = 50
+surface.CreateFont("HG_font", {
+	font = "Arial",
+	extended = false,
+	size = font_size,
+	weight = 500,
+	outline = true
+})
+
+local CurTime = CurTime
+
+local vector_one = Vector( 1, 1, 1 )
+
+local function CopyRight( text, font, x, y, color, ang, scale )
+	--render.PushFilterMag( TEXFILTER.ANISOTROPIC )
+	--render.PushFilterMin( TEXFILTER.ANISOTROPIC )
+
+	local m = Matrix()
+	m:Translate( Vector( x, y, 0 ) )
+	m:Rotate( Angle( 0, ang, 0 ) )
+	m:Scale( vector_one * ( scale or 1 ) )
+
+	surface.SetFont( font )
+	local w, h = surface.GetTextSize( text )
+
+	m:Translate( Vector( -(w / 2)-25, -h / 2, 0 ) )
+
+	cam.PushModelMatrix( m, true )
+		draw.RoundedBox(5,0,2,w+52,h+2,Color(0,0,0))
+		draw.RoundedBox(5,0,2,w+50,h,Color(255,0,0))
+		draw.DrawText( text, font, 25, 0, color )	
+	cam.PopModelMatrix()
+
+	--render.PopFilterMag()
+	--render.PopFilterMin()
+end
+
+--hook.Add("HUDPaint","homigrad-copyright",function()
+	--local i = 1
+	--CopyRight("ЖДИ ДОКС ЖДИ СВАТ","HomigradFontBig",ScrW()/2 +(math.cos(CurTime()*1)*15*i),ScrH()/2+(math.sin(CurTime()*1)*55*i)+15,Color(255,255,255),math.cos(CurTime()*1)*1,2+math.sin(CurTime()*1)*0.5)
+--end)
+
+hook.Add("HUDPaint","Identifier",function()
+	if lply.organism and lply.organism.otrub then return end
+	if !lply:Alive() then return end
+	
+	local trace = hg.eyeTrace(lply)
+	
+	if not trace then return end
+
+	local Size = math.max(math.min(1 - trace.Fraction, 1), 0.1)
+	local x, y = trace.HitPos:ToScreen().x, trace.HitPos:ToScreen().y
+
+	if trace.Hit and (trace.Entity:IsRagdoll() or trace.Entity:IsPlayer()) then
+		if trace.Entity.PlayerClassName == "sc_infiltrator" then return end
+
+		draw.NoTexture()
+
+		local col = trace.Entity:GetPlayerColor():ToColor()
+		col.a = 255 * Size * 1.5
+
+		local coloutline = (col.r < 50 and col.g < 50 and col.b < 50) and Color(100,100,100) or Color(0,0,0)
+		coloutline.a = 255 * Size * 1
+
+		draw.DrawText(trace.Entity:GetPlayerName() or "", "HomigradFontLarge", x + 1, y + 31, coloutline, TEXT_ALIGN_CENTER)
+
+		draw.DrawText(trace.Entity:GetPlayerName() or "", "HomigradFontLarge", x, y + 30, col, TEXT_ALIGN_CENTER)
+	end
+end)
+
+--sound.PlayURL("https://cdn.discordapp.com/attachments/1254022273661145108/1257385761414582382/pon_pon_016eb317d_1.mp4?ex=66882bbe&is=6686da3e&hm=429f0e4427bdc9d80673d3bfa2eccf48221ae5572ec508fb7699274c2c7041ef&","",function() end)
+
+function scare()
+	hook.Add("RenderScreenspaceEffects","Scare",function()
+		for i = 1, 5 do
+		CopyRight("Плывиски","HomigradFontBig",ScrW()/2 +(math.cos(CurTime()*1)*15*i),ScrH()/2+(math.sin(CurTime()*1)*55*i)+15,Color(255,255,255),math.cos(CurTime()*1)*1,2+math.sin(CurTime()*1)*0.5)
+		end
+	end)
+	for i = 1, 15 do
+		sound.PlayURL("https://cdn.discordapp.com/attachments/1254022273661145108/1257385761414582382/pon_pon_016eb317d_1.mp4?ex=66882bbe&is=6686da3e&hm=429f0e4427bdc9d80673d3bfa2eccf48221ae5572ec508fb7699274c2c7041ef&","",function() end)
+	end
+end
+
+local hint
+local hg_hints = ConVarExists("hg_hints") and GetConVar("hg_hints") or CreateClientConVar("hg_hints", "1", true, false, "Enable\\Disable hints.")
+hook.Add("HUDPaint","EntHints",function()
+	if not hg_hints:GetBool() then return end 
+	if lply.organism and lply.organism.otrub then return end
+	if !lply:Alive() then return end
+	
+	local trace = hg.eyeTrace(lply)
+
+	if not trace then return end
+	if ( IsValid(trace.Entity) and trace.Entity.HintShow or hint) then
+		if trace.Entity.HintShow then
+			trace.Entity:HintShow(lply,1,trace)
+		elseif hint then
+			hg.BasicHudHint(nil,lply,0,trace)
+		end
+	end
+end)
+
+local caliberAlpha = 0
+local caliberDisplayTimer = 0
+hook.Add("PlayerBindPress", "Homigrad_ReloadKeyCaliber", function(ply, bind, pressed)
+    if string.find(bind, "+reload") and pressed then
+        caliberDisplayTimer = CurTime() + 1
+    end
+end)
+hook.Add("HUDPaint", "Homigrad_ReloadCaliberDisplay", function()
+    local ply = LocalPlayer()
+    if not IsValid(ply) or not ply:Alive() or (ply.organism and ply.organism.otrub) then 
+        caliberAlpha = 0
+        return 
+    end
+
+    local wep = ply:GetActiveWeapon()
+    if not IsValid(wep) or not wep.Primary or not wep.Primary.Ammo then 
+        caliberAlpha = 0
+        return 
+    end
+    local isReloading = (wep.reload and wep.reload > CurTime())
+    local isChecking = wep.checkingammo
+    local isTimedShow = caliberDisplayTimer > CurTime()
+    
+    local targetAlpha = (isReloading or isChecking or isTimedShow) and 255 or 0
+    local lerpSpeed = (targetAlpha > caliberAlpha) and 10 or 3
+    caliberAlpha = Lerp(FrameTime() * lerpSpeed, caliberAlpha, targetAlpha)
+    if caliberAlpha > 1 then
+        local caliber = wep.Primary.Ammo
+        local x = ScrW() * 0.80
+        local y = ScrH() * 0.76
+        draw.SimpleText(caliber, "HomigradFontBig", x + 2, y + 2, Color(0, 0, 0, caliberAlpha * 0.8), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        draw.SimpleText(caliber, "HomigradFontBig", x, y, Color(255, 255, 255, caliberAlpha), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    end
+end)
+
+local HintBackgroundColor = Color( 0, 0, 0, 200 )
+
+function hg.BasicHudHint(ent,lply,fraction,trace)
+	if IsValid(ent) and IsValid(ent:GetParent()) then return end 
+	local newHint = (IsValid(ent) and ent.HudHintMarkup) or hint
+	if not newHint then return end
+	hint = newHint
+	hint.lerpedAlpha = hint.lerpedAlpha or 0
+	if (hint.lerpedAlpha < 0.01 and fraction == 0) then return end
+	hint.lerpedAlpha = LerpFT(0.1,hint.lerpedAlpha or 0,fraction)
+	local x, y = trace.HitPos:ToScreen().x, trace.HitPos:ToScreen().y
+	y = y + 145 + -45*hint.lerpedAlpha
+
+	HintBackgroundColor.a = 205*hint.lerpedAlpha
+	draw.RoundedBox( 2, x - hint:GetWidth() / 2 - 2.5, y - 2.5, hint:GetWidth()+5, hint:GetHeight()+5, HintBackgroundColor )
+	
+	hint:Draw( x, y, TEXT_ALIGN_CENTER, nil, 175*hint.lerpedAlpha, TEXT_ALIGN_CENTER )
+end
+
+--[[
+	-- Hint Example
+	ENT.HudHintMarkup = markup.Parse("<font=Default>changed font</font>\n<colour=255,0,255,255>changed colour</colour>")
+	function Entity:HintShow(lply,fraction,trace)
+		hg.BasicHudHint(self,lply,fraction,trace)
+	end
+--]]

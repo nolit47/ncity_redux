@@ -1,0 +1,7 @@
+"zbattle"
+{
+	"base"			"base"
+	"title"			"ZBattle"
+	"maps"			"^hmcd_|^md_|^mu_|^murder_|^zc|^zb"
+	"menusystem"	"1"
+}

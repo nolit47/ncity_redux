@@ -1,0 +1,3 @@
+-- 
+--hg.PointShop = hg.PointShop or {}
+--local PLUGIN = hg.PointShop
