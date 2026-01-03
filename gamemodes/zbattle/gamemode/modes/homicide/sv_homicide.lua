@@ -17,6 +17,87 @@ MODE.LootOnTime = true
 MODE.Chance = 0.28
 MODE.LootDivTime = 200
 
+
+MODE.Languages = {
+    ["en"] = {
+        ["everyone_died"] = "Everyone died.",
+        ["murderer_killed_all"] = "The murderer has killed everyone.",
+        ["murderer_was"] = "The murderer was ",
+        ["traitor_was"] = "The traitor was ",
+        ["police_arrived"] = "Police have arrived.",
+        ["swat_incoming"] = "SWAT team incoming!",
+        ["natguard_arrived"] = "National Guard have arrived.",
+        ["traitor_choosing"] = "Traitor is choosing roles for %s seconds",
+        ["hide_walkie"] = "You hide the additional walkie talkie.",
+        ["walkie_freq"] = "Walkie-Talkie Frequency = ",
+        ["no_survivors"] = "No one survived.",
+        ["one_survivor"] = "Only 1 survivor left in the city.",
+        ["many_survivors"] = "%s survivors left in the city.",
+        ["all_traitors_stopped"] = "All traitors were stopped.",
+        ["every_innocent_killed"] = "Every innocent was murdered.",
+        ["neutralized"] = " neutralized.",
+        ["killed"] = " killed.",
+        ["suicided"] = "You suicided.",
+        ["you_died"] = "You have died.",
+        ["killed_by"] = "You were killed by ",
+        -- Roles
+        ["role_police"] = "Police Officer",
+        ["role_natguard"] = "National Guardian",
+        ["role_swat"] = "SWAT Operative",
+        ["role_traitor"] = "Traitor",
+        ["role_innocent"] = "Innocent",
+        -- Wild West
+        ["ww_silence"] = "The dead silence fills the empty city...",
+        ["ww_fallen"] = "The town has fallen into the hands of crime.",
+        ["ww_law"] = "The law was settled once again. The bastard is ",
+        ["ww_criminal"] = "The criminal was ",
+    },
+    ["ru"] = {
+        ["everyone_died"] = "Все погибли.",
+        ["murderer_killed_all"] = "Убийца перебил всех.",
+        ["murderer_was"] = "Убийцей был ",
+        ["traitor_was"] = "Предателем был ",
+        ["police_arrived"] = "Полиция прибыла.",
+        ["swat_incoming"] = "Спецназ уже в пути!",
+        ["natguard_arrived"] = "Национальная гвардия прибыла.",
+        ["traitor_choosing"] = "Предатель выбирает роли (%s сек.)",
+        ["hide_walkie"] = "Ты спрятал запасную рацию.",
+        ["walkie_freq"] = "Частота рации = ",
+        ["no_survivors"] = "Никто не выжил.",
+        ["one_survivor"] = "В городе остался лишь один выживший.",
+        ["many_survivors"] = "В городе осталось выживших: %s",
+        ["all_traitors_stopped"] = "Все предатели были остановлены.",
+        ["every_innocent_killed"] = "Все невиновные были убиты.",
+        ["neutralized"] = " нейтрализован.",
+        ["killed"] = " убит.",
+        ["suicided"] = "Ты совершил суицид.",
+        ["you_died"] = "Ты погиб.",
+        ["killed_by"] = "Ты был убит игроком ",
+        -- Роли
+        ["role_police"] = "Офицер полиции",
+        ["role_natguard"] = "Нацгвардеец",
+        ["role_swat"] = "Оперативник SWAT",
+        ["role_traitor"] = "Предатель",
+        ["role_innocent"] = "Невиновный",
+        -- дикий запад
+        ["ww_silence"] = "Гробовая тишина наполняет пустой город...",
+        ["ww_fallen"] = "Город пал в руки преступности.",
+        ["ww_law"] = "Закон восторжествовал. Ублюдком был ",
+        ["ww_criminal"] = "Преступником был ",
+    }
+}
+
+function MODE:GetTerm(key, ply)
+    local lang = "en"
+    if IsValid(ply) then
+        lang = (ply:GetInfo("gmod_language") == "russian") and "ru" or "en"
+    else
+        lang = (GetConVar("gmod_language"):GetString() == "russian") and "ru" or "en"
+    end
+    return (self.Languages[lang] and self.Languages[lang][key]) or self.Languages["en"][key] or key
+end
+--------------------------------------------------------------------------------
+
 MODE.LootTable = {
 	{30, {
 		{15,"weapon_smallconsumable"},
@@ -70,13 +151,11 @@ MODE.LootTable = {
 		--{7,"ent_armor_vest6"},
 		{5,"ent_armor_vest7"},
 		{8, "ent_armor_helmet2"},
-		-- Добавил это так как банально через время верхний тир падает РЕЖЕ в раз сто чем этот.
 		{0.3,"weapon_smallconsumable"},
 		{0.25,"weapon_bigconsumable"},
 		{0.24,"weapon_walkie_talkie"},
 		{0.23,"weapon_painkillers"},
 		{0.2,"weapon_medkit_sh"},
-		-- Как никак полезные инструменты для выбивание барикад и дверей
 		{0.15,"weapon_hg_crowbar"},
 		{0.15,"weapon_hatchet"},
 		{0.1,"weapon_hg_axe"},
@@ -141,29 +220,6 @@ MODE.LootTableStandard = {
 		{0.25,"weapon_hg_sledgehammer"},
 	}},
 }
-
--- MODE.TraitorWords = {
-	-- "пистолет",
-	-- "трейтор",
-	-- "ганмен",
-	-- "калаш (винтовка)",
-	-- "бомба",
-	-- "цианид",
-	-- "нож",
-	-- "труба",
-	-- "топор",
-	-- "юсп (пистолет)",
-	-- "арка (винтовка)",
-	-- "каряк (винтовка)",
-	-- "граната",
-	-- "улица",
-	-- "здание",
-	-- "патроны",
-	-- "бинт",
-	-- "аптечка",
-	-- "обезболивающее",
-	-- "дробовик",
--- }
 
 MODE.TraitorWordsAdjectives = {
 	"pretty",
@@ -237,11 +293,11 @@ MODE.Types.standard = {
 	ChanceFunction = function() return (zb.GetWorldSize() < ZBATTLE_BIGMAP) and 0.4 or 0 end,
 	LootTable = MODE.LootTableStandard,
 	Messages = {
-		[3] = "Everyone died.",
-		[1] = "The murderer has killed everyone.",
-		[0] = "The murderer was",
+		[3] = "everyone_died",
+		[1] = "murderer_killed_all",
+		[0] = "murderer_was",
 	},
-	Message = "The murderer was ",
+	Message = "murderer_was",
 	TraitorLoot = function(ply)
 		ply:Give("weapon_buck200knife")
 		ply:Give("weapon_hg_type59_tpik")
@@ -305,18 +361,18 @@ MODE.Types.standard = {
 
 		ply:SetNetVar("CurPluv", "pluvberet")
 
-		zb.GiveRole(ply, "Police Officer", Color(15,15,255))
+		zb.GiveRole(ply, MODE:GetTerm("role_police", ply), Color(15,15,255))
 	end
 }
 MODE.Types.wildwest = {
 	ChanceFunction = function() return (zb.GetWorldSize() < ZBATTLE_BIGMAP) and 0.1 or 0 end,
 	LootTable = MODE.LootTableStandard,
 	Messages = {
-		[3] = "The dead silence fills the empty city...",
-		[1] = "The town has fallen into the hands of crime.",
-		[0] = "The law was settled once again. The bastard is",
+		[3] = "ww_silence",
+		[1] = "ww_fallen",
+		[0] = "ww_law",
 	},
-	Message = "The criminal was ",
+	Message = "ww_criminal",
 	TraitorLoot = function(ply)
 		ply:Give("weapon_sogknife")
 		ply:Give("weapon_hg_type59_tpik")
@@ -405,7 +461,7 @@ MODE.Types.wildwest = {
 
 		ply:SetNetVar("CurPluv", "pluvberet")
 
-		zb.GiveRole(ply, "Police Officer", Color(15,15,255))
+		zb.GiveRole(ply, MODE:GetTerm("role_police", ply), Color(15,15,255))
 	end
 }
 
@@ -413,11 +469,11 @@ MODE.Types.gunfreezone = {
 	ChanceFunction = function() return (zb.GetWorldSize() < ZBATTLE_BIGMAP) and 0.1 or 0 end,
 	LootTable = MODE.LootTableStandard,
 	Messages = {
-		[3] = "Everyone died.",
-		[1] = "The murderer has killed everyone.",
-		[0] = "The murderer was",
+		[3] = "everyone_died",
+		[1] = "murderer_killed_all",
+		[0] = "murderer_was",
 	},
-	Message = "The murderer was ",
+	Message = "murderer_was",
 	TraitorLoot = function(ply)
 		ply:Give("weapon_buck200knife")
 		ply:Give("weapon_hg_type59_tpik")
@@ -478,7 +534,7 @@ MODE.Types.gunfreezone = {
 		ply:SetNetVar("Inventory",inv)
 		ply.organism.recoilmul = 0.8
 
-		zb.GiveRole(ply, "Police Officer", Color(15,15,255))
+		zb.GiveRole(ply, MODE:GetTerm("role_police", ply), Color(15,15,255))
 
 		ply:SetNetVar("CurPluv", "pluvberet")
 	end
@@ -488,11 +544,11 @@ MODE.Types.soe = {
 	ChanceFunction = function() return (zb.GetWorldSize() >= ZBATTLE_BIGMAP) and 0.4 or 0 end,
 	LootTable = MODE.LootTable,
 	Messages = {
-		[3] = "Everyone died.",
-		[1] = "The traitor has killed everyone.",
-		[0] = "The traitor was",
+		[3] = "everyone_died",
+		[1] = "traitor_was_killed_everyone", -- local key added below
+		[0] = "traitor_was",
 	},
-	Message = "The traitor was ",
+	Message = "traitor_was",
 	TraitorLoot = function(ply)
 		local p22 = ply:Give("weapon_p22")
 		hg.AddAttachmentForce(ply,p22,"supressor4")
@@ -564,12 +620,16 @@ MODE.Types.soe = {
 		local hands = ply:Give("weapon_hands_sh")
 		ply:SetActiveWeapon(hands)
 	
-		zb.GiveRole(ply, "National guardian", Color(55, 85, 0))
+		zb.GiveRole(ply, MODE:GetTerm("role_natguard", ply), Color(55, 85, 0))
 		ply:SetNetVar("CurPluv", "pluvberet")
 	end,
-	PoliceText = "National guards have arrived.",
+	PoliceText = "natguard_arrived",
 	PoliceSound = "snd_jack_hmcd_heli2.mp3"
 }
+
+-- Add specific SOE traitor win message
+MODE.Languages.en.traitor_was_killed_everyone = "The traitor has killed everyone."
+MODE.Languages.ru.traitor_was_killed_everyone = "Предатель убил всех."
 
 local modes = {
 	"soe",
@@ -720,21 +780,6 @@ function MODE:Intermission()
 	end
 end
 
---[[concommand.Add("hmcd_call_police", function(ply, cmd, args)
-    if IsValid(ply) and not ply:IsAdmin() then
-        ply:ChatPrint("loh.")
-        return
-    end
-
-    if not MODE or not MODE.saved then
-        print("fake")
-        return
-    end
-
-    MODE.saved.PoliceTime = CurTime() - 1
-    print("true")
-end)--]]
-
 function MODE:CheckAlivePlayers()
 	local AlivePlyTbl = {
 		[0] = {},
@@ -761,9 +806,6 @@ function MODE:CheckAlivePlayers()
 	return AlivePlyTbl
 end
 	
-local deadPoliceCount = 0
-local swatDeployed = false
-
 function MODE:GetActivePlayers()
 	local valid = {}
 
@@ -799,7 +841,7 @@ function MODE:RoundThink()
 	
 			if spawned > 0 then
 				self.PoliceSpawned = true
-				PrintMessage(HUD_PRINTTALK, "Police have arrived.")
+				PrintMessage(HUD_PRINTTALK, self:GetTerm("police_arrived"))
 				EmitSound("snd_jack_hmcd_policesiren.wav", vector_origin, 0, CHAN_AUTO, 1, 125, 0, 100)
 			end
 		end
@@ -821,7 +863,7 @@ function MODE:RoundThink()
 			local count = math.min(#available, 5)
 	
 			if count > 0 then
-				PrintMessage(HUD_PRINTTALK, "SWAT team incoming!")
+				PrintMessage(HUD_PRINTTALK, MODE:GetTerm("swat_incoming"))
 				EmitSound("snd_jack_hmcd_heli2.mp3", vector_origin, 0, CHAN_AUTO, 1, 125, 0, 100)
 				MODE:SpawnForce("swat", count)
 			end
@@ -836,7 +878,7 @@ function MODE:RoundThink()
 			local spawned = self:SpawnForce("nationalguard", count)
 			if spawned > 0 then
 				self.PoliceSpawned = true
-				PrintMessage(HUD_PRINTTALK, self.Types[self.Type].PoliceText or "National Guard have arrived.")
+				PrintMessage(HUD_PRINTTALK, self:GetTerm(self.Types[self.Type].PoliceText or "natguard_arrived"))
 				EmitSound(self.Types[self.Type].PoliceSound or "snd_jack_hmcd_heli2.mp3", vector_origin, 0, CHAN_AUTO, 1, 125, 0, 100)
 			end
 		end
@@ -926,7 +968,7 @@ function MODE:EquipSWAT(ply, index)
     local hands = ply:Give("weapon_hands_sh")
     ply:SetActiveWeapon(hands)
 
-    zb.GiveRole(ply, "SWAT Operative", Color(30, 30, 100))
+    zb.GiveRole(ply, self:GetTerm("role_swat", ply), Color(30, 30, 100))
 end
 
 function MODE:EquipNationalGuard(ply, index)
@@ -963,7 +1005,7 @@ function MODE:EquipNationalGuard(ply, index)
 	ply:SetNetVar("CurPluv", "pluvberet")
     local hands = ply:Give("weapon_hands_sh")
     ply:SetActiveWeapon(hands)
-    zb.GiveRole(ply, "National Guardian", Color(60, 90, 0))
+    zb.GiveRole(ply, self:GetTerm("role_natguard", ply), Color(60, 90, 0))
 end
 
 --\\
@@ -998,7 +1040,6 @@ net.Receive("HMCD(StartPlayersRoleSelection)", function(len, ply)
 		end
 	end
 end)
-// ...
 
 
 util.AddNetworkString("HMCD_TraitorDeathState")
@@ -1042,7 +1083,7 @@ hook.Add("PlayerCanPickupWeapon", "HMCD_TraitorRadioPickup", function( ply, weap
         if ply:HasWeapon("weapon_walkie_talkie") then
             weapon:Remove()
 			ply:SetActiveWeapon("weapon_walkie_talkie")
-			ply:ChatPrint("You hide the additional walkie talkie.")
+			ply:ChatPrint(MODE:GetTerm("hide_walkie", ply))
         end
     end
 end)
@@ -1062,12 +1103,10 @@ net.Receive("HMCD_RequestTraitorStatuses", function(len, ply)
         end
     end
 end)
-// ...
 
 function MODE.ShouldStartRoleRound()
 	return MODE.RoleChooseRoundTypes[MODE.Type] and GetGlobalBool("RolesPlus_Enable", false)
 end
---//
 
 function MODE:ShouldRoundEnd()
 	if(MODE.StartRoundTime and MODE.RoleChooseRound)then
@@ -1109,7 +1148,7 @@ function MODE:RoundStart()
 
 	if(roles_choose)then
 		MODE.StartPlayersRoleSelection()
-		PrintMessage(HUD_PRINTTALK, "Traitor is choosing roles for " .. MODE.RoleChooseRoundStartTime ..  " seconds")
+		PrintMessage(HUD_PRINTTALK, string.format(self:GetTerm("traitor_choosing"), MODE.RoleChooseRoundStartTime))
 	else
 		MODE.ChoosingPlayersList = {}
 
@@ -1139,10 +1178,6 @@ function MODE:EndRound()
 	local traitors, gunners = {}, {}
 	local players_alive = 0
 	local endround, winner = zb:CheckWinner(self:CheckAlivePlayers())
-
-	-- for _, ply in player.Iterator() do	--; Extreme optimization
-		-- ply.SubRole = nil
-	-- end
 
 	for i, ply in ipairs(player.GetAll()) do
 		if ply.isTraitor and ply:Team() ~= TEAM_SPECTATOR then
@@ -1186,7 +1221,7 @@ function MODE:EndRound()
 	if self.Type then
 		if(MODE.RoleChooseRound)then
 			if(winner ~= 1)then
-				PrintMessage(HUD_PRINTTALK, "All traitors were stopped.")
+				PrintMessage(HUD_PRINTTALK, self:GetTerm("all_traitors_stopped"))
 				
 				for _, traitor in ipairs(traitors) do
 					net.Start("hmcd_announce_traitor_lose")
@@ -1206,27 +1241,28 @@ function MODE:EndRound()
 					traitor:GiveSkill( math.Rand(0.1,0.3) )
 					traitor:SetPData("zb_hmcd_t_wins",traitor:GetPData("zb_hmcd_t_wins",0) + 1)
 				end
-				PrintMessage(HUD_PRINTTALK, "Every innocent was murdered.")
+				PrintMessage(HUD_PRINTTALK, self:GetTerm("every_innocent_killed"))
 			end
 			
 			timer.Simple(2, function()
 				if(players_alive == 0)then
-					PrintMessage(HUD_PRINTTALK, "No one survived.")
+					PrintMessage(HUD_PRINTTALK, self:GetTerm("no_survivors"))
+				elseif(players_alive == 1)then
+					PrintMessage(HUD_PRINTTALK, self:GetTerm("one_survivor"))
 				else
-					if(players_alive == 1)then
-						PrintMessage(HUD_PRINTTALK, "Only 1 survivor left in the city.")
-					else
-						PrintMessage(HUD_PRINTTALK, players_alive .. " survivors left in the city.")
-					end
+					PrintMessage(HUD_PRINTTALK, string.format(self:GetTerm("many_survivors"), players_alive))
 				end
 			end)
 		else
-			if traitor and IsValid(traitor) then
-				--local CheckAlive = #self:CheckAlivePlayers()[1]
-				PrintMessage(HUD_PRINTTALK, self.Types[self.Type].Messages[winner]..(winner == 0 and (traitor:Alive() and " neutralized." or " killed.") or ""))
+            -- Non-Role-Choose-Round termination
+			if traitors[1] and IsValid(traitors[1]) then
+                local traitor = traitors[1]
+                local msg_key = self.Types[self.Type].Messages[winner]
+				local extra = (winner == 0 and (traitor:Alive() and self:GetTerm("neutralized") or self:GetTerm("killed")) or "")
+				PrintMessage(HUD_PRINTTALK, self:GetTerm(msg_key)..extra)
 				
 				timer.Simple(2, function()
-					PrintMessage(HUD_PRINTTALK, self.Types[self.Type].Message..traitor:Name())
+					PrintMessage(HUD_PRINTTALK, self:GetTerm(self.Types[self.Type].Message)..traitor:Name())
 				end)
 
 				if winner == 1 then
@@ -1239,7 +1275,7 @@ function MODE:EndRound()
 				
 				hook.Run("ZB_TraitorWinOrNot", traitor, winner)
 			else
-				PrintMessage(HUD_PRINTTALK, self.Types[self.Type].Messages[winner]..(winner == 0 and (" killed.") or ""))
+				PrintMessage(HUD_PRINTTALK, self:GetTerm(self.Types[self.Type].Messages[winner])..(winner == 0 and (self:GetTerm("killed")) or ""))
 			end
 		end
 	end
@@ -1261,7 +1297,6 @@ function MODE:EndRound()
 	end)
 end
 
--- hook.Add("Player Death", "HMCD_PlayerDeath", function(_, ply)
 hook.Add("Player Death", "HMCD_PlayerDeath", function(ply, _)
 	local most_harm,biggest_attacker = 0,nil
 	local last_attacker = nil
@@ -1282,57 +1317,25 @@ hook.Add("Player Death", "HMCD_PlayerDeath", function(ply, _)
 		
 
 		if ply.isTraitor then
-			--local appearance = ply.CurAppearance
-			--
-			--if(!appearance)then
-			--	-- appearance = GetRandomAppearance(ply)
-			--	PrintMessage(HUD_PRINTTALK, "Some traitor died.")
-			--else
-			--	local character_name = appearance.Name or "error"
-			--	
-			--	PrintMessage(HUD_PRINTTALK, "Traitor " .. character_name .. " died.")
-			--end
-		
 			if biggest_attacker then
 				if biggest_attacker == ply:Name() then
-					--timer.Simple(1,function()
-					--	if not IsValid(ply) then return end
-					--	local msg = (ThatPlyIsFemale(ply) and "Sh" or "H").."e suicided."
-					--	PrintMessage(3,msg)
-					--end)
+					-- Suicided
 				else
 					last_attacker:GiveExp( math.random(10,15) )
 					last_attacker:GiveSkill( math.Rand(0.025,0.075) )
 					last_attacker:SetPData("zb_hmcd_ino_t_kills", last_attacker:GetPData("zb_hmcd_ino_t_kills",0) + 1)
-					--timer.Simple(1,function()
-					--	if not IsValid(ply) then return end
-					--	local msg = (ThatPlyIsFemale(ply) and "Sh" or "H").."e was killed by "..biggest_attacker.."."
-					--	PrintMessage(3,msg)
-					--end)
 				end
-			else
-				--timer.Simple(1,function()
-				--	if not IsValid(ply) then return end
-				--	local msg = (ThatPlyIsFemale(ply) and "Sh" or "H").."e died in mysterious circumstances."
-				--	PrintMessage(3,msg)
-				--end)
 			end
 		else
 			if not biggest_attacker or not IsValid(ply) then return end
 			
 			if biggest_attacker == ply:Name() then
-				ply:ChatPrint("You suicided.")
-				
-				if not biggest_attacker then
-					ply:ChatPrint("You have died.")
+				ply:ChatPrint(MODE:GetTerm("suicided", ply))
+			else
+                if not biggest_attacker then
+					ply:ChatPrint(MODE:GetTerm("you_died", ply))
 				else
-					ply:ChatPrint("You were killed by "..biggest_attacker..".")
-					
-					-- if biggest_attacker == ply:Name() then
-						-- ply:ChatPrint("You suicided.")
-					-- else
-						-- ply:ChatPrint("You were killed by "..biggest_attacker..".")
-					-- end
+					ply:ChatPrint(MODE:GetTerm("killed_by", ply)..biggest_attacker..".")
 				end
 			end
 		end
@@ -1342,8 +1345,6 @@ end)
 function MODE:CanLaunch()
 	return true
 end
-
-util.AddNetworkString("hmcd_roundend")
 
 MODE.NextRoundMainTraitors = MODE.NextRoundMainTraitors or {}
 
@@ -1507,7 +1508,7 @@ function MODE.SpawnPlayers(spawn_with_subroles)
                     local walkie_talkie = current_ply:Give("weapon_walkie_talkie")
                     MODE.TraitorFrequency = MODE.TraitorFrequency or math.random(1, #walkie_talkie.Frequencies)
                     walkie_talkie.Frequency = MODE.TraitorFrequency
-                    current_ply:ChatPrint("Walkie-Talkie Frequency = " .. walkie_talkie.Frequencies[MODE.TraitorFrequency])
+                    current_ply:ChatPrint(MODE:GetTerm("walkie_freq", current_ply) .. walkie_talkie.Frequencies[MODE.TraitorFrequency])
                 end
             end
 
@@ -1603,9 +1604,10 @@ function MODE.SpawnPlayers(spawn_with_subroles)
                     net.WriteString(this_player.Profession or "")
                 net.Send(this_player)
                 
-                local role = MODE.Roles[MODE.Type][(this_player.isTraitor and "traitor") or (this_player.isGunner and "gunner") or "innocent"]
-                if role then
-                    zb.GiveRole(this_player, role.name, role.color)
+                local role_key = (this_player.isTraitor and "role_traitor") or (this_player.isGunner and "gunner") or "role_innocent"
+                local role_data = MODE.Roles[MODE.Type][(this_player.isTraitor and "traitor") or (this_player.isGunner and "gunner") or "innocent"]
+                if role_data then
+                    zb.GiveRole(this_player, MODE:GetTerm(role_key, this_player), role_data.color)
                 end
             end)
         end

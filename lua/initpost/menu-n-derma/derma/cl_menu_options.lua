@@ -1,7 +1,4 @@
-----
-local PANEL = {}
 
-----
 local PANEL = {}
 
 local L = {
@@ -43,6 +40,7 @@ local L = {
         ["Enable/Disable cheats in game"] = "Enable/Disable cheats in game",
         ["Your cool var "] = "Your cool var ",
         ["Enable/Disable otrub system (ADMIN ONLY)"] = "Enable/Disable unconsciousness system (ADMIN ONLY)",
+        ["Enable/Disable fear system (ADMIN ONLY)"] = "Enable/Disable fear system (ADMIN ONLY)",
     },
     ["ru"] = {
         ["Optimization"] = "Оптимизация",
@@ -54,7 +52,7 @@ local L = {
         ["Gameplay"] = "Геймплей",
         ["ZCity Settings"] = "Настройки ZCity",
         
-        ["Potato PC Mode"] = "Режим слабого компуктера",
+        ["Potato PC Mode"] = "Режим слабого компукутера",
         ["Animations draw distance"] = "Дистанция рендера анимаций",
         ["Animations FPS"] = "ФПС анимаций",
         ["Attachment draw distance"] = "Дистанция рендера атачментов",
@@ -69,7 +67,7 @@ local L = {
         ["Dynamic ammo"] = "Динамичные патроны",
         ["FP death"] = "Смерть от первого лица",
         ["FOV"] = "ФОВЧИК 120 КАЛ ОФ ДЮТИ",
-        ["Cool gloves"] = "cool перчатки ксго",
+        ["Cool gloves"] = "cool перчатки кsго",
         ["Gloves model"] = "Модель перчаток",
         ["C'sHS Ragdoll camera"] = "Камера рэгдолла C'sHS",
         ["Gun camera (ADMIN ONLY)"] = "Камера оружия (ТОЛЬКО АДМИН)",
@@ -82,6 +80,7 @@ local L = {
         ["Enable/Disable cheats in game"] = "Включить/Выключить читы в игре",
         ["Your cool var "] = "че",
         ["Enable/Disable otrub system (ADMIN ONLY)"] = "Включить/Выключить систему отруба",
+        ["Enable/Disable fear system (ADMIN ONLY)"] = "Включить/Выключить систему страха (ТОЛЬКО АДМИН4ИКОВ)",
     }
 }
 
@@ -136,6 +135,7 @@ hg.settings:AddOpt("Gameplay","hg_old_notificate", "Old notificate")
 hg.settings:AddOpt("Gameplay","hg_random_appearance", "Enable/Disable random appearance")
 hg.settings:AddOpt("Gameplay","hg_cheats", "Enable/Disable cheats in game")
 hg.settings:AddOpt("Gameplay","hg_otrub", "Enable/Disable otrub system (ADMIN ONLY)")
+hg.settings:AddOpt("Gameplay","hg_fear", "Enable/Disable fear system (ADMIN ONLY)")
 
 hg.serverConvars = hg.serverConvars or {}
 
@@ -143,6 +143,14 @@ net.Receive("hg_sync_server_convar", function()
     local convarName = net.ReadString()
     local value = net.ReadBool()
     hg.serverConvars[convarName] = value
+    hook.Run("hg_server_convar_updated_" .. convarName)
+end)
+
+net.Receive("hg_sync_fear_convar", function()
+    local convarName = net.ReadString()
+    local value = net.ReadBool()
+    hg.serverConvars[convarName] = value
+    hook.Run("hg_server_convar_updated_" .. convarName)
 end)
 
 function PANEL:Init()
@@ -169,6 +177,7 @@ function PANEL:Init()
     self:CreateCategory( "ZCity Settings" )
 
     RunConsoleCommand("hg_request_server_convars")
+    RunConsoleCommand("hg_request_fear_convar")
     
     for k,t in SortedPairs(hg.settings.tbl) do
         for _,tbl in SortedPairs(t) do
@@ -263,7 +272,8 @@ function PANEL:CreateServerOption( strCategory, strConVar, strTitle )
             return
         end
         
-        RunConsoleCommand("hg_toggle_otrub", not btn.On and "1" or "0")
+        local commandName = strConVar == "hg_otrub" and "hg_toggle_otrub" or "hg_toggle_fear"
+        RunConsoleCommand(commandName, not btn.On and "1" or "0")
         btn.On = not btn.On
     end
     hook.Add("hg_server_convar_updated_" .. strConVar, opt, function()

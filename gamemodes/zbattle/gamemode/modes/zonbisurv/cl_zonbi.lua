@@ -6,6 +6,45 @@ local mapsize = 7500
 
 local roundend = false
 
+local LANG = {}
+
+LANG.en = {
+	mode_title = "Homicide | Zombie Survival",
+	you_are = "You are a Survivor",
+	objective = "Survive the zombie apocalypse.",
+	won = " won!",
+	nobody = "Nobody",
+	close = "Close",
+	died = " - died",
+	no_bots = "no, you can't",
+	he_quited = "He quited..."
+}
+
+LANG.ru = {
+	mode_title = "Homicide | ЗОМБЕ ВЫЖИВАНИЕ",
+	you_are = "Вы выживший",
+	objective = "Переживите зомдбэ-апокалипсис.",
+	won = " победил!",
+	nobody = "Никто не",
+	close = "Закрыть",
+	died = " - погиб",
+	no_bots = "нет нельзя",
+	he_quited = "Он вышел..."
+}
+
+local function GetLang()
+	local gmodLang = GetConVar("gmod_language"):GetString()
+	if gmodLang == "ru" then
+		return LANG.ru
+	end
+	return LANG.en
+end
+
+local function L(key)
+	local lang = GetLang()
+	return lang[key] or LANG.en[key] or key
+end
+
 net.Receive("survival_start", function()
 	roundend = false
 	zb.RemoveFade()
@@ -28,9 +67,9 @@ function MODE:HUDPaint()
 		if zb.ROUND_START + 8.5 < CurTime() then return end
 		zb.RemoveFade()
 		local fade = math.Clamp(zb.ROUND_START + 8 - CurTime(), 0, 1)
-		draw.SimpleText("Homicide | Zombie Survival", "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.1, Color(0, 162, 255, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-		draw.SimpleText("You are a Survivor", "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.5, Color(0, 255, 0, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-		draw.SimpleText("Survive the zombie apocalypse.", "ZB_HomicideMedium", sw * 0.5, sh * 0.9, Color(0, 255, 0, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText(L("mode_title"), "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.1, Color(0, 162, 255, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText(L("you_are"), "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.5, Color(0, 255, 0, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText(L("objective"), "ZB_HomicideMedium", sw * 0.5, sh * 0.9, Color(0, 255, 0, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end
 end
 
@@ -118,14 +157,14 @@ CreateEndMenu = function()
         surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 		surface.SetFont( "ZB_InterfaceMedium" )
 		surface.SetTextColor(col.r,col.g,col.b,col.a)
-		local lenghtX, lenghtY = surface.GetTextSize("Close")
+		local lenghtX, lenghtY = surface.GetTextSize(L("close"))
 		surface.SetTextPos( lenghtX - lenghtX/1.1, 4)
-		surface.DrawText("Close")
+		surface.DrawText(L("close"))
 	end
 
     hmcdEndMenu.Paint = function(self,w,h)
 		BlurBackground(self)
-		local txt = (wonply and wonply:GetPlayerName() or "Nobody").." won!"
+		local txt = (wonply and wonply:GetPlayerName() or L("nobody"))..L("won")
 		surface.SetFont( "ZB_InterfaceMediumLarge" )
 		surface.SetTextColor(col.r,col.g,col.b,col.a)
 		local lenghtX, lenghtY = surface.GetTextSize(txt)
@@ -163,33 +202,33 @@ CreateEndMenu = function()
 
             local col = ply:GetPlayerColor():ToColor()
 			surface.SetFont( "ZB_InterfaceMediumLarge" )
-			local lenghtX, lenghtY = surface.GetTextSize( ply:GetPlayerName() or "He quited..." )
+			local lenghtX, lenghtY = surface.GetTextSize( ply:GetPlayerName() or L("he_quited") )
 			
 			surface.SetTextColor(0,0,0,255)
 			surface.SetTextPos(w / 2 + 1,h/2 - lenghtY/2 + 1)
-			surface.DrawText(ply:GetPlayerName() or "He quited...")
+			surface.DrawText(ply:GetPlayerName() or L("he_quited"))
 
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
 			surface.SetTextPos(w / 2,h/2 - lenghtY/2)
-			surface.DrawText(ply:GetPlayerName() or "He quited...")
+			surface.DrawText(ply:GetPlayerName() or L("he_quited"))
 
             
 			local col = colSpect2
 			surface.SetFont( "ZB_InterfaceMediumLarge" )
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
-			local lenghtX, lenghtY = surface.GetTextSize( ply:GetPlayerName() or "He quited..." )
+			local lenghtX, lenghtY = surface.GetTextSize( ply:GetPlayerName() or L("he_quited") )
 			surface.SetTextPos(15,h/2 - lenghtY/2)
-			surface.DrawText((ply:Name() .. (not ply:Alive() and " - died" or "")) or "He quited...")
+			surface.DrawText((ply:Name() .. (not ply:Alive() and L("died") or "")) or L("he_quited"))
 
 			surface.SetFont( "ZB_InterfaceMediumLarge" )
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
-			local lenghtX, lenghtY = surface.GetTextSize( ply:Frags() or "He quited..." )
+			local lenghtX, lenghtY = surface.GetTextSize( ply:Frags() or L("he_quited") )
 			surface.SetTextPos(w - lenghtX -15,h/2 - lenghtY/2)
-			surface.DrawText(ply:Frags() or "He quited...")
+			surface.DrawText(ply:Frags() or L("he_quited"))
 		end
 
 		function but:DoClick()
-			if ply:IsBot() then chat.AddText(Color(255,0,0), "no, you can't") return end
+			if ply:IsBot() then chat.AddText(Color(255,0,0), L("no_bots")) return end
 			gui.OpenURL("https://steamcommunity.com/profiles/"..ply:SteamID64())
 		end
 

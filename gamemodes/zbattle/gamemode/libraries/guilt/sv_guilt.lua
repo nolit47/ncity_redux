@@ -1,3 +1,57 @@
+-- SERVER-SIDE GUILT SYSTEM
+-- Localization
+local LANG = {}
+
+LANG["en"] = {
+    ["karma_kick"] = "Your karma is %d",
+    ["karma_ban"] = "Player %s has been banned for %d minutes for having too low karma.",
+    ["rdm_ban"] = "Player %s has been banned for 30 minutes for RDMing in a team based gamemode.",
+    ["kicked_banned"] = "Kicked and banned.",
+
+    ["epileptic_seizure"] = "You are experiencing an epileptic seizure.",
+
+    ["karma_is"] = "Your current karma is %s",
+
+    ["harm_done"] = "This harm done is: %.3f",
+    ["overall_amt"] = "Overall amt done is: %.3f",
+    ["overall_harm"] = "Overall harm done is: %.3f",
+    ["guilt_done"] = "Guilt done is: %.3f",
+}
+
+LANG["ru"] = {
+    ["karma_kick"] = "Ваша карма: %d",
+    ["karma_ban"] = "Игрок %s был забанен на %d минут за слишком низкую карму.",
+    ["rdm_ban"] = "Игрок %s был забанен на 30 минут за RDM в командном режиме.",
+    ["kicked_banned"] = "Кикнут и забанен.",
+    
+    ["epileptic_seizure"] = "У тебя эпилептический припадок.",
+    
+    ["karma_is"] = "Ваша текущая карма: %s",
+
+    ["harm_done"] = "Нанесённый урон: %.3f",
+    ["overall_amt"] = "Общее количество: %.3f",
+    ["overall_harm"] = "Общий урон: %.3f",
+    ["guilt_done"] = "Вина: %.3f",
+}
+
+local function L(ply, key, ...)
+    local lang = "en"
+    
+    if IsValid(ply) and ply:IsPlayer() then
+        lang = ply:GetInfo("gmod_language") or "en"
+    end
+    
+    if lang ~= "en" and lang ~= "ru" then lang = "en" end
+    
+    local text = LANG[lang][key] or LANG["en"][key] or key
+    
+    if ... then
+        return string.format(text, ...)
+    end
+    
+    return text
+end
+
 -- СДЕЛАЙТЕ СИНХРУ С СКУЭЛЬ УЖЕ // ЛАДНО Я САМ СДЕЛАЮ
 zb = zb or {}
 
@@ -52,7 +106,7 @@ hook.Add( "PlayerInitialSpawn","ZB_GuiltSQL", function( ply )
                 if zb.GuiltSQL.PlayerInstances[steamID64].value < 0 then
                     ply:Ban(5,false)
                     ply:guilt_SetValue( zb.GuiltSQL.PlayerInstances[steamID64].value + 10 )
-                    ply:Kick("Your karma is " .. math.Round( zb.GuiltSQL.PlayerInstances[steamID64].value, 0 ) )
+                    ply:Kick(L(ply, "karma_kick", math.Round( zb.GuiltSQL.PlayerInstances[steamID64].value, 0 )))
                 end
 			else
 				local insertQuery = mysql:Insert("zb_guilt")
@@ -126,10 +180,10 @@ hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, har
     end
 
     if hg_developer:GetBool() then
-        Attacker:ChatPrint("This harm done is: "..math.Round(harm,3))
-        Attacker:ChatPrint("Overall amt done is: "..math.Round(amt,3))
-        Attacker:ChatPrint("Overall harm done is: "..math.Round(newharm,3))
-        Attacker:ChatPrint("Guilt done is: "..math.Round(amt * 60,3))
+        Attacker:ChatPrint(L(Attacker, "harm_done", harm))
+        Attacker:ChatPrint(L(Attacker, "overall_amt", amt))
+        Attacker:ChatPrint(L(Attacker, "overall_harm", newharm))
+        Attacker:ChatPrint(L(Attacker, "guilt_done", amt * 60))
         Attacker:ChatPrint(" ")
     end
 
@@ -181,8 +235,8 @@ hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, har
 
     if shouldBanGuilt and Attacker.Guilt >= 100 then
         Attacker:Ban(30,false)
-        Attacker:Kick("Kicked and banned.")
-        PrintMessage(HUD_PRINTTALK, "Player "..Attacker:Name().." has been banned for 30 minutes for RDMing in a team based gamemode.")
+        Attacker:Kick(L(Attacker, "kicked_banned"))
+        PrintMessage(HUD_PRINTTALK, L(nil, "rdm_ban", Attacker:Name()))
     end
 
     Attacker:SetNetVar("Karma", Attacker.Karma)
@@ -193,8 +247,8 @@ hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, har
         local time = math.Round(60 - Attacker.Karma * 4, 0)
         Attacker.Karma = 0
         Attacker:Ban(time, false)
-        Attacker:Kick("Kicked and banned.")
-        PrintMessage(HUD_PRINTTALK, "Player "..Attacker:Name().." has been banned for "..time.." minutes for having too low karma.")
+        Attacker:Kick(L(Attacker, "kicked_banned"))
+        PrintMessage(HUD_PRINTTALK, L(nil, "karma_ban", Attacker:Name(), time))
     end
 end)
 
@@ -262,7 +316,7 @@ hook.Add("Org Think", "Its_Karma_Bro",function(owner, org, timeValue)
         if ((math.random(math.Clamp((ply.Karma or 100),20,zb.MaxKarma) * 300) == 1 or org.start_shaking)) then
             hg.StunPlayer(ply)
             local time = 15
-            ply:Notify("You are experiencing an epileptic seizure.",16,"seizure",0.5)
+            ply:Notify(L(ply, "epileptic_seizure"), 16, "seizure", 0.5)
             org.start_shaking = org.start_shaking or (CurTime() + time)
             local ent = hg.GetCurrentCharacter(owner)
             local mul = ((org.start_shaking) - CurTime()) / time
@@ -362,6 +416,6 @@ end)
 
 hook.Add("Player Spawn", "GuiltKnown",function(ply)
     if ply.Karma then
-        ply:ChatPrint("Your current karma is "..tostring(math.Round(ply.Karma)).."")
+        ply:ChatPrint(L(ply, "karma_is", tostring(math.Round(ply.Karma))))
     end
 end)

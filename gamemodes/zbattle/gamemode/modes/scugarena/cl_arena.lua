@@ -25,6 +25,46 @@ local snds = {
 	"https://eta.vgmtreasurechest.com/soundtracks/rain-world-downpour-soundtrack-2023/umipiratiq/41.%20Threat%20-%20Rubicon%20%28Unused%29.mp3",
 }
 
+-- Localization strings
+local LANG = {}
+
+LANG.en = {
+	mode_title = "Slug Arena",
+	you_are = "You are a ",
+	slugcat_name = "Slugcat",
+	objective = "Survive and eliminate others.",
+	won = " won!",
+	nobody = "Nobody",
+	close = "Close",
+	died = " - died",
+	no_bots = "no, you can't"
+}
+
+LANG.ru = {
+	mode_title = "Арена Слизнекотов",
+	you_are = "Вы ",
+	slugcat_name = "Слизнекот",
+	objective = "Выживите и устраните остальных.",
+	won = " победил!",
+	nobody = "Никто не",
+	close = "Закрыть",
+	died = " - погиб",
+	no_bots = "нет, нельзя"
+}
+
+local function GetLang()
+	local gmodLang = GetConVar("gmod_language"):GetString()
+	if gmodLang == "ru" then
+		return LANG.ru
+	end
+	return LANG.en
+end
+
+local function L(key)
+	local lang = GetLang()
+	return lang[key] or LANG.en[key] or key
+end
+
 local function restartMusic()
 	local snd = snds[math.random(#snds)]
 
@@ -56,8 +96,8 @@ net.Receive("scugarena_start", function()
 end)
 
 local slugcat = {
-    objective = "Survive and eliminate others.",
-    name = "Slugcat",
+    objective = function() return L("objective") end,
+    name = function() return L("slugcat_name") end,
     color1 = Color(190,15,15)
 }
 
@@ -103,13 +143,13 @@ function MODE:HUDPaint()
 	zb.RemoveFade()
     local fade = math.Clamp(zb.ROUND_START + 8 - CurTime(),0,1)
     
-    draw.SimpleText("Slug Arena", "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.1, Color(0,162,255, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    local Rolename = slugcat.name
+    draw.SimpleText(L("mode_title"), "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.1, Color(0,162,255, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    local Rolename = slugcat.name()
 	local ColorRole = slugcat.color1
     ColorRole.a = 255 * fade
-    draw.SimpleText("You are a "..Rolename , "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.5, ColorRole, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    draw.SimpleText(L("you_are")..Rolename , "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.5, ColorRole, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
-    local Objective = slugcat.objective
+    local Objective = slugcat.objective()
     local ColorObj = slugcat.color1
     ColorObj.a = 255 * fade
     draw.SimpleText( Objective, "ZB_HomicideMedium", sw * 0.5, sh * 0.9, ColorObj, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
@@ -192,14 +232,14 @@ CreateEndMenu = function()
         surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 		surface.SetFont( "ZB_InterfaceMedium" )
 		surface.SetTextColor(col.r,col.g,col.b,col.a)
-		local lenghtX, lenghtY = surface.GetTextSize("Close")
+		local lenghtX, lenghtY = surface.GetTextSize(L("close"))
 		surface.SetTextPos( lenghtX - lenghtX/1.1, 4)
-		surface.DrawText("Close")
+		surface.DrawText(L("close"))
 	end
 
     hmcdEndMenu.Paint = function(self,w,h)
 		BlurBackground(self)
-		local txt = (wonply and wonply:GetPlayerName() or "Nobody").." won!"
+		local txt = (wonply and wonply:GetPlayerName() or L("nobody"))..L("won")
 		surface.SetFont( "ZB_InterfaceMediumLarge" )
 		surface.SetTextColor(col.r,col.g,col.b,col.a)
 		local lenghtX, lenghtY = surface.GetTextSize(txt)
@@ -254,7 +294,7 @@ CreateEndMenu = function()
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
 			local lenghtX, lenghtY = surface.GetTextSize( ply:GetPlayerName() or "He quited..." )
 			surface.SetTextPos(15,h/2 - lenghtY/2)
-			surface.DrawText((ply:Name() .. (not ply:Alive() and " - died" or "")) or "He quited...")
+			surface.DrawText((ply:Name() .. (not ply:Alive() and L("died") or "")) or "He quited...")
 
 			surface.SetFont( "ZB_InterfaceMediumLarge" )
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
@@ -264,7 +304,7 @@ CreateEndMenu = function()
 		end
 
 		function but:DoClick()
-			if ply:IsBot() then chat.AddText(Color(255,0,0), "no, you can't") return end
+			if ply:IsBot() then chat.AddText(Color(255,0,0), L("no_bots")) return end
 			gui.OpenURL("https://steamcommunity.com/profiles/"..ply:SteamID64())
 		end
 

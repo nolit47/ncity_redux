@@ -1,3 +1,50 @@
+local LANG = {}
+
+LANG["en"] = {
+    ["press_f_forgive"] = "Press F to open forgiveness menu.",
+    ["exit"] = "Exit",
+    ["forgive_player"] = "Forgive %s? You will forgive him %.1f karma.",
+
+    ["harm_killed"] = "killed you.",
+    ["harm_basically_killed"] = "basically killed you.",
+    ["harm_seriously_injured"] = "seriously injured you.",
+    ["harm_mildly_injured"] = "mildly injured you.",
+    ["harm_damaged_bit"] = "damaged you a bit.",
+
+    ["karma_is"] = "Your current karma is %s",
+    ["players_karma"] = "\nPlayers karma: \n",
+    ["player_karma_line"] = "\t%s's karma is %.2f\n",
+}
+
+LANG["ru"] = {
+    ["press_f_forgive"] = "Нажмите F, чтобы открыть меню прощения.",
+    ["exit"] = "Выход",
+    ["forgive_player"] = "Простить %s? Вы простите ему %.1f кармы.",
+    
+    ["harm_killed"] = "убил вас.",
+    ["harm_basically_killed"] = "практически убил вас.",
+    ["harm_seriously_injured"] = "серьёзно ранил вас.",
+    ["harm_mildly_injured"] = "слегка ранил вас.",
+    ["harm_damaged_bit"] = "немного повредил вас.",
+    
+    ["karma_is"] = "Ваша текущая карма: %s",
+    ["players_karma"] = "\nКарма игроков: \n",
+    ["player_karma_line"] = "\t%s имеет карму %.2f\n",
+}
+
+local function L(key, ...)
+    local lang = GetConVar("gmod_language"):GetString() or "en"
+    if lang ~= "en" and lang ~= "ru" then lang = "en" end
+    
+    local text = LANG[lang][key] or LANG["en"][key] or key
+    
+    if ... then
+        return string.format(text, ...)
+    end
+    
+    return text
+end
+
 --[[    TO-DO
     -- Добавить менюшку с прощением! |
     -- Добавить нетворкинг |
@@ -12,7 +59,7 @@ end)
 
 hook.Add("Player Spawn", "GuiltKnown",function(ply)
     --if (ply == LocalPlayer()) and ply.Karma then
-    --    ply:ChatPrint("Your current karma is "..tostring(math.Round(ply.Karma)).."")
+    --    ply:ChatPrint(L("karma_is", tostring(math.Round(ply.Karma))))
     --end
 end)
 
@@ -25,13 +72,13 @@ end)
 
 net.Receive("get_karma",function(len)
     local tbl = net.ReadTable()
-    local printTbl = "\nPlayers karma: \n"
+    local printTbl = L("players_karma")
 
     for id,karma in pairs(tbl) do
-        printTbl = printTbl.."\t"..(Player(id):Name().."'s karma is "..math.Round(karma,2)).."\n"
+        printTbl = printTbl .. L("player_karma_line", Player(id):Name(), karma)
     end
 
-    LocalPlayer():PrintMessage(HUD_PRINTCONSOLE,printTbl)
+    LocalPlayer():PrintMessage(HUD_PRINTCONSOLE, printTbl)
 end)
 
 concommand.Add("hg_guilt_menu",function(ply, cmd, args)
@@ -52,15 +99,15 @@ local BlurBackground = hg.BlurBackground
 
 local function harmdone(harm)
     if harm >= 9 then
-        return "killed you."
+        return L("harm_killed")
     elseif harm >= 5 then
-        return "basically killed you."
+        return L("harm_basically_killed")
     elseif harm >= 2 then
-        return "seriously injured you."
+        return L("harm_seriously_injured")
     elseif harm >= 1 then
-        return "mildly injured you."
+        return L("harm_mildly_injured")
     else
-        return "damaged you a bit."
+        return L("harm_damaged_bit")
     end
 end
 
@@ -78,7 +125,7 @@ hook.Add("HUDPaint","shownotification",function()
     if showstuff > CurTime() then
         local w, h = ScrW(), ScrH()
         local x, y = w / 2, h / 25 * 24
-        local txt = "Press F to open forgiveness menu."
+        local txt = L("press_f_forgive")
         surface.SetFont( "HomigradFontBig" )
         surface.SetTextColor(255,255,255,255)
         local w, h = surface.GetTextSize(txt)
@@ -124,7 +171,7 @@ OpenMenu = function(tbl)
         surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 
         local x, y = w / 2, h / 2
-        local txt = "Exit"
+        local txt = L("exit")
         surface.SetFont("HomigradFont")
         surface.SetTextColor(255,255,255,255)
         local w, h = surface.GetTextSize(txt)
@@ -160,7 +207,7 @@ OpenMenu = function(tbl)
         but.ply = ply
         but.name = ply:Name()
         but.harm = harm
-        local txt = "Forgive "..but.name.."? You will forgive him "..math.Round(but.harm,1).." karma."
+        local txt = L("forgive_player", but.name, but.harm)
         local clr = 255
         but.Paint = function(self,w,h)
             BlurBackground(self)

@@ -2,6 +2,109 @@ local MODE = MODE
 MODE.name = "hmcd"
 MODE.PrintName = "Homicide"
 
+zb = zb or {}
+zb.Languages = zb.Languages or {}
+
+local translations = {
+    ["en"] = {
+        ["role_defoko_name"] = "Defoko",
+        ["role_defoko_desc"] = "Default.\nYou've prepared for a long time.\nYou are equipped with various weapons, poisons and explosives, grenades and your favourite heavy duty knife and a zoraki signal pistol to help you kill.",
+        ["role_defoko_desc_soe"] = "Default.\nYou've prepared a long time for this moment.\nYou are equipped with various weapons, poisons and explosives, grenades and your favourite heavy duty knife and silenced pistol with an additional mag to help you kill.",
+        ["role_defoko_obj"] = "You're geared up with items, poisons, explosives and weapons hidden in your pockets. Murder everyone here.",
+        
+        ["role_infiltrator_name"] = "Infiltrator",
+        ["role_infiltrator_desc"] = "Can break people's necks from behind.\nCan completely disguise as other players if they're in ragdoll.\nHas no weapons or tools except knife, epipen and smoke grenade.\nFor people who like to play chess.",
+        ["role_infiltrator_desc_soe"] = "Can break people's necks from behind.\nCan completely disguise as other players if they're in ragdoll.\nHas smoke grenade, walkie-talkie, knife, taser with 2 additional shooting heads and epipen.\nFor people who like to play chess.",
+        ["role_infiltrator_obj"] = "You're an expert in diversion. Be discreet and kill one by one",
+        
+        ["role_assasin_name"] = "Assasin",
+        ["role_assasin_desc"] = "Can quickly disarm people from any angle.\nDisarms faster from behind.\nDisarms faster from front if the victim is in ragdoll.\nProficient in shooting from guns.\nHas additional stamina (+ 80 units compared to other traitors).\nEquipped with walkie-talkie.\nFor people who like to play checkers.",
+        ["role_assasin_desc_soe"] = "Can quickly disarm people from any angle.\nDisarms faster from behind.\nDisarms faster from front if the victim is in ragdoll.\nProficient in shooting from guns.\nHas additional stamina (+ 80 units compared to other traitors).\nEquipped with walkie-talkie, knife, epipen and flashlight.\nFor people who like to play checkers.",
+        ["role_assasin_obj"] = "You're an expert in guns and in disarmament. Disarm gunman and use his weapon against others",
+        
+        ["role_chemist_name"] = "Chemist",
+        ["role_chemist_desc"] = "Has multiple chemical agents and epipen and knife.\nResistant to a certain degree to all chemical agents mentioned.\nCan detect presence and potency of chemical agents in the air.",
+        ["role_chemist_obj"] = "You're a chemist who decided to use his knowledge to hurt others. Poison everything.",
+        
+        ["role_zombie_name"] = "Zombie",
+        ["role_zombie_desc"] = "Can infect other players silently.\nInfected players can be cured by a doctor.\nIf all players are cured zombie will lose.\nInstead of dying will be randomly transported to another infected player's body.\nHas no weapons or any tools.\nDespite being zombie, still bears appearance of a normal human.",
+        ["role_zombie_obj"] = "You're the zombie. Infect everyone to win. Avoid doctor.",
+        
+        ["prof_doctor"] = "Doctor",
+        ["prof_huntsman"] = "Huntsman",
+        ["prof_engineer"] = "Engineer",
+        ["prof_cook"] = "Cook",
+        
+        ["traitor"] = "Traitor",
+        ["murderer"] = "Murderer",
+        ["innocent"] = "Innocent",
+        ["bystander"] = "Bystander",
+        ["traitor_mario"] = "Traitor Mario",
+        ["hero_mario"] = "Hero Mario",
+        ["innocent_mario"] = "Innocent Mario",
+        
+        ["obj_kill_all"] = "You've been preparing for this for a long time. Kill everyone.",
+        ["obj_mario_traitor"] = "You're the evil Mario! Jump around and take down everyone.",
+        ["obj_mario_hero"] = "You're the hero Mario! Use your jumping ability to stop the traitor.",
+        ["obj_mario_innocent"] = "You're a bystander Mario, survive and avoid the traitor's traps!",
+    },
+    ["ru"] = {
+        ["role_defoko_name"] = "Дефолт",
+        ["role_defoko_desc"] = "Классика.\nВы готовились к этому долгое время.\nВы снаряжены различным оружием, ядами, взрывчаткой и вашим любимым ножом, а также сигнальным пистолетом Zoraki.",
+        ["role_defoko_desc_soe"] = "Классика.\nВы долго ждали этого момента.\nВы снаряжены оружием, ядами и взрывчаткой, а также бесшумным пистолетом с запасным магазином.",
+        ["role_defoko_obj"] = "У вас есть всё: от ядов до взрывчатки. Убейте всех.",
+        
+        ["role_infiltrator_name"] = "Диверсант",
+        ["role_infiltrator_desc"] = "Может ломать шеи со спины.\nМожет полностью маскироваться под других игроков, если они в состоянии регдолла.\nНет оружия, кроме ножа, эпинефрина и дымовой шашки.\nДля любителей шахмат.",
+        ["role_infiltrator_desc_soe"] = "Может ломать шеи со спины.\nМожет маскироваться под других. Есть дымовуха, рация, нож, тайзер с зарядами и эпинефрин.\nДля стратегов.",
+        ["role_infiltrator_obj"] = "Вы эксперт в скрытности. Будьте осторожны и убивайте по одному.",
+        
+        ["role_assasin_name"] = "Ассасин",
+        ["role_assasin_desc"] = "Быстро обезоруживает людей под любым углом.\nСо спины — еще быстрее. Если жертва без сознания — мгновенно.\nМастер стрельбы. Имеет повышенную выносливость (+80 единиц).\nЕсть рация.\nДля любителей шашек.",
+        ["role_assasin_desc_soe"] = "Мастер обезоруживания и стрельбы.\nПовышенная выносливость. Снаряжен рацией, ножом, эпинефрином и фонариком.\nДля активных игроков.",
+        ["role_assasin_obj"] = "Вы эксперт по оружию. Обезоруживайте врагов и используйте их пушки против них самих.",
+        
+        ["role_chemist_name"] = "Химик",
+        ["role_chemist_desc"] = "Имеет при себе набор химикатов, эпинефрин и нож.\nУстойчив к воздействию своих газов.\nВидит концентрацию и тип химикатов в воздухе.",
+        ["role_chemist_obj"] = "Вы химик, решивший использовать знания во вред. Отравите всё вокруг.",
+        
+        ["role_zombie_name"] = "Зомби",
+        ["role_zombie_desc"] = "Может незаметно заражать игроков.\nЗараженных может вылечить доктор. Если всех вылечат — зомби проиграет.\nВместо смерти переселяется в тело другого зараженного.\nОружия нет, выглядит как человек.",
+        ["role_zombie_obj"] = "Вы зомби. Заразите всех, чтобы победить. Избегайте доктора.",
+        
+        ["prof_doctor"] = "Доктор",
+        ["prof_huntsman"] = "Егерь",
+        ["prof_engineer"] = "Инженер",
+        ["prof_cook"] = "Повар",
+        
+        ["traitor"] = "Предатель",
+        ["murderer"] = "Убийца",
+        ["innocent"] = "Невиновный",
+        ["bystander"] = "Прохожий",
+        ["traitor_mario"] = "Злой Марио",
+        ["hero_mario"] = "Герой Марио",
+        ["innocent_mario"] = "Обычный Марио",
+        
+        ["obj_kill_all"] = "Вы долго к этому готовились. Убейте всех.",
+        ["obj_mario_traitor"] = "Вы злой Марио! Прыгайте по головам и уничтожьте всех.",
+        ["obj_mario_hero"] = "Вы герой Марио! Используйте прыжки, чтобы остановить предателя.",
+        ["obj_mario_innocent"] = "Вы обычный Марио, выживайте и избегайте ловушек!",
+    }
+}
+
+for lang, keys in pairs(translations) do
+    zb.Languages[lang] = zb.Languages[lang] or {}
+    for k, v in pairs(keys) do
+        zb.Languages[lang][k] = v
+    end
+end
+
+function zb:GetTerm(key)
+    local lang = (GetConVar("gmod_language"):GetString() == "russian") and "ru" or "en"
+    return (self.Languages[lang] and self.Languages[lang][key]) or (self.Languages["en"] and self.Languages["en"][key]) or key
+end
+--------------------------------------------------------------------------------
+
 --\\
 MODE.TraitorExpectedAmtBits = 13
 --//
@@ -20,11 +123,9 @@ MODE.SubRoles = {
 	--=\\Traitor
 	--==\\
 	["traitor_default"] = {
-		Name = "Defoko",
-		Description = [[Default.
-You've prepared for a long time.
-You are equipped with various weapons, poisons and explosives, grenades and your favourite heavy duty knife and a zoraki signal pistol to help you kill.]],
-		Objective = "You're geared up with items, poisons, explosives and weapons hidden in your pockets. Murder everyone here.",
+		Name = zb:GetTerm("role_defoko_name"),
+		Description = zb:GetTerm("role_defoko_desc"),
+		Objective = zb:GetTerm("role_defoko_obj"),
 		SpawnFunction = function(ply)
 			local wep = ply:Give("weapon_zoraki")
 			
@@ -52,11 +153,9 @@ You are equipped with various weapons, poisons and explosives, grenades and your
 		end,
 	},
 	["traitor_default_soe"] = {
-		Name = "Defoko",
-		Description = [[Default.
-You've prepared a long time for this moment.
-You are equipped with various weapons, poisons and explosives, grenades and your favourite heavy duty knife and silenced pistol with an additional mag to help you kill.]],
-		Objective = "You're geared up with items, poisons, explosives and weapons hidden in your pockets. Murder everyone here.",
+		Name = zb:GetTerm("role_defoko_name"),
+		Description = zb:GetTerm("role_defoko_desc_soe"),
+		Objective = zb:GetTerm("role_defoko_obj"),
 		SpawnFunction = function(ply)
 			if not IsValid(ply) then return end
 			local p22 = ply:Give("weapon_p22")
@@ -85,12 +184,9 @@ You are equipped with various weapons, poisons and explosives, grenades and your
 	
 	--==\\
 	["traitor_infiltrator"] = {
-		Name = "Infiltrator",
-		Description = [[Can break people's necks from behind.
-Can completely disguise as other players if they're in ragdoll.
-Has no weapons or tools except knife, epipen and smoke grenade.
-For people who like to play chess.]],
-		Objective = "You're an expert in diversion. Be discreet and kill one by one",
+		Name = zb:GetTerm("role_infiltrator_name"),
+		Description = zb:GetTerm("role_infiltrator_desc"),
+		Objective = zb:GetTerm("role_infiltrator_obj"),
 		SpawnFunction = function(ply)
 			ply:Give("weapon_sogknife")
 			ply:Give("weapon_adrenaline")
@@ -104,12 +200,9 @@ For people who like to play chess.]],
 		end,
 	},
 	["traitor_infiltrator_soe"] = {
-		Name = "Infiltrator",
-		Description = [[Can break people's necks from behind.
-Can completely disguise as other players if they're in ragdoll.
-Has smoke grenade, walkie-talkie, knife, taser with 2 additional shooting heads and epipen.
-For people who like to play chess.]],
-		Objective = "You're an expert in diversion. Be discreet and kill one by one",
+		Name = zb:GetTerm("role_infiltrator_name"),
+		Description = zb:GetTerm("role_infiltrator_desc_soe"),
+		Objective = zb:GetTerm("role_infiltrator_obj"),
 		SpawnFunction = function(ply)
 			local taser = ply:Give("weapon_taser")
 			
@@ -134,15 +227,9 @@ For people who like to play chess.]],
 	--; СДЕЛАТЬ ЕМУ ЛУТ ДРУГИХ ИГРОКОВ ДАЖЕ ПОКА У НИХ НЕТ ПУШКИ В РУКАХ
 	--; Сделать ему вырубание по вагус нерву
 	["traitor_assasin"] = {
-		Name = "Assasin",
-		Description = [[Can quickly disarm people from any angle.
-Disarms faster from behind.
-Disarms faster from front if the victim is in ragdoll.
-Proficient in shooting from guns.
-Has additional stamina (+ 80 units compared to other traitors).
-Equipped with walkie-talkie.
-For people who like to play checkers.]],
-		Objective = "You're an expert in guns and in disarmament. Disarm gunman and use his weapon against others",
+		Name = zb:GetTerm("role_assasin_name"),
+		Description = zb:GetTerm("role_assasin_desc"),
+		Objective = zb:GetTerm("role_assasin_obj"),
 		SpawnFunction = function(ply)
 			-- ply:Give("weapon_sogknife")	
 			-- ply:Give("weapon_adrenaline")
@@ -158,15 +245,9 @@ For people who like to play checkers.]],
 		end,
 	},
 	["traitor_assasin_soe"] = {
-		Name = "Assasin",
-		Description = [[Can quickly disarm people from any angle.
-Disarms faster from behind.
-Disarms faster from front if the victim is in ragdoll.
-Proficient in shooting from guns.
-Has additional stamina (+ 80 units compared to other traitors).
-Equipped with walkie-talkie, knife, epipen and flashlight.
-For people who like to play checkers.]],
-		Objective = "You're an expert in guns and in disarmament. Disarm gunman and use his weapon against others",
+		Name = zb:GetTerm("role_assasin_name"),
+		Description = zb:GetTerm("role_assasin_desc_soe"),
+		Objective = zb:GetTerm("role_assasin_obj"),
 		SpawnFunction = function(ply)
 			ply:Give("weapon_sogknife")	
 			ply:Give("weapon_adrenaline")
@@ -186,11 +267,9 @@ For people who like to play checkers.]],
 	
 	--==\\
 	["traitor_chemist"] = {
-		Name = "Chemist",
-		Description = [[Has multiple chemical agents and epipen and knife.
-Resistant to a certain degree to all chemical agents mentioned.
-Can detect presence and potency of chemical agents in the air.]],
-		Objective = "You're a chemist who decided to use his knowledge to hurt others. Poison everything.",
+		Name = zb:GetTerm("role_chemist_name"),
+		Description = zb:GetTerm("role_chemist_desc"),
+		Objective = zb:GetTerm("role_chemist_obj"),
 		SpawnFunction = function(ply)
 			ply:Give("weapon_sogknife")
 			ply:Give("weapon_adrenaline")
@@ -209,46 +288,12 @@ Can detect presence and potency of chemical agents in the air.]],
 		end,
 	},
 	--==//
-	-- ["traitor_demoman"] = {
-		-- Name = "Demoman",
-		-- Description = [[Has many explosives.
--- Can rig certain items with bombs
--- (Radio, certain consumables, etc.)]],
-		-- Objective = "You're the ultimate chemist who decided to use knowledge to hurt others.",
-		-- SpawnFunction = function(ply)
-			-- ply:Give("weapon_sogknife")
-			-- ply:Give("weapon_adrenaline")
-			-- ply:Give("weapon_hg_rgd_tpik")
-			-- ply:Give("weapon_hg_grenade_pipebomb")
-			-- ply:Give("weapon_hg_smokenade")
-			-- ply:Give("weapon_traitor_ied")
-			-- ply:Give("weapon_walkie_talkie")
-			
-			-- ply.organism.stamina.max = 220
-			-- local inv = ply:GetNetVar("Inventory", {})
-			-- inv["Weapons"]["hg_flashlight"] = true
-			
-			-- ply:SetNetVar("Inventory", inv)
-		-- end,
-	-- },
 	["traitor_zombie"] = {
-		Name = "Zombie",
-		Description = [[Can infect other players silently.
-Infected players can be cured by a doctor.
-If all players are cured zombie will lose.
-Instead of dying will be randomly transported to another infected player's body.
-Has no weapons or any tools.
-Despite being zombie, still bears appearance of a normal human.]],
-		Objective = "You're the zombie. Infect everyone to win. Avoid doctor.",
+		Name = zb:GetTerm("role_zombie_name"),
+		Description = zb:GetTerm("role_zombie_desc"),
+		Objective = zb:GetTerm("role_zombie_obj"),
 		SpawnFunction = function(ply)
-			-- ply:Give("weapon_sogknife")	
-			-- ply:Give("weapon_adrenaline")
-			
-			-- ply.organism.stamina.max = 220
-			-- local inv = ply:GetNetVar("Inventory", {})
-			-- inv["Weapons"]["hg_flashlight"] = true
-			
-			-- ply:SetNetVar("Inventory", inv)
+			-- Специфика зомби
 		end,
 	},
 	--=//
@@ -263,35 +308,25 @@ MODE.ProfessionsRoundTypes = {
 
 MODE.Professions = {
 	["doctor"] = {
-		Name = "Doctor",
-		SpawnFunction = function(ply)	--; TODO MAKE IT WORK
-			--; It's a bad practice to give professions any weapons or tools
-		end,
+		Name = zb:GetTerm("prof_doctor"),
+		SpawnFunction = function(ply) end,
 	},
 	["huntsman"] = {
-		Name = "Huntsman",
-		SpawnFunction = function(ply)
-			--; It's a bad practice to give professions any weapons or tools
-		end,
+		Name = zb:GetTerm("prof_huntsman"),
+		SpawnFunction = function(ply) end,
 	},
 	["engineer"] = {
-		Name = "Engineer",
-		SpawnFunction = function(ply)
-			--; It's a bad practice to give professions any weapons or tools
-		end,
+		Name = zb:GetTerm("prof_engineer"),
+		SpawnFunction = function(ply) end,
 	},
 	["cook"] = {
-		Name = "Cook",
-		SpawnFunction = function(ply)
-			--; It's a bad practice to give professions any weapons or tools
-		end,
+		Name = zb:GetTerm("prof_cook"),
+		SpawnFunction = function(ply) end,
 	},
 }
 --//
 
 --\\
---; Названия перменных чуть чуть конченные получились, нужно будет подумать как улучшить
---; ужас
 MODE.FadeScreenTime = 1.5
 MODE.DefaultRoundStartTime = 6
 MODE.RoleChooseRoundStartTime = 10
@@ -304,22 +339,12 @@ MODE.RoleChooseRoundTypes = {
 			["traitor_infiltrator"] = true,
 			["traitor_chemist"] = true,
 			["traitor_assasin"] = true,
-			--; ОБЪЕДЕНИТЬ ХИМИКА И ДИВЕРСАНТА!!! наверное
-			-- ["traitor_demoman"] = true,
 		},
 		Professions = {
-			["doctor"] = {
-				Chance = 1,
-			},
-			["huntsman"] = {
-				Chance = 1,
-			},
-			["engineer"] = {
-				Chance = 1,
-			},
-			["cook"] = {
-				Chance = 1,
-			},
+			["doctor"] = { Chance = 1 },
+			["huntsman"] = { Chance = 1 },
+			["engineer"] = { Chance = 1 },
+			["cook"] = { Chance = 1 },
 		},
 	},
 	["soe"] = {
@@ -327,23 +352,13 @@ MODE.RoleChooseRoundTypes = {
 		Traitor = {
 			["traitor_default_soe"] = true,
 			["traitor_infiltrator_soe"] = true,
-			-- ["traitor_chemist"] = true,
 			["traitor_assasin_soe"] = true,
-			-- ["traitor_demoman"] = true,
 		},
 		Professions = {
-			["doctor"] = {
-				Chance = 1,
-			},
-			["huntsman"] = {
-				Chance = 1,
-			},
-			["engineer"] = {
-				Chance = 1,
-			},
-			["cook"] = {
-				Chance = 1,
-			},
+			["doctor"] = { Chance = 1 },
+			["huntsman"] = { Chance = 1 },
+			["engineer"] = { Chance = 1 },
+			["cook"] = { Chance = 1 },
 		},
 	},
 }
@@ -352,90 +367,80 @@ MODE.RoleChooseRoundTypes = {
 MODE.Roles = {}
 MODE.Roles.soe = {
 	traitor = {
-		name = "Traitor",
+		name = zb:GetTerm("traitor"),
 		color = Color(190,0,0)
 	},
-
 	gunner = {
-		name = "Innocent",
+		name = zb:GetTerm("innocent"),
 		color = Color(158,0,190)
 	},
-
 	innocent = {
-		name = "Innocent",
+		name = zb:GetTerm("innocent"),
 		color = Color(0,120,190)
 	},
 }
 
 MODE.Roles.standard = {
 	traitor = {
-		objective = "You've been preparing for this for a long time. Kill everyone.",
-		name = "Murderer",
+		objective = zb:GetTerm("obj_kill_all"),
+		name = zb:GetTerm("murderer"),
 		color = Color(190,0,0)
 	},
-
 	gunner = {
-		name = "Bystander",
+		name = zb:GetTerm("bystander"),
 		color = Color(158,0,190)
 	},
-
 	innocent = {
-		name = "Bystander",
+		name = zb:GetTerm("bystander"),
 		color = Color(0,120,190)
 	},
 }
 
 MODE.Roles.wildwest = {
 	traitor = {
-		objective = "You've been preparing for this for a long time. Kill everyone.",
-		name = "Murderer",
+		objective = zb:GetTerm("obj_kill_all"),
+		name = zb:GetTerm("murderer"),
 		color = Color(190,0,0)
 	},
-
 	gunner = {
-		name = "Bystander",
+		name = zb:GetTerm("bystander"),
 		color = Color(159,85,0)
 	},
-
 	innocent = {
-		name = "Bystander",
+		name = zb:GetTerm("bystander"),
 		color = Color(159,85,0)
 	},
 }
 
 MODE.Roles.gunfreezone = {
 	traitor = {
-		name = "Murderer",
+		name = zb:GetTerm("murderer"),
 		color = Color(190,0,0)
 	},
-
 	gunner = {
-		name = "Innocent",
+		name = zb:GetTerm("innocent"),
 		color = Color(0,120,190)
 	},
-
 	innocent = {
-		name = "Innocent",
+		name = zb:GetTerm("innocent"),
 		color = Color(0,120,190)
 	},
 }
 
 MODE.Roles.supermario = {
 	traitor = {
-		objective = "You're the evil Mario! Jump around and take down everyone.",
-		name = "Traitor Mario",
+		objective = zb:GetTerm("obj_mario_traitor"),
+		name = zb:GetTerm("traitor_mario"),
 		color = Color(190,0,0)
 	},
-
 	gunner = {
-		objective = "You're the hero Mario! Use your jumping ability to stop the traitor.",
-		name = "Hero Mario",
+		objective = zb:GetTerm("obj_mario_hero"),
+		name = zb:GetTerm("hero_mario"),
 		color = Color(158,0,190)
 	},
-
 	innocent = {
-		objective = "You're a bystander Mario, survive and avoid the traitor's traps!",
-		name = "Innocent Mario",
+		objective = zb:GetTerm("obj_mario_innocent"),
+		name = zb:GetTerm("innocent_mario"),
 		color = Color(0,120,190)
 	},
 }
