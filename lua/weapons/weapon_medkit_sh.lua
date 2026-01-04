@@ -1,8 +1,43 @@
 if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_bandage_sh"
+
+local function GetLang()
+	return GetConVar("gmod_language"):GetString() == "ru" and "ru" or "en"
+end
+
+local Localization = {
+	en = {
+		printname = "Medkit",
+		instructions = "A small bag containing medical supplies. Has bandages, painkillers, tourniquets and internal bleeding medicine. A necessary thing in hiking, military conditions and just a necessary thing in everyday life. RMB to apply on others, R to change use mode.",
+		category = "Medicine",
+		switch_hint = "Press R to switch Medicine",
+		modes = {
+			[1] = "bandaging",
+			[2] = "painkiller",
+			[3] = "tranexamic acid",
+			[4] = "tourniquet",
+			[5] = "decompression needle",
+		}
+	},
+	ru = {
+		printname = "Аптечка",
+		instructions = "Небольшая сумка с медицинскими принадлежностями. Содержит бинты, обезболивающие, жгуты и лекарство от внутреннего кровотечения. Необходимая вещь в походах, военных условиях и просто в повседневной жизни. ПКМ для применения на других, R для смены режима использования.",
+		category = "Медицина",
+		switch_hint = "Нажмите R для смены лекарства",
+		modes = {
+			[1] = "бинтование",
+			[2] = "обезболивающее",
+			[3] = "транексамовая кислота",
+			[4] = "жгут",
+			[5] = "декомпрессионная игла",
+		}
+	}
+}
+
 SWEP.PrintName = "Medkit"
 SWEP.Instructions = "A small bag containing medical supplies. Has bandages, painkillers, tourniquets and internal bleeding medicine. A necessary thing in hiking, military conditions and just a necessary thing in everyday life. RMB to apply on others, R to change use mode."
 SWEP.Category = "Medicine"
+
 SWEP.Spawnable = true
 SWEP.Primary.Wait = 1
 SWEP.Primary.Next = 0
@@ -23,15 +58,10 @@ SWEP.WorkWithFake = true
 SWEP.offsetVec = Vector(4, -0.5, -3)
 SWEP.offsetAng = Angle(-30, 20, 90)
 SWEP.modes = 5
-SWEP.modeNames = {
-	[1] = "bandaging",
-	[2] = "painkiller",
-	[3] = "tranexamic acid",
-	[4] = "tourniquet",
-	[5] = "decompression needle",
-}
+SWEP.modeNames = {}
 SWEP.ofsV = Vector(-2,-10,8)
 SWEP.ofsA = Angle(90,-90,90)
+
 function SWEP:InitializeAdd()
 	self:SetHold(self.HoldType)
 	self.modeValues = {
@@ -40,6 +70,14 @@ function SWEP:InitializeAdd()
 		[3] = 10,
 		[4] = 1,
 		[5] = 1,
+	}
+	local lang = GetLang()
+	self.modeNames = {
+		[1] = Localization[lang].modes[1],
+		[2] = Localization[lang].modes[2],
+		[3] = Localization[lang].modes[3],
+		[4] = Localization[lang].modes[4],
+		[5] = Localization[lang].modes[5],
 	}
 end
 
@@ -63,6 +101,19 @@ function SWEP:Animation()
     self:BoneSet("l_forearm", vector_origin, lang2)
 end
 
+if CLIENT then
+	function SWEP:DrawHUD()s
+		if self.BaseClass and self.BaseClass.DrawHUD then
+			self.BaseClass.DrawHUD(self)
+		end
+		
+		local lang = GetLang()
+		local hint = Localization[lang].switch_hint
+		
+		draw.SimpleText(hint, "DermaDefault", ScrW() / 2, 50, Color(255, 255, 255, 200), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+	end
+end
+
 if SERVER then
 	function SWEP:Heal(ent, mode, bone)
 		local org = ent.organism
@@ -73,21 +124,21 @@ if SERVER then
 		if self.mode == 2 then
 			if self.modeValues[2] == 0 then return end
 			if ent ~= owner and not org.otrub then return end
-			//org.painkiller = math.min(org.painkiller + self.modeValues[2], 3)
-			//self.modeValues[2] = 0
+			--org.painkiller = math.min(org.painkiller + self.modeValues[2], 3)
+			--self.modeValues[2] = 0
 			org.analgesiaAdd = math.min(org.analgesiaAdd + self.modeValues[2] * 0.3, 4)
 			self.modeValues[2] = 0
 			entOwner:EmitSound("snds_jack_gmod/ez_medical/15.wav", 60, math.random(95, 105))
 		elseif self.mode == 3 then
 			if self.modeValues[3] == 0 then return end
-			/*local val = org.lungsL[1]
+			--[[local val = org.lungsL[1]
 			local healed = math.max(val - self.modeValues[3], 0)
 			self.modeValues[3] = self.modeValues[3] - (val - healed)
 			org.lungsL[1] = healed
 			local val = org.lungsR[1]
 			local healed = math.max(val - self.modeValues[3], 0)
 			self.modeValues[3] = self.modeValues[3] - (val - healed)
-			org.lungsR[1] = healed*/
+			org.lungsR[1] = healed]]
 			local internalBleed = org.internalBleed - org.internalBleedHeal
 			
 			if self.poisoned2 then

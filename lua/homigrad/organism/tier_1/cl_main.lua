@@ -265,8 +265,8 @@ end)
 
 hook.Add("HG_OnOtrub", "adsadsadhuy!!", function(ply)	
 	if ply == LocalPlayer() then
-		lply:SetDSP(17)
-		plyCommand(lply,"soundfade 100 99999")
+		-- lply:SetDSP(17)
+		-- plyCommand(lply,"soundfade 100 99999")
 	end
 end)
 
@@ -551,8 +551,8 @@ hook.Add("RenderScreenspaceEffects", "organism-effects", function()
 	local adrenK = math.min(math.max(1 + adrenaline, 1), 1.2)
 	
 	if lply.suiciding and lply:Alive() then
-		lply:SetDSP(130)
-		olddspchange = true
+		-- lply:SetDSP(130)
+		-- olddspchange = true
 	else
 		--if auto_dsp_convar:GetBool() then
 			--MegaDSP(lply)
@@ -578,8 +578,8 @@ hook.Add("RenderScreenspaceEffects", "organism-effects", function()
 			lply:SetDSP(0)
 			plyCommand(lply,"soundfade "..tinnitusSoundFactor.." 25")
 		elseif lply:Alive() then
-			lply:SetDSP(17)
-			plyCommand(lply,"soundfade 100 25")
+			-- lply:SetDSP(17)
+			-- plyCommand(lply,"soundfade 100 25")
 		end
 	else
 		--print(tinnitusSoundFactor)
