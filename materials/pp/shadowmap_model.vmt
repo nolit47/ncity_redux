@@ -1,0 +1,37 @@
+screenspace_general
+{
+	$pixshader 		"shadowmap_writedepth_ps30"
+	$vertexshader		"shadowmap_writedepth_vs30"
+
+	$ignorez        1
+	$model 1
+	//$cull 1 //помогает в альфа тесте
+	$VERTEXTRANSFORM 1
+
+	$softwareskin 1 //если отключить, модели уберится из рендера
+	$linearwrite 1
+	$VertexColor 1
+	"<dx90"
+	{
+		$no_draw 1
+	}
+
+	$c0_x 4 //znear (lua)
+	$c0_y 10000 //zfar (lua)
+
+	$dev_flags2 130
+
+	Proxies
+	{
+		Equals
+		{
+			srcVar1			$dev_flags2
+			resultVar		$flags2
+		}
+	}
+
+	
+}
+
+
+

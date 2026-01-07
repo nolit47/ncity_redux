@@ -102,15 +102,16 @@ function SWEP:Animation()
 end
 
 if CLIENT then
-	function SWEP:DrawHUD()s
+	function SWEP:DrawHUD()
 		if self.BaseClass and self.BaseClass.DrawHUD then
 			self.BaseClass.DrawHUD(self)
 		end
 		
 		local lang = GetLang()
 		local hint = Localization[lang].switch_hint
-		
-		draw.SimpleText(hint, "DermaDefault", ScrW() / 2, 50, Color(255, 255, 255, 200), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+
+		draw.SimpleText(hint, "HUDDefault", ScrW() / 2 + 0, 822, Color(0, 0, 0, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+		draw.SimpleText(hint, "HUDDefault", ScrW() / 2, 820, Color(255, 255, 255, 200), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
 	end
 end
 

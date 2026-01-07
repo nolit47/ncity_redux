@@ -2576,12 +2576,34 @@ if CLIENT then
 	end)
 end
 
+local lang = {
+	["en"] = {
+		["random_gesture"] = "Random Gesture"
+	},
+	["ru"] = {
+		["random_gesture"] = "Случайный жест"
+	}
+}
+
+local function GetText(key)
+	local playerLang = "en"
+	
+	if CLIENT then
+		playerLang = GetConVar("gmod_language"):GetString()
+		if playerLang ~= "en" and playerLang ~= "ru" then
+			playerLang = "en"
+		end
+	end
+	
+	return lang[playerLang] and lang[playerLang][key] or lang["en"][key]
+end
+
 hook.Add("radialOptions", "7", function()
     local ply = LocalPlayer()
     local organism = ply.organism or {}
 
     if ply:Alive() and not organism.otrub and hg.GetCurrentCharacter(ply) == ply then
-        local tbl = {randomGesture, "Random Gesture"}
+        local tbl = {randomGesture, GetText("random_gesture")}
         hg.radialOptions[#hg.radialOptions + 1] = tbl
     end
 end)

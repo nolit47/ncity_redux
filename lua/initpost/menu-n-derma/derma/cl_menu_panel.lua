@@ -6,12 +6,14 @@ local PANEL = {}
 local Selects = {
     {Title = "Disconnect", Func = function(luaMenu) RunConsoleCommand("disconnect") end},
     {Title = "Main Menu", Func = function(luaMenu) gui.ActivateGameUI() luaMenu:Close() end},
+    {Title = "", Func = function(luaMenu) end},
     {Title = "Discord", Func = function(luaMenu) luaMenu:Close() gui.OpenURL("https://video.twimg.com/ext_tw_video/2005410113121857537/pu/vid/avc1/724x720/Gh87yTwkgiE2ItR_.mp4")  end},
-    --{Title = "How to play", Func = function(luaMenu) gui.OpenURL("http://zcity-help.ru/zcity_wiki.htm?") end},
+    {Title = "How to play", Func = function(luaMenu) RunConsoleCommand("hg_howtoplay") end},
     {Title = "Wikipedia", Func = function(luaMenu) luaMenu:Close() gui.OpenURL("https://www.youtube.com/watch?v=JvCUh8sm4oo") end},
     {Title = "Appearance", Func = function(luaMenu) luaMenu:Close() RunConsoleCommand("hg_appearance_menu") end},
 	{Title = "Achievements", Func = function(luaMenu) luaMenu:Close() RunConsoleCommand("hg_achievements") end},
     {Title = "Settings", Func = function(luaMenu) luaMenu:Close() RunConsoleCommand("hg_settings") end},
+    {Title = "", Func = function(luaMenu) end},
     {Title = "Return", Func = function(luaMenu) luaMenu:Close() end},
 }
 
@@ -21,6 +23,21 @@ surface.CreateFont("ZC_MM_Title", {
     weight = 800,
     antialias = true
 })
+
+surface.CreateFont("HowToPlay_Title", {
+    font = "Bahnschrift",
+    size = ScreenScale(20),
+    weight = 800,
+    antialias = true
+})
+
+surface.CreateFont("HowToPlay_Text", {
+    font = "Bahnschrift",
+    size = ScreenScale(8),
+    weight = 500,
+    antialias = true
+})
+
 local red_select = Color(245,45,45)
 -- local Title = markup.Parse("error")
 

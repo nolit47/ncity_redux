@@ -1,5 +1,29 @@
 -- "addons\\homigrad\\lua\\homigrad\\sh_phrases.lua"
 -- Retrieved by https://github.com/lewisclark/glua-steal
+
+-- Локализация
+local lang = {
+	["en"] = {
+		["say_something"] = "Say something"
+	},
+	["ru"] = {
+		["say_something"] = "Сказать что-то"
+	}
+}
+
+local function GetText(key)
+	local playerLang = "en"
+	
+	if CLIENT then
+		playerLang = GetConVar("gmod_language"):GetString()
+		if playerLang ~= "en" and playerLang ~= "ru" then
+			playerLang = "en"
+		end
+	end
+	
+	return lang[playerLang] and lang[playerLang][key] or lang["en"][key]
+end
+
 local phrases = {
 	[1] = {
 		{"vo/npc/male01/question", ".wav", 3, 31},
@@ -135,7 +159,7 @@ if CLIENT then
 		local organism = LocalPlayer().organism or {}
 
 		if LocalPlayer():Alive() and not organism.otrub then
-			hg.radialOptions[#hg.radialOptions + 1] = {randomPhrase, (LocalPlayer().PlayerClassName == "Slugcat" and "Wáaaaǎa\nWāaaàaâ") or (LocalPlayer().PlayerClassName == "Gordon" and "...") or "Say something"}
+			hg.radialOptions[#hg.radialOptions + 1] = {randomPhrase, (LocalPlayer().PlayerClassName == "Slugcat" and "Wáaaaǎa\nWāaaàaâ") or (LocalPlayer().PlayerClassName == "Gordon" and "...") or GetText("say_something")}
 		end
 	end)
 else

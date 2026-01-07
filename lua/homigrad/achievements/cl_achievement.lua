@@ -186,7 +186,7 @@ local AchTable = hg.achievements.NewAchievements
 net.Receive("hg_NewAchievement",function()
     local Ach = {time = CurTime() + 7.5,name = net.ReadString(),img = net.ReadString()}
     table.insert(AchTable,1,Ach)
-    sound.PlayURL("https://www.myinstants.com/media/sounds/achievement_earned.mp3","noblock",function(station)
+    sound.PlayURL("","noblock",function(station) -- https://www.myinstants.com/media/sounds/achievement_earned.mp3
         if IsValid(station) then
             station:Play()
         end 

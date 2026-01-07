@@ -1,0 +1,17 @@
+screenspace_general
+{
+	$pixshader 			"bloom_down_ps30"
+	$vertexshader 		"pp_vs30"
+	$vertextransform 1
+
+	"$no_fullbright" 1
+
+	$VertexColor 1
+	$ignorez        1
+	"<dx90"
+	{
+		$no_draw 1
+	}
+}
+
+

@@ -1,0 +1,34 @@
+screenspace_general
+{
+	$pixshader 		"shadowmap_blur_ps30"
+	$vertexshader		"pp_vs30"
+
+	$basetexture 		"_rt_CSM_combined"
+
+	"<dx90"
+	{
+		$no_draw 1
+	}
+
+	$LINEARREAD_TEXTURE1 1
+	$c0_x 			0.3 	// Blur factor 2.3
+	$ignorez 		1
+	"$no_fullbright" 	1
+	$linearwrite 		1
+	$WRITEALPHA      	1
+	$COPYALPHA 		1
+
+	$fix_fb         	32768
+	Proxies
+	{
+		Equals
+		{
+			srcVar1			$fix_fb
+			resultVar		$flags2
+		}
+	}
+
+
+}
+
+

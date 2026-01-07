@@ -1,0 +1,18 @@
+screenspace_general
+{
+	$pixshader 		"bump_reconstruction_simple_ps30"
+	$vertexshader 	"pp_vs30"
+
+	$basetexture 		"_rt_FullFrameFB"
+	$texture1 		"_rt_WPDepth"
+
+	$LINEARREAD_BASETEXTURE 	1
+	$linearwrite 			1
+
+	$c0_x 5
+
+	"<dx90"
+	{
+		$no_draw 1
+	}
+}

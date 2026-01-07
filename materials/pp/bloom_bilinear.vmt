@@ -1,0 +1,20 @@
+screenspace_general
+{
+	$pixshader 			"bloom_bilinear_ps30"
+	$vertexshader 		"pp_vs30"
+	$vertextransform 		1
+	$basetexture 			"_rt_pbb1"
+	//$linearwrite 			1
+	$LINEARREAD_BASETEXTURE 	1
+	"$no_fullbright" 		1
+	$VertexColor 			1
+	$ignorez        		1
+	"<dx90"
+	{
+		$no_draw 1
+	}
+
+	$c0_x 10
+}
+
+

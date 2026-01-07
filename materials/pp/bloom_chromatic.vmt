@@ -1,0 +1,28 @@
+screenspace_general
+{
+	$pixshader 			"bloom_chromatic_ps30"
+	$vertexshader 		"pp_vs30"
+	$vertextransform 		1
+	$basetexture 			"_rt_Emissive"
+	$linearwrite 			1
+	$LINEARREAD_BASETEXTURE 	1
+	"$no_fullbright" 		1
+	$VertexColor 			1
+	$ignorez        		1
+	"<dx90"
+	{
+		$no_draw 1
+	}
+
+	// fvChroma
+	$c0_x 1.005 
+	$c0_y 0.995
+	$c0_z 1.00
+
+	$c1_x 0.9 	// fBaseRadius
+	$c2_x 1.8 	// fFalloffRadius
+	$c3_x 3 	// fChromaPower
+	$c3_y 1 	// fMultiply
+}
+
+

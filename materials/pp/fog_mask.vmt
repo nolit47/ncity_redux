@@ -1,0 +1,19 @@
+screenspace_general
+{
+	$pixshader 			"fog_mask_ps30"
+	// $vertexshader 		"fog_mask_vs30"
+	$vertexshader 		"pp_vs30"
+
+	$baseTexture 			"_rt_WPDepth"
+	
+	$c0_x 1 // fog power (linearwrite not works); 4 is good (confirm)
+	"$no_fullbright" 		1
+	$ignorez        		1
+	//$linearwrite 			1
+
+	"<dx90"
+	{
+		$no_draw 1
+	}
+}
+

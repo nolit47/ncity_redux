@@ -1,0 +1,19 @@
+"screenspace_general"
+{
+	"$pixshader" "hcv_distortion_ps20b"
+	
+	$basetexture "_rt_FullFrameFB"
+	$texture1    "_rt_ResolvedFullFrameDepth"
+	$texture2    ""
+	$texture3    ""
+	
+	"$c0_x" "0.005"
+	"$c0_y" "0.0"
+	"$c0_z" "1.0"
+	"$c0_w" "0.75"
+
+	$vertexcolor 1
+	$vertextransform 1
+	$ignorez        1
+	$fix_fb         32768
+}

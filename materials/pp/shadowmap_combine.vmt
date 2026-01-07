@@ -1,0 +1,21 @@
+screenspace_general
+{
+	$pixshader 		"shadowmap_combine_ps30"
+	$vertexshader		"pp_vs30"
+
+	$basetexture 		"_rt_CSM"
+	$texture1 		"_rt_CSM_dynamics"
+
+	$linearwrite 		1
+	$WRITEALPHA      	1
+	$COPYALPHA 		1
+	$VertexColor 		1
+
+	"<dx90"
+	{
+		$no_draw 	1
+	}
+
+}
+
+

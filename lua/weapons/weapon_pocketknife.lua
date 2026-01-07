@@ -6,12 +6,12 @@ SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
 
-SWEP.WorldModel = "models/weapons/w_knife_swch.mdl"
+SWEP.WorldModel = "models/weapons/w_jnife_j.mdl"
 SWEP.WorldModelReal = "models/weapons/combatknife/tactical_knife_iw7_vm.mdl"
-SWEP.WorldModelExchange = "models/weapons/w_knife_swch.mdl"
+SWEP.WorldModelExchange = "models/weapons/w_jnife_j.mdl"
 
-SWEP.weaponPos = Vector(0,0,-0.8)
-SWEP.weaponAng = Angle(0,90,90)
+SWEP.weaponPos = Vector(-2,-3.5,-1)
+SWEP.weaponAng = Angle(0,60,90)
 
 SWEP.BreakBoneMul = 0.25
 

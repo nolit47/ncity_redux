@@ -1,0 +1,29 @@
+screenspace_general
+{
+	$pixshader 			"bloom_combine_ps30"
+	$vertexshader 		"pp_vs30"
+
+	$vertextransform 1
+	"$no_fullbright" 1
+
+	$basetexture 		"_rt_fullframefb"
+	$texture1 		"pp/dirtmasktexture"	
+	$texture2 		"_rt_pbb1"
+
+	//$linearwrite 1
+	
+	$LINEARREAD_TEXTURE1 1
+	//$LINEARREAD_TEXTURE2 1
+
+	$c2_w 0.5
+	$c3_x 0.5
+
+	$VertexColor 		1
+	$ignorez        	1
+	"<dx90"
+	{
+		$no_draw 1
+	}
+}
+
+

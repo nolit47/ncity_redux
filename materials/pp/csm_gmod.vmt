@@ -1,0 +1,31 @@
+screenspace_general
+{
+	$pixshader 		"csm_gshader_ps30"
+	$vertexshader 	"pp_vs30"
+
+	$baseTexture 	"_rt_WPDepth"
+	$texture1 	"_rt_NormalsTangents"
+	$texture2 	"_rt_CSM_combined"
+	$texture3 	"_rt_Fog"
+
+	$LINEARREAD_BASETEXTURE 	1
+	$LINEARREAD_TEXTURE3 	1
+
+	//$c0_x 1123
+	//$c0_y -1.6
+	//$c0_z 0.6
+
+
+	$linearwrite 			1		
+	$COPYALPHA 			1
+	$writealpha 			1
+	"$no_fullbright" 		1
+	$ignorez        		1
+
+	"<dx90"
+	{
+		$no_draw 1
+	}
+}
+
+

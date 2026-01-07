@@ -1034,96 +1034,94 @@ if CLIENT then
 	---------------------------------------------------------------------------]]
 	function ENT:RedoParticles(state)
 
-		if !IsValid(self) then return end
+    if !IsValid(self) then return end
 
-		local size = vFireStateToSize(state)
+    local size = vFireStateToSize(state)
 
-		if self.base then
-			if self.base:IsValid() then 
-				self.base:StopEmission()
-			end
-		end
-		if self.flames then
-			if self.flames:IsValid() then 
-				self.flames:StopEmission()
-			end
-		end
+    if self.base then
+        if self.base:IsValid() then 
+            self.base:StopEmission()
+        end
+    end
+    if self.flames then
+        if self.flames:IsValid() then 
+            self.flames:StopEmission()
+        end
+    end
 
-		-- Should we create LOD'ed particles?
-		self.visLOD = false
-		local LODStr = ""
-		if self.LOD == 1 then
-			LODStr = "_LOD"
-			self.visLOD = true
-		end
+    -- Should we create LOD'ed particles?
+    self.visLOD = false
+    local LODStr = ""
+    if self.LOD == 1 then
+        LODStr = "_LOD"
+        self.visLOD = true
+    end
 
-		-- If we're on an animated surface, such as a player or an NPC, don't create the base
-		if vFireIsCharacter(self.parent) then
+    -- If we're on an animated surface, such as a player or an NPC, don't create the base
+    if vFireIsCharacter(self.parent) then
+        self.flames = CreateParticleSystem(
+            self,
+            "vFire_Flames_"..size..LODStr,
+            PATTACH_ABSORIGIN_FOLLOW,
+            0,
+            Vector(0, 0, 0)
+        )
 
-			self.flames = CreateParticleSystem(
-				self,
-				"vFire_Flames_"..size..LODStr,
-				0,
-				0,
-				0
-			)
+    else
 
-		else
+        -- Spawn the systems in an offset
+        local forward = self:GetForward()
+        local offSet = forward
 
-			-- Spawn the systems in an offset
-			local forward = self:GetForward()
-			local offSet = forward
+        -- Define a particle system offset so they're closer to the ground
+        self.base = CreateParticleSystem(
+            self,
+            "vFire_Base_"..size..LODStr,
+            0,
+            0,
+            (offSet * (state - 1))
+        )
 
-			-- Define a particle system offset so they're closer to the ground
-			self.base = CreateParticleSystem(
-				self,
-				"vFire_Base_"..size..LODStr,
-				0,
-				0,
-				offSet * (state - 1)
-			)
+        -- Have a slight chance (grows the smaller the flame) to make the flames smaller
+        -- but that chance is reduced the further we are from an upright slope
+        local chanceForSmallerFlame = -4.5
+        if forward.z < 1 then
+            if forward.z < 0 then
+                chanceForSmallerFlame = 0
+            else
+                chanceForSmallerFlame = chanceForSmallerFlame * forward.z
+            end
+        end
+        
+        if math.Rand(chanceForSmallerFlame, state) < 0 then
+            if state > 1 then
+                state = state - 1
+                size = vFireStateToSize(state)
+                self.flames = CreateParticleSystem(
+                    self,
+                    "vFire_Flames_"..size..LODStr,
+                    0,
+                    0,
+                    Vector(0, 0, 0)
+                )
+            end
+        else
+            self.flames = CreateParticleSystem(
+                self,
+                "vFire_Flames_"..size..LODStr,
+                0,
+                0,
+                Vector(0, 0, 0)
+            )
+        end
+    end
 
-			-- Have a slight chance (grows the smaller the flame) to make the flames smaller
-			-- but that chance is reduced the further we are from an upright slope - small flames on walls look bad
-			local chanceForSmallerFlame = -4.5 -- The less the higher the chance
-			if forward.z < 1 then
-				if forward.z < 0 then
-					chanceForSmallerFlame = 0
-				else -- We're somewhere in the range between 1 (straight floor) and 0 (upright wall), bother to multiply
-					chanceForSmallerFlame = chanceForSmallerFlame * forward.z
-				end
-			end
-			if math.Rand(chanceForSmallerFlame, state) < 0 then
+    -- Store the state that's actually visible for consistent animations
+    self.visState = state
 
-				if state > 1 then
-					state = state - 1
-					size = vFireStateToSize(state)
-					self.flames = CreateParticleSystem(
-						self,
-						"vFire_Flames_"..size..LODStr,
-						0,
-						0,
-						0
-					)
-				end
-
-			else
-				self.flames = CreateParticleSystem(
-					self,
-					"vFire_Flames_"..size..LODStr,
-					0,
-					0
-				)
-			end
-
-		end
-
-		-- Store the state that's actually visible for consistent animations
-		self.visState = state
-
-		-- Update our animation as soon as possible for visual consistency
-		self:AnimationThink()
-	end
+    -- Update our animation as soon as possible for visual consistency
+    self:AnimationThink()
+end
 
 	--[[-------------------------------------------------------------------------
 	Flame animation tweaks via pull force control point

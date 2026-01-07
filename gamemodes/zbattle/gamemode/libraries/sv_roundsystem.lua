@@ -36,11 +36,26 @@ function NextRound(round)
 	if IsValid(ents.FindByClass( "trigger_changelevel" )[1]) then
 		zb.nextround = "coop"
 	else
-		zb.nextround = round
+		-- Validate the round before setting it
+		if round and round ~= "random" and not zb:GetMode(round) then
+			ErrorNoHalt("[ZBattle] Warning: Invalid mode '" .. tostring(round) .. "' - falling back to hmcd\n")
+			zb.nextround = "hmcd"
+		else
+			zb.nextround = round
+		end
 	end
 end
 
 function zb:PreRound()
+	local currentMode = CurrentRound()
+	if not currentMode then
+		ErrorNoHalt("[ZBattle] PreRound: CurrentRound() returned nil, resetting to hmcd\n")
+		zb.CROUND = "hmcd"
+		zb.CROUND_SUBTYPE = nil
+		currentMode = CurrentRound()
+		if not currentMode then return end -- Safety check
+	end
+	
 	if ((((zb.Roundscount or 0) > 15) and !GetConVar("zb_dev"):GetBool()) or ( (player.GetCount() > 1) and zb.ROUND_STATE == 0 and zb.CheckRTVVotes() )) and !(zb.RoundsLeft and zb.CROUND == "cstrike") then
 		zb.StartRTV(20)
 		zb.ROUND_STATE = 0
@@ -50,14 +65,17 @@ function zb:PreRound()
 	if zb.ROUND_STATE == 0 and #player_GetAll() > 1 then
 		zb.END_TIME = nil
 
-		zb.START_TIME = zb.START_TIME or CurTime() + (CurrentRound().start_time or 5)
+		zb.START_TIME = zb.START_TIME or CurTime() + (currentMode.start_time or 5)
 		if zb.START_TIME < CurTime() then zb:RoundStart() end
 	end
 end
 
 function zb:RoundThink()
 	if zb.ROUND_STATE == 1 then
-		if CurrentRound().RoundThink then CurrentRound():RoundThink(CurrentRound()) end
+		local currentMode = CurrentRound()
+		if currentMode and currentMode.RoundThink then 
+			currentMode:RoundThink(currentMode) 
+		end
 	end
 end
 
@@ -70,6 +88,16 @@ function zb:EndRound()
 	zb.Roundscount = (zb.Roundscount or 0) + 1
 
 	local mode, round = CurrentRound()
+	
+	if not mode then
+		ErrorNoHalt("[ZBattle] EndRound: CurrentRound() returned nil\n")
+		-- Send a fallback network message
+		net.Start("RoundInfo")
+			net.WriteString("hmcd")
+			net.WriteInt(zb.ROUND_STATE, 4)
+		net.Broadcast()
+		return
+	end
 
 	net.Start("RoundInfo")
 		net.WriteString(mode.name or "hmcd")
@@ -77,7 +105,7 @@ function zb:EndRound()
 	net.Broadcast()
 
 	--PrintMessage(HUD_PRINTTALK, "Раунд закончен.")
-	CurrentRound():EndRound()
+	mode:EndRound()
 	hook.Run("ZB_EndRound")
 	zb.AddFade()
 
@@ -103,15 +131,18 @@ end
 zb.ROUND_TIME = zb.ROUND_TIME or 300
 
 function zb:ShouldRoundEnd()
+	local currentMode = CurrentRound()
+	if not currentMode then return false end
+	
 	local time = zb.ROUND_TIME
-	local shouldroundend = CurrentRound():ShouldRoundEnd()
+	local shouldroundend = currentMode:ShouldRoundEnd()
 	if shouldroundend ~= false then
 		local boringround = (zb.ROUND_START + time) < CurTime()
 		
-		if boringround and CurrentRound().BoringRoundFunction then
+		if boringround and currentMode.BoringRoundFunction then
 			PrintMessage(HUD_PRINTTALK, "Stopping round because it was TOO boring.")
 			
-			CurrentRound():BoringRoundFunction()
+			currentMode:BoringRoundFunction()
 		end
 
 		return (shouldroundend and true) or (boringround)
@@ -123,14 +154,33 @@ end
 function zb:EndRoundThink()
 	if zb.ROUND_STATE == 1 and zb:ShouldRoundEnd() then zb:EndRound() end
 	if zb.ROUND_STATE == 3 then
-		zb.END_TIME = zb.END_TIME or (CurTime() + (CurrentRound().end_time or 5))
+		local currentMode = CurrentRound()
+		if not currentMode then
+			ErrorNoHalt("[ZBattle] EndRoundThink: CurrentRound() returned nil, forcing to hmcd\n")
+			zb.CROUND = "hmcd"
+			zb.CROUND_SUBTYPE = nil
+			return
+		end
+		
+		zb.END_TIME = zb.END_TIME or (CurTime() + (currentMode.end_time or 5))
 		if zb.END_TIME < CurTime() then
 			zb.ROUND_STATE = 0
 
 			hook.Run("ZB_PreRoundStart")
 
 			zb.CROUND = zb.nextround or "hmcd"
-			if CurrentRound().shouldfreeze then zb:Freeze() end
+			
+			-- Validate the new round
+			local newMode = CurrentRound()
+			if not newMode then
+				ErrorNoHalt("[ZBattle] EndRoundThink: Invalid next round '" .. tostring(zb.CROUND) .. "', falling back to hmcd\n")
+				zb.CROUND = "hmcd"
+				zb.CROUND_SUBTYPE = nil
+				newMode = CurrentRound()
+				if not newMode then return end
+			end
+			
+			if newMode.shouldfreeze then zb:Freeze() end
 
 			--PrintMessage(HUD_PRINTTALK, "Gamemode: " .. CurrentRound().PrintName or "None")
 
@@ -140,7 +190,7 @@ function zb:EndRoundThink()
 				net.WriteInt(zb.ROUND_STATE, 4)
 			net.Broadcast()
 
-			hg.UpdateRoundTime(CurrentRound().ROUND_TIME, CurTime(), CurTime() + (CurrentRound().start_time or 5))
+			hg.UpdateRoundTime(mode.ROUND_TIME, CurTime(), CurTime() + (mode.start_time or 5))
 
 			self:KillPlayers()
 			self:AutoBalance()
@@ -151,8 +201,8 @@ function zb:EndRoundThink()
 				end
 			end
 
-			CurrentRound():Intermission()
-			CurrentRound():GiveEquipment()
+			mode:Intermission()
+			mode:GiveEquipment()
 		end
 	end
 end
@@ -160,10 +210,12 @@ end
 hook.Add("PlayerInitialSpawn", "zb_SendRoundInfo", function(ply)
 	if zb.CROUND then
 		local mode,round = CurrentRound()
-		net.Start("RoundInfo")
-			net.WriteString(mode.name or "hmcd")
-			net.WriteInt(zb.ROUND_STATE, 4)
-		net.Send(ply)
+		if mode then
+			net.Start("RoundInfo")
+				net.WriteString(mode.name or "hmcd")
+				net.WriteInt(zb.ROUND_STATE, 4)
+			net.Send(ply)
+		end
 	end
 
 	if ply.SyncVars then ply:SyncVars() end
@@ -182,6 +234,8 @@ hook.Add("Think", "zb-think", function() zb:Think(CurTime()) end)
 
 function zb:KillPlayers()
 	local mode = CurrentRound()
+	if not mode then return end
+	
 	for i, ply in ipairs(player_GetAll()) do
 		if ply:Team() == TEAM_SPECTATOR then continue end
 
@@ -285,8 +339,8 @@ function zb.AddModePlaytime(name, add)
 end
 
 function zb.AddCurrentModePlayed()
-	if not CurrentRound() then return end
 	local mode = CurrentRound()
+	if not mode then return end
 	local name = mode.name
 
 	if mode.SubModes then
@@ -300,7 +354,10 @@ zb.ModesChances = zb.ModesChances or {}
 
 function zb.GetChance(name, modes, amtplayed)
 	local mode = zb:GetMode(name)
+	if not mode then return 0.1 end
+	
 	local tbl = zb.modes[mode]
+	if not tbl then return 0.1 end
 	
 	local frequency_played = modes and amtplayed and modes[name] and modes[name] / amtplayed
 
@@ -331,6 +388,8 @@ function zb.WeightedChanceMode()
 		weight = weight + chance * 100
 	end
 
+	if weight == 0 then return "hmcd" end -- Safety check
+
 	local random = math.random(weight)
 	
 	local count = 0
@@ -356,8 +415,8 @@ end
 
 function zb.GetRoundName(name)
 	local mode = zb:GetMode(name)
-	if not mode or not zb.modes[mode] then return end
-	return zb.modes[mode].PrintName
+	if not mode or not zb.modes[mode] then return "Unknown Mode" end
+	return zb.modes[mode].PrintName or name
 end
 
 zb.RoundList = zb.RoundList or {}
@@ -402,7 +461,7 @@ function zb.GetModesInfo()
             name = mode.PrintName or mode.name or name,
             description = mode.Description or "",
             forBigMaps = mode.ForBigMaps or false,
-			canlaunch = (mode:CanLaunch() and 1 or 0)
+			canlaunch = (mode.CanLaunch and mode:CanLaunch() and 1 or 0)
         })
     end
     return modesInfo
@@ -481,7 +540,13 @@ net.Receive("ZB_UpdateRoundList", function(len, ply)
 end)
 
 function zb:RoundStart()
-	if CurrentRound().shouldfreeze then zb:Unfreeze() end
+	local currentMode = CurrentRound()
+	if not currentMode then
+		ErrorNoHalt("[ZBattle] RoundStart: CurrentRound() returned nil\n")
+		return
+	end
+	
+	if currentMode.shouldfreeze then zb:Unfreeze() end
 
 	zb.ROUND_STATE = 1
 	zb.START_TIME = nil
@@ -502,7 +567,7 @@ function zb:RoundStart()
 
 	zb.AddCurrentModePlayed()
 	
-	CurrentRound():RoundStart()
+	mode:RoundStart()
 	
 	local nextMode
 
@@ -518,8 +583,8 @@ function zb:RoundStart()
 	
 	NextRound(forcemode ~= "random" and forcemode or (nextMode or "hmcd"))
 	
-	if CurrentRound().RoundStartPost then
-		CurrentRound():RoundStartPost()
+	if mode.RoundStartPost then
+		mode:RoundStartPost()
 	end
 
 	hook.Run("ZB_StartRound")
@@ -532,11 +597,34 @@ function zb:RoundStart()
 end
 
 concommand.Add("zb_setnextmode", function(ply,cmd,args)
+	local mode = args and args[1]
+	if not mode then
+		if IsValid(ply) then ply:ChatPrint("Usage: zb_setnextmode <mode> [now]") else print("Usage: zb_setnextmode <mode> [now]") end
+		return
+	end
 
+	if IsValid(ply) and not ply:IsAdmin() then ply:ChatPrint("You don't have access") return end
+
+	if not zb:GetMode(mode) and mode ~= "random" then
+		if IsValid(ply) then ply:ChatPrint("Unknown mode: " .. mode) else print("Unknown mode: " .. mode) end
+		return
+	end
+
+	NextRound(mode)
+
+	if args and args[2] and (args[2] == "now" or args[2] == "1") then
+		if IsValid(ply) then ply:ChatPrint("Ending round to switch to: " .. mode) else print("Ending round to switch to: " .. mode) end
+		zb:EndRound()
+	else
+		if IsValid(ply) then ply:ChatPrint("Next mode set to: " .. mode) else print("Next mode set to: " .. mode) end
+	end
 end)
 
 concommand.Add("zb_endmode", function(ply,cmd,args)
+	if IsValid(ply) and not ply:IsAdmin() then ply:ChatPrint("You don't have access") return end
 
+	if IsValid(ply) then ply:ChatPrint("Round ended by admin") else print("Round ended by console") end
+	zb:EndRound()
 end)
 
 concommand.Add("zb_checkchances",function(ply) if ply:IsAdmin() then zb.CheckChances() end end)
@@ -730,7 +818,12 @@ if SERVER then
         local modeKey = net.ReadString()
         local addToQueue = net.ReadBool() or false 
 
-		if !(ply:IsSuperAdmin() or ply:IsAdmin()) and not zb.modes[modeKey]:CanLaunch() then
+		if not zb:GetMode(modeKey) and modeKey ~= "random" then
+			ply:ChatPrint("Invalid mode: " .. modeKey)
+			return
+		end
+
+		if not (ply:IsSuperAdmin() or ply:IsAdmin()) and zb.modes[modeKey] and not zb.modes[modeKey]:CanLaunch() then
 			ply:ChatPrint("This mode can't launch (No points or Is blocked): " .. modeKey)
 			return 
 		end

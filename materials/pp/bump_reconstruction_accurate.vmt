@@ -1,0 +1,33 @@
+screenspace_general
+{
+	$pixshader 		"bump_reconstruction_accurate_ps30"
+	$vertexshader 	"pp_vs30"
+
+	$basetexture 		"_rt_FullFrameFB"
+	$texture1 		"_rt_WPDepth"
+
+	//$LINEARREAD_BASETEXTURE 	1
+	$linearwrite 			1
+
+	$c0_x 5
+	$c1_x 0.000009 // bias
+
+	"<dx90"
+	{
+		$no_draw 1
+	}
+
+	$ignorez        	1
+	$no_fullbright 	1
+
+	$fix_fb         32768
+	Proxies
+	{
+		// Fixes the framebuffer to show up
+		Equals
+		{
+			srcVar1			$fix_fb
+			resultVar		$flags2
+		}
+	}
+}
