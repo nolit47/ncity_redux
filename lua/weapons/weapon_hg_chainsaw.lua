@@ -782,7 +782,7 @@ function SWEP:StartIdleLoop()
             self.idleLoopSound = CreateSound(self, "weapons/melee/chainsaw/chainsaw_idleloop.wav")
             if self.idleLoopSound then
                 self.idleLoopSound:Play()
-                self.idleLoopSound:SetSoundLevel(75)
+                self.idleLoopSound:SetSoundLevel(100)
             end
         end
     end
@@ -808,7 +808,7 @@ function SWEP:StartSawLoop()
             self.sawLoopSound = CreateSound(self, "weapons/melee/chainsaw/chainsaw_sawloop.wav")
             if self.sawLoopSound then
                 self.sawLoopSound:Play()
-                self.sawLoopSound:SetSoundLevel(75)
+                self.sawLoopSound:SetSoundLevel(100)
             end
         end
     end
@@ -891,7 +891,7 @@ function SWEP:OnDrop()
                     droppedEnt.droppedSawLoopSound = CreateSound(droppedEnt, "weapons/melee/chainsaw/chainsaw_sawloop.wav")
                     if droppedEnt.droppedSawLoopSound then
                         droppedEnt.droppedSawLoopSound:Play()
-                        droppedEnt.droppedSawLoopSound:SetSoundLevel(75)
+                        droppedEnt.droppedSawLoopSound:SetSoundLevel(100)
                     end
                 end
             end)
