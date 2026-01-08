@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_physics_handler.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 local function SetAbsVelocity(pEntity, vAbsVelocity)
 	if (pEntity:GetInternalVariable("m_vecAbsVelocity") ~= vAbsVelocity) then
 		// The abs velocity won't be dirty since we're setting it here

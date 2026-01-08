@@ -2,11 +2,21 @@
 
 ----
 local PANEL = {}
---[[
-hg.VGUI.SecondaryColor = Color(155,0,0,240)
-hg.VGUI.BackgroundColor = Color(25,25,35,220)]]
-local color_blacky = Color(25,25,30,220)
-local color_reddy = Color(155,0,0,240)
+if not hg.ColorSettings then include("homigrad/cl_color_settings.lua") end
+local colorSettings = hg.ColorSettings
+local function copyColor(col)
+    return Color(col.r, col.g, col.b, col.a)
+end
+local color_blacky = colorSettings:GetColor("ui_background")
+local color_reddy = colorSettings:GetColor("ui_border")
+
+hook.Add("HGColorsUpdated", "HG_ZFrameColorSync", function(id)
+    if id == "ui_background" then
+        color_blacky = colorSettings:GetColor("ui_background")
+    elseif id == "ui_border" then
+        color_reddy = colorSettings:GetColor("ui_border")
+    end
+end)
 
 function PANEL:Init()
     self.Itensens = {}
@@ -15,12 +25,14 @@ function PANEL:Init()
 
     self.DrawBorder = true
 
-    self.ColorBG = Color(color_blacky:Unpack())
-    self.ColorBR = Color(color_reddy:Unpack())
+    self.ColorBG = copyColor(color_blacky)
+    self.ColorBR = copyColor(color_reddy)
     self.BlurStrengh = 2
 
     timer.Simple(0,function()
-        self:First()
+        if self.First then
+            self:First()
+        end
     end)
 end
 

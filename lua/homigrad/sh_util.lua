@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_util.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 
 if CLIENT then
 	local plymeta = FindMetaTable("Player")
@@ -62,7 +60,7 @@ if SERVER then
 		net.WriteInt(key, 26)
 		net.WriteBool( ply.organism.canmove )
 		net.WriteEntity(ply)
-		net.Broadcast()
+		net.SendPVS(ply:GetPos())
 	end)
 
 	hook.Add("KeyRelease", "huy-hg2", function(ply, key)
@@ -70,7 +68,7 @@ if SERVER then
 		net.WriteInt(key, 26)
 		net.WriteBool(false)
 		net.WriteEntity(ply)
-		net.Broadcast()
+		net.SendPVS(ply:GetPos())
 	end)
 else
 	net.Receive("keyDownply2", function(len)
@@ -82,6 +80,16 @@ else
 		ply.keydown[key] = down
 		if ply.keydown[key] == false then ply.keydown[key] = nil end
 	end)
+end
+
+function hg.GetWorldSize()
+	local world = game.GetWorld()
+	//local worldMin = world:GetInternalVariable("m_WorldMins")
+	//local worldMax = world:GetInternalVariable("m_WorldMaxs")
+	local worldMin, worldMax = world:GetModelBounds()
+	local size = worldMin:Distance(worldMax)
+
+	return size
 end
 
 function hg.IsValidPlayer(ply)
@@ -1163,6 +1171,7 @@ function hg.tpPlayer(pos, ply, i, yaw, forced)
 	local t = {}
 	t.start = pos + Vector( 0, 0, 32 )
 	t.collisiongroup = COLLISION_GROUP_WEAPON
+	t.filter = player.GetAll()
 	t.endpos = t.start + offset
 
 	if !IsValid(ply) then
@@ -1386,6 +1395,44 @@ if SERVER then
 	end*/
 end
 
+function ActivateNoCollision(target, min) // gmodwiki my beloved
+	if !IsValid(target) then return end
+
+	local oldCollision = COLLISION_GROUP_PLAYER
+	target:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR)
+	
+	timer.Simple(min or 0, function()
+		if !IsValid(target) then return end
+		local i = 1
+		local time = 30
+		local checkdtime = 0.5
+		timer.Create(target:SteamID64().."_checkBounds_cycle", checkdtime, math.Round(time / checkdtime), function()
+			if !IsValid(target) then return end
+			i = i + 1
+			local penetrating = ( IsValid(target:GetPhysicsObject()) and target:GetPhysicsObject():IsPenetrating() ) or false
+			local tooNearPlayer = false
+
+			for i, ply in player.Iterator() do
+				if ply == target then continue end
+				if !ply:Alive() or IsValid(ply.FakeRagdoll) then continue end
+				if target:GetPos():DistToSqr(ply:GetPos()) <= (24 * 24) then
+					tooNearPlayer = true
+				end
+			end
+			//print(target, penetrating, tooNearPlayer, target:GetCollisionGroup())
+
+			if (!penetrating and !tooNearPlayer) or i >= (math.Round(time / checkdtime) - 1) then
+				target:SetCollisionGroup(oldCollision)
+				
+				timer.Destroy(target:SteamID64().."_checkBounds_cycle")
+			end
+		end)
+	end)
+end
+//for i, ply in pairs(player.GetAll()) do
+//	ActivateNoCollision(ply, 0)
+//end
+
 local lpos = Vector(0,10,0)
 local lang = Angle(0,90,90)
 
@@ -1450,7 +1497,7 @@ hook.Add("player_spawn", "homigrad-spawn3", function(data)
 	ply:RemoveFlags(FL_NOTARGET)
 
 	if SERVER then
-		--ply:SyncVars()
+		
 	end
 
 	--[[if CLIENT then
@@ -1542,9 +1589,15 @@ hook.Add("player_spawn", "homigrad-spawn3", function(data)
 	hook.Run("Player Getup", ply)
 	
 	local override = (CLIENT and hg.override[ply]) or (SERVER and OverrideSpawn)
-	
+
+	if eightbit and eightbit.EnableEffect and ply.UserID then
+		eightbit.EnableEffect(ply:UserID(), ply.PlayerClassName == "furry" and eightbit.EFF_PROOT or 0)
+	end
+
 	if not override then
 		hook.Run("Player Spawn", ply)
+
+		if SERVER then ActivateNoCollision(ply, 5) end
 
 		if SERVER then
 			ply.organism.lightstun = 0
@@ -1681,7 +1734,7 @@ function hg.SmoothUnfake(ent, ply)
 			newmat:SetAngles(q3:Angle())
 
 			if i == ent:LookupBone("ValveBiped.Bip01_Head1") and lply == GetViewEntity() and lply == ply then
-				newmat:SetScale(Vector(0.1, 0.1, 0.1))
+				newmat:SetScale(Vector(0.01, 0.01, 0.01))
 				//ply.headm = newmat
 			end
 
@@ -1717,26 +1770,19 @@ function DrawPlayerRagdoll(ent, ply)
 		ent:ManipulateBoneScale(lkp, wawanted)
 	end
 
-	//hg.HomigradBones(ply, CurTime(), FrameTime())
-
-	//ent:SetupBones()
-	//ply:SetupBones()
-
 	if IsValid(ply.OldRagdoll) then
-		//hg.SmoothUnfake(ent, ply)
+		ply:SetupBones()
 	end
 
 	hg.RenderWeapons(ent, ply)
 
 	ent:SetupBones()
-	//ply:SetupBones()
-	
-
-	//if IsValid(ply.OldRagdoll) then
-		//hg.SmoothUnfake(ent, ply)
-	//end
 
 	hg.MainTPIKFunction(ent, ply, wep)
+
+	if IsValid(ply.OldRagdoll) then
+		hg.SmoothUnfake(ent, ply)
+	end
 
 	if ply:GetNetVar("handcuffed", false) then hg.CuffedAnim(ent, ply) end
 	
@@ -1747,7 +1793,8 @@ function DrawPlayerRagdoll(ent, ply)
 	end
 
 	local armors = ply:GetNetVar("Armor") or ent.PredictedArmor
-	if armors and next(armors) then
+	local hideArmorRender = ply:GetNetVar("HideArmorRender", false) or ent.PredictedHideArmorRender
+	if armors and next(armors) and not hideArmorRender then
 		RenderArmors(ply, armors, ent)
 	end
 
@@ -1768,6 +1815,7 @@ end
 
 hg.renderOverride = function(self, ent, flags)
 	if bit.band(flags, STUDIO_RENDER) != STUDIO_RENDER then return end
+	if !self.shouldTransmit then return end
 	//if self.lastrender == RealTime() then return end
 	local drawing = IsValid(ent) and ent or self
 	ent = IsValid(ent) and ent or self
@@ -1984,7 +2032,7 @@ if CLIENT then
 		ViewPunch(AngleRand(-1,1)*dist/100)
 		ViewPunch2(AngleRand(-1,1)*dist/100)
 	end)
-	print("hello")
+
 	local anguse = Angle(0,0,0)
 	s_suppression = s_suppression or 0
 	hook.Add("PostEntityFireBullets","bulletsuppression2",function(ent,bullet)
@@ -2129,7 +2177,7 @@ end
 
 --//
 
-local lend = 6
+local lend = 3
 local vec = Vector(lend,lend,lend)
 local traceBuilder = {
 	mins = -vec,
@@ -2173,7 +2221,7 @@ end
 
 function hg.eye(ply, dist, ent, aim_vector, startpos)
 	if !ply:IsPlayer() then return false end
-	local fakeCam = IsValid(ent) and ent != ply
+	local fakeCam = false//IsValid(ent) and ent != ply
 	local ent = (IsValid(ent) and ent) or (IsValid(ply.FakeRagdoll) and ply.FakeRagdoll) or ply
 	local bon = ent:LookupBone("ValveBiped.Bip01_Head1")
 	if not bon then return end
@@ -2238,16 +2286,17 @@ function hg.eye(ply, dist, ent, aim_vector, startpos)
 	return trace.HitPos, aim_vector * (dist or 60), {ply, ent}, trace, headm//util.TraceLine(tr), trace, headm
 end
 
-function hg.eyeTrace(ply, dist, ent, aim_vector, startpos)
+function hg.eyeTrace(ply, dist, ent, aim_vector, startpos, fFilter)
 	local start, aim, filter, trace, headm = hg.eye(ply, dist, ent, aim_vector, startpos)
 	if not start then return end
-	if ply.lasteyetrace == CurTime() and ply.cachedeyetrace then return ply.cachedeyetrace, trace, headm end
+	if ply.lasteyetrace == CurTime() and ply.cachedeyetrace and (ply.lasteyetracedist == dist) then return ply.cachedeyetrace, trace, headm end
 	ply.lasteyetrace = CurTime()
+	ply.lasteyetracedist = dist
 	if not isvector(start) then return end
 	ply.cachedeyetrace = util.TraceLine({
 		start = start,
 		endpos = start + aim,
-		filter = filter
+		filter = fFilter or filter
 	})
 	return ply.cachedeyetrace, trace, headm
 end
@@ -2273,7 +2322,7 @@ lastcall = SysTime() - 0.01
 
 hg.ragdolls = hg.ragdolls or {}
 
---[[hook.Add("OnEntityCreated", "huyasdingger", function(ent)
+--[[hook.Add("OnEntityCreated", "huyasdowo", function(ent)
 	if ent:GetClass() == "prop_ragdoll" then
 		--hg.ragdolls[raglen] = ent
 	end
@@ -2292,27 +2341,18 @@ if CLIENT then
 	-- end
 
 	
-	local function GetDoorHintText()
-		local lang = GetConVar("gmod_language"):GetString()
-		
-		if lang == "ru" then
-			return "<font=ZCity_Tiny>"..string.upper( input.LookupBinding("+use") ).." открыть обычно</font>\n"..
-				   "<font=ZCity_Tiny>"..string.upper( input.LookupBinding("+use") ).." + ".. string.upper( input.LookupBinding("+walk") ) .." открыть медленно</font>\n"..
-				   "<font=ZCity_Tiny>"..string.upper( input.LookupBinding("+use") ).." + ".. string.upper( input.LookupBinding("+speed") ) .." открыть быстро</font>\n"
-		else
-			return "<font=ZCity_Tiny>"..string.upper( input.LookupBinding("+use") ).." open normally</font>\n"..
-				   "<font=ZCity_Tiny>"..string.upper( input.LookupBinding("+use") ).." + ".. string.upper( input.LookupBinding("+walk") ) .." open slower</font>\n"..
-				   "<font=ZCity_Tiny>"..string.upper( input.LookupBinding("+use") ).." + ".. string.upper( input.LookupBinding("+speed") ) .." open faster</font>\n"
-		end
-	end
-
-	hook.Add("OnEntityCreated", "huyasdingger", function(ent)
+	hook.Add("OnEntityCreated", "huyasdowo", function(ent)
 		if SDOIsDoor(ent) then
 			function ent:HintShow(lply,fraction,trace)
 				hg.BasicHudHint(self,lply,fraction,trace)
 			end
 			if CLIENT then
-				ent.HowToUseInstructions = GetDoorHintText()
+				local use = input.LookupBinding("+use") or "e"
+				local walk = input.LookupBinding("+walk") or "alt"
+				ent.HowToUseInstructions = 
+				"<font=ZCity_Tiny>"..string.upper( use ).." open normaly</font>\n"..
+				"<font=ZCity_Tiny>"..string.upper( use ).." + ".. string.upper( walk ) .." open slower</font>\n"..
+				"<font=ZCity_Tiny>"..string.upper( use ).." + SHIFT open faster</font>\n"
 
 				ent.HudHintMarkup = markup.Parse("<font=ZCity_Tiny>".. "Door" .."</font>\n<font=ZCity_SuperTiny><colour=125,125,125>".. ent.HowToUseInstructions .."</colour></font>",450)
 			end
@@ -2321,7 +2361,7 @@ if CLIENT then
 	end)
 end
 
-hook.Add("EntityRemoved", "huyasdingger", function(ent)
+hook.Add("EntityRemoved", "huyasdowo", function(ent)
 	table.RemoveByValue(hg.ragdolls, ent)
 end)
 local table_add = table.Add
@@ -2336,7 +2376,7 @@ hook.Add("Think", "hg-playerthink", function()
 		//entities = ents_FindByClass(ragdolls)
 		//table_add(entities, player_GetAll())
 		local entities = hg.seenents
-
+		
 		--for i = 1, #entities do
 			--ent = entities[i]
 		--[[for i = 1, #hg.ragdolls do
@@ -2360,7 +2400,7 @@ hook.Add("Think", "hg-playerthink", function()
 
 			hook_Run("Player-Ragdoll think", ent, time, dtime)
 		end--]]
-		 
+		
 		for _, ent in ipairs(entities) do
 			if not IsValid(ent) or (ent:IsPlayer() and not ent:Alive()) or IsValid(ent.FakeRagdoll) then continue end
 			--print(ent, CurTime())
@@ -2442,7 +2482,11 @@ function hg.CalculateWeight(ply,maxweight)
 
 	ply.armors = ply:GetNetVar("Armor",{})
 	for plc,arm in pairs(ply.armors) do
-		weight = weight + (hg.armor[plc][arm].mass or 1)
+		if hg.armor[plc] and hg.armor[plc][arm] and hg.armor[plc][arm].mass then
+			weight = weight + hg.armor[plc][arm].mass
+		else
+			weight = weight + 1
+		end
 	end
 
 	local weightmul = (1 / (weight / maxweight + 1))
@@ -2576,37 +2620,70 @@ if CLIENT then
 	end)
 end
 
-local lang = {
-	["en"] = {
-		["random_gesture"] = "Random Gesture"
-	},
-	["ru"] = {
-		["random_gesture"] = "Случайный жест"
-	}
-}
 
-local function GetText(key)
-	local playerLang = "en"
-	
-	if CLIENT then
-		playerLang = GetConVar("gmod_language"):GetString()
-		if playerLang ~= "en" and playerLang ~= "ru" then
-			playerLang = "en"
-		end
+if CLIENT then
+	local function changePosture()
+		RunConsoleCommand("hg_change_standposture", -1)
 	end
-	
-	return lang[playerLang] and lang[playerLang][key] or lang["en"][key]
+
+	local function resetPosture()
+		RunConsoleCommand("hg_change_standposture", 0)
+	end
+
+	hook.Add("radialOptions", "standing_posture", function()
+		do return end
+
+		local ply = LocalPlayer()
+		local organism = ply.organism or {}
+		local wep = ply:GetActiveWeapon()
+		if IsValid(wep) and wep:GetClass() == "weapon_hands_sh" and not wep:GetFists() and not organism.otrub then
+			local tbl = {changePosture, "Change Stand Posture"}
+			hg.radialOptions[#hg.radialOptions + 1] = tbl
+			--local tbl = {resetPosture, "Сбросить позу"}
+			--hg.radialOptions[#hg.radialOptions + 1] = tbl
+		end
+	end)
+
+	local printed
+	concommand.Add("hg_change_standposture", function(ply, cmd, args)
+		if not args[1] and not isnumber(args[1]) and not printed then print([[я такой газовый чэловек]]) printed = true end
+		local pos = math.Round(args[1] or -1)
+		net.Start("change_standposture")
+		net.WriteInt(pos, 8)
+		net.SendToServer()
+	end)
+
+	net.Receive("change_standposture", function()
+		local ply = net.ReadEntity()
+		local pos = net.ReadInt(8)
+		
+		ply.standposture = pos
+	end)
+else
+	util.AddNetworkString("change_standposture")
+	net.Receive("change_standposture", function(len, ply)
+		local pos = net.ReadInt(8)
+		do return end
+		if (ply.change_posture_cooldown or 0) > CurTime() then return end
+		ply.change_posture_cooldown = CurTime() + 0.1
+
+		if pos ~= -1 then 
+			if pos == ply.standposture then
+				ply.standposture = 0
+				pos = 0
+			else
+				ply.standposture = pos 
+			end
+		else
+			ply.standposture = ply.standposture or 0
+			ply.standposture = (ply.standposture + 1) >= 3 and 0 or ply.standposture + 1
+		end
+		net.Start("change_standposture")
+		net.WriteEntity(ply)
+		net.WriteInt(ply.standposture, 9)
+		net.Broadcast()
+	end)
 end
-
-hook.Add("radialOptions", "7", function()
-    local ply = LocalPlayer()
-    local organism = ply.organism or {}
-
-    if ply:Alive() and not organism.otrub and hg.GetCurrentCharacter(ply) == ply then
-        local tbl = {randomGesture, GetText("random_gesture")}
-        hg.radialOptions[#hg.radialOptions + 1] = tbl
-    end
-end)
 
 local function stop_taunt(ply)
 	ply:SetNWBool("TauntStopMoving", false)
@@ -2953,7 +3030,7 @@ hook.Add("StartCommand", "HG(StartCommand)", function(ply, cmd)
 	local slwdwn = ply:GetNetVar("slowDown", 0)
 	if(slwdwn > 0)then
 		if(SERVER)then
-			ply:SetNetVar("slowDown", math.Approach(slwdwn, 0, delta_time * 250))
+			//ply:SetNetVar("slowDown", math.Approach(slwdwn, 0, delta_time * 250))
 		end
 		k = k * math.Clamp((250 - slwdwn) / 250, 0.75, 1)
 	end
@@ -3030,7 +3107,7 @@ hook.Add("StartCommand", "HG(StartCommand)", function(ply, cmd)
 			tr.filter = ply
 			tr = util.TraceLine(tr)
 			
-			if tr.SurfaceProps and util.GetSurfaceData(tr.SurfaceProps).friction < 0.2 then
+			if tr.SurfaceProps and util.GetSurfaceData(tr.SurfaceProps) and util.GetSurfaceData(tr.SurfaceProps).friction < 0.2 then
 				local b1 = ply:TranslateBoneToPhysBone(ply:LookupBone("ValveBiped.Bip01_L_Calf"))
 				local phys1 = hg.IdealMassPlayer["ValveBiped.Bip01_L_Calf"]
 
@@ -3066,7 +3143,7 @@ hook.Add("StartCommand", "HG(StartCommand)", function(ply, cmd)
 	*/
 
 	ply:SetMaxSpeed(move)
-	ply:SetJumpPower(DEFAULT_JUMP_POWER * math.min(k,1.1) * (not ply:GetNWBool("TauntStopMoving", false) and 1 or 0) * (ply.organism.superfighter and 1.5 or 1) * (ply.JumpPowerMul or 1))
+	ply:SetJumpPower(DEFAULT_JUMP_POWER * math.min(k,1.1) * (not ply:GetNWBool("TauntStopMoving", false) and 1 or 0) * (ply.organism.superfighter and 1.5 or 1) * (ply.JumpPowerMul or 1) * (1 + (ply.organism.anger or 0) * 0.5))
 	
 	if(CLIENT)then
 		cmd:SetForwardMove(forward_move * inertia_len)
@@ -3108,16 +3185,15 @@ hook.Add("PlayerFootstep", "CustomFootstep2sad", function(ply, pos, foot, sound,
 
 	if Hook then return Hook end
 
-	if CLIENT and ply == lply then
+	if CLIENT and ply == lply and ply.move then
 		footcl = (footcl == nil and -1 or footcl) + 1
 		if footcl > 1 then
 			footcl = -1
 		elseif footcl == 0 then
 			footcl = 1
 		end
-		local curmove = (ply.move or 350)
-		local mul = 1 * len / 300 * math_max((350 - curmove) / 50, 0.4)
-		ViewPunch(Angle(1 * len / 200 * math_max((350 - curmove) / 50, 1), footcl * mul, 0))
+		local mul = 1 * len / 300 * math_max((350 - ply.move) / 50, 0.4)
+		ViewPunch(Angle(1 * len / 200 * math_max((350 - ply.move) / 50, 1), footcl * mul, 0))
 	end
 
 	if SERVER then
@@ -3236,7 +3312,7 @@ end
 hook.Add( "EntityEmitSound", "TimeWarpSounds", function( t )
 
 	local p = changePitch(t.Pitch)
-
+	
 	if ( p ~= t.Pitch ) then
 		t.Pitch = math.Clamp( p, 0, 255 )
 		return true
@@ -3294,6 +3370,8 @@ end
 hook.Add("PlayerDeathSound", "removesound", function() return true end)
 
 hook.Add("PlayerSwitchFlashlight", "removeflashlights", function(ply, enabled)
+	if ply.PlayerClassName == "Combine" or ply.PlayerClassName == "furry" then return end
+	
 	local wep = ply:GetActiveWeapon()
 
 	local flashlightwep
@@ -3314,13 +3392,14 @@ hook.Add("PlayerSwitchFlashlight", "removeflashlights", function(ply, enabled)
 
 	if not flashlightwep then --custom flashlight
 		local inv = ply:GetNetVar("Inventory",{})
-		if inv and inv["Weapons"] and inv["Weapons"]["hg_flashlight"] and enabled then
+		if inv and inv["Weapons"] and inv["Weapons"]["hg_flashlight"] then
 			hg.GetCurrentCharacter(ply):EmitSound("items/flashlight1.wav",65)
-			ply:SetNetVar("flashlight",not ply:GetNetVar("flashlight"))
-			--return true
-			if IsValid(ply.flashlight) then ply.flashlight:Remove() end
+			local newState = not ply:GetNetVar("flashlight")
+			ply:SetNetVar("flashlight", newState)
+			if not newState and IsValid(ply.flashlight) then ply.flashlight:Remove() end
 		else
 			ply:SetNetVar("flashlight",false)
+			if IsValid(ply.flashlight) then ply.flashlight:Remove() end
 		end
 		return false
 	end
@@ -3337,6 +3416,7 @@ if CLIENT then
 		local rh,lh = ply:LookupBone("ValveBiped.Bip01_R_Hand"), ply:LookupBone("ValveBiped.Bip01_L_Hand")
 		
 		local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
+		ent:SetupBones()
 		local rhmat = ent:GetBoneMatrix(rh)
 		local lhmat = ent:GetBoneMatrix(lh)
 	
@@ -3408,30 +3488,28 @@ end
 function hg.CanUseLeftHand(ply)
     local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
     local wep = IsValid(ply:GetActiveWeapon()) and ply:GetActiveWeapon()
-    local Car = (IsValid(ply:GetSimfphys()) and ply:GetSimfphys())
-    local holdingwheel = false
-    
-    if (IsValid(Car) and hg.GetCarSteering(Car)) then
-        holdingwheel = hg.GetCarSteering(Car) > 0
-    end
+	local Car = (IsValid(ply:GetSimfphys()) and ply:GetSimfphys())
+	local holdingwheel = false
+	--PrintBones(Car)
+	--PrintTable(Car:GetAttachments())
+	if (IsValid(Car) and hg.GetCarSteering(Car)) then
+		holdingwheel = hg.GetCarSteering(Car) > 0
+	end
 
-    local inv = ply:GetNetVar("Inventory")
-        
-    local noSling = inv and (not inv["Weapons"] or not inv["Weapons"]["hg_sling"])
+	local inv = ply:GetNetVar("Inventory")
+		
+	local noSling = inv and (not inv["Weapons"] or not inv["Weapons"]["hg_sling"])
 
-    local deploying = wep and (wep.deploy and (wep.deploy - CurTime()) > (wep.CooldownDeploy / 2) or wep.holster and (wep.holster - CurTime()) < (wep.CooldownHolster / 2))
-    local leftFingerBone = ent:LookupBone("ValveBiped.Bip01_L_Finger11")
-    local hasFingerManipulation = false
-    if leftFingerBone then
-        hasFingerManipulation = math.abs(ent:GetManipulateBoneAngles(leftFingerBone)[2]) > 5
-    end
-    
+	local deploying = wep and (wep.deploy and (wep.deploy - CurTime()) > (wep.CooldownDeploy / 2) or wep.holster and (wep.holster - CurTime()) < (wep.CooldownHolster / 2))
+	--print(wep:IsPistolHoldType())
+	
     return not ((((ply:GetTable().ChatGestureWeight or 0) > 0.1 or
-        (ply:GetNWBool("TauntLeftHand", false) and ply:GetNWFloat("StartTaunt", 0) + 0.1 < CurTime()) or
-        IsValid(ply.flashlight)) and !ply:GetNetVar("handcuffed") and (wep and not wep.reload)) or
-        (deploying) or
-        (ent != ply and hasFingerManipulation and !ply:InVehicle()) or
-        ( ply:InVehicle() and (wep and not IsValid(wep)) and not wep.reload) and hg.isdriveablevehicle(ply:GetVehicle()) )
+		(ply:GetNWBool("TauntLeftHand", false) and ply:GetNWFloat("StartTaunt", 0) + 0.1 < CurTime()) or
+		IsValid(ply.flashlight)) and !ply:GetNetVar("handcuffed") and (wep and not wep.reload)) or
+		(deploying) or
+		(ent != ply and math.abs(ent:GetManipulateBoneAngles(ent:LookupBone("ValveBiped.Bip01_L_Finger11"))[2]) > 5 and !ply:InVehicle()) or
+		( ply:InVehicle() and (wep and not IsValid(wep)) and not wep.reload) and hg.isdriveablevehicle(ply:GetVehicle()) )
+		
 end
 
 function hg.CanUseRightHand(ply)
@@ -3502,28 +3580,37 @@ local surface_hardness = {
 local npcs = {
 	--["npc_metropolice"] = {multi = 1,force = 1},
 	--["npc_combine_s"] = {multi = 1,force = 1},
-	["npc_strider"] = {multi = 5,snd = "npc/strider/strider_minigun.wav",force = 2},
-	["npc_combinegunship"] = {multi = 5,snd = "npc/strider/strider_minigun.wav",force = 7},
-	["npc_helicopter"] = {multi = 4,force = 2},
-	["lunasflightschool_ah6"] = {multi = 20}
+	["npc_strider"] = {multi = 5, snd = "npc/strider/strider_minigun.wav", force = 5, AmmoType = "14.5x114mm BZTM", PenetrationMul = 10, noricochet = true},
+	["npc_combinegunship"] = {multi = 5, snd = "npc/strider/strider_minigun.wav", force = 3, AmmoType = "14.5x114mm BZTM", PenetrationMul = 10},
+	["npc_helicopter"] = {multi = 4, force = 2, AmmoType = "14.5x114mm BZTM", PenetrationMul = 10},
+	["lunasflightschool_ah6"] = {multi = 20, AmmoType = "14.5x114mm BZTM"},
+	["npc_turret_floor"] = {multi = 1.25, AmmoType = "9x19 mm Parabellum"},
+	["npc_sniper"] = {multi = 3, AmmoType = "14.5x114mm BZTM", PenetrationMul = 4},
+	["npc_hunter"] = {multi = 4, AmmoType = "12/70 RIP", PenetrationMul = 1}, --;; не работает(
+	["npc_turret_ceiling"] = {multi = 1.25, AmmoType = "9x19 mm QuakeMaker"},
 }
 
 hook.Add("EntityFireBullets", "NPC_Boolets", function(ent, bullet)
 	if IsValid(ent) and npcs[ent:GetClass()] and not bullet.NpcShoot then
 		local tbl = npcs[ent:GetClass()]
-		--PrintTable(bullet)
+		if ent:GetClass() == "npc_turret_floor" and IsValid(ent:GetEnemy()) and ent:GetEnemy():GetClass() == "npc_bullseye" and IsValid(ent:GetEnemy().rag) then
+			bullet.Dir = (ent:GetEnemy().rag:GetBonePosition(ent:GetEnemy().rag:LookupBone("ValveBiped.Bip01_Spine1")) + VectorRand(-20, 20) - bullet.Src):GetNormalized()
+		end
+		bullet.AmmoType = tbl.AmmoType or bullet.AmmoType
 		if bullet.AmmoType then 
-			bullet.Damage = (hg.ammotypes[bullet.AmmoType] and hg.ammotypes[bullet.AmmoType].BulletSetings.Damage or game.GetAmmoPlayerDamage(game.GetAmmoID(bullet.AmmoType))) * npcs[ent:GetClass()].multi
-			bullet.Force = (hg.ammotypes[bullet.AmmoType] and hg.ammotypes[bullet.AmmoType].BulletSetings.Force or game.GetAmmoPlayerDamage(game.GetAmmoID(bullet.AmmoType))) * (npcs[ent:GetClass()].force or 1)
+			bullet.Damage = (hg.ammotypeshuy[bullet.AmmoType] and hg.ammotypeshuy[bullet.AmmoType].BulletSettings.Damage or game.GetAmmoPlayerDamage(game.GetAmmoID(bullet.AmmoType)))// * npcs[ent:GetClass()].multi
+			bullet.Force = (hg.ammotypeshuy[bullet.AmmoType] and hg.ammotypeshuy[bullet.AmmoType].BulletSettings.Force or game.GetAmmoPlayerDamage(game.GetAmmoID(bullet.AmmoType))) * (npcs[ent:GetClass()].force or 1)
+			bullet.Penetration = (hg.ammotypeshuy[bullet.AmmoType] and hg.ammotypeshuy[bullet.AmmoType].BulletSettings.Penetration or game.GetAmmoPlayerDamage(game.GetAmmoID(bullet.AmmoType))) * (npcs[ent:GetClass()].PenetrationMul or 1)
 		end
 		bullet.Filter = { ent }
 		bullet.Attacker = ent
 		bullet.penetrated = 0
-		bullet.ImmobilizationMul = 1
-		bullet.PainMultiplier = bullet.Damage *tbl.multi
-		bullet.BleedMultiplier = bullet.Damage * tbl.multi
-		bullet.Penetration = bullet.Damage * (tbl.force or 1)
-		bullet.ShockMultiplier = bullet.Damage * (tbl.force or 1)
+		bullet.noricochet = tbl.noricochet
+		//bullet.ImmobilizationMul = 1
+		//bullet.PainMultiplier = bullet.Damage * tbl.multi
+		//bullet.BleedMultiplier = bullet.Damage * tbl.multi
+		//bullet.Penetration = bullet.Damage * (tbl.force or 1)
+		//bullet.ShockMultiplier = bullet.Damage * (tbl.force or 1)
 		ent.weapon = ent
 		--bullet.Tracer = 1
 		--bullet.TracerName = "AR2Tracer"
@@ -3577,6 +3664,82 @@ hook.Add("PlayerUse","nouseinfake",function(ply,ent)
 	if ply.PickUpCooldown > CurTime() then return false end
 
 	ply.PickUpCooldown = CurTime() + 0.15
+	
+	if SERVER and hgIsDoor(ent) then
+		local isSprinting = ply:IsSprinting()
+		local isWalking = ply:KeyDown(IN_WALK)
+		
+		if not ent.OriginalSpeed then
+			ent.OriginalSpeed = ent:GetInternalVariable("m_flSpeed") or 100
+		end
+		
+		if not ent.OriginalSounds then
+			ent.OriginalSounds = {
+				open = ent:GetInternalVariable("m_SoundOpen") or "",
+				close = ent:GetInternalVariable("m_SoundClose") or "",
+				move = ent:GetInternalVariable("m_SoundMoving") or "",
+				locked = ent:GetInternalVariable("m_ls.sLockedSound") or "",
+				unlocked = ent:GetInternalVariable("m_ls.sUnlockedSound") or ""
+			}
+		end
+		
+		local speedMultiplier = 1
+		local playSound = true
+		
+		if isSprinting then
+			speedMultiplier = 2
+		elseif isWalking then
+			speedMultiplier = 0.33
+			playSound = false
+		end
+		
+		local function ApplyDoorMods()
+			if not IsValid(ent) then return end
+			
+			local newSpeed = ent.OriginalSpeed * speedMultiplier
+			ent:SetKeyValue("speed", tostring(newSpeed))
+			
+			if not playSound then
+				ent:SetKeyValue("soundopenoverride", "common/null.wav")
+				ent:SetKeyValue("soundcloseoverride", "common/null.wav")
+				ent:SetKeyValue("soundmoveoverride", "common/null.wav")
+				ent:SetKeyValue("soundlockedoverride", "common/null.wav")
+				ent:SetKeyValue("soundunlockedoverride", "common/null.wav")
+				ent.SoundsDisabled = true
+			elseif ent.SoundsDisabled then
+				ent:SetKeyValue("soundopenoverride", ent.OriginalSounds.open)
+				ent:SetKeyValue("soundcloseoverride", ent.OriginalSounds.close)
+				ent:SetKeyValue("soundmoveoverride", ent.OriginalSounds.move)
+				ent:SetKeyValue("soundlockedoverride", ent.OriginalSounds.locked)
+				ent:SetKeyValue("soundunlockedoverride", ent.OriginalSounds.unlocked)
+				ent.SoundsDisabled = false
+			end
+		end
+		
+		ApplyDoorMods()
+		
+		timer.Simple(0, ApplyDoorMods)
+		
+		if ent.DoorRestoreTimer then
+			timer.Remove(ent.DoorRestoreTimer)
+		end
+		
+		ent.DoorRestoreTimer = "DoorRestore_" .. ent:EntIndex()
+		timer.Create(ent.DoorRestoreTimer, 2.5, 1, function()
+			if IsValid(ent) and ent.OriginalSpeed then
+				ent:SetKeyValue("speed", tostring(ent.OriginalSpeed))
+				
+				if ent.SoundsDisabled and ent.OriginalSounds then
+					ent:SetKeyValue("soundopenoverride", ent.OriginalSounds.open)
+					ent:SetKeyValue("soundcloseoverride", ent.OriginalSounds.close)
+					ent:SetKeyValue("soundmoveoverride", ent.OriginalSounds.move)
+					ent:SetKeyValue("soundlockedoverride", ent.OriginalSounds.locked)
+					ent:SetKeyValue("soundunlockedoverride", ent.OriginalSounds.unlocked)
+					ent.SoundsDisabled = false
+				end
+			end
+		end)
+	end
 end)
 
 hook.Add("Player Activate","SetHull",function(ply)
@@ -3645,7 +3808,7 @@ if CLIENT then
 		--checkcd = CurTime() + 1
 		local entities = ents_FindByClass("prop_ragdoll")
 		table_Add(entities, player_GetAll())
-
+		
 		hg.seenents = {}
 
 		if g_VR and g_VR.active then return end
@@ -3655,7 +3818,7 @@ if CLIENT then
 		local origin = view.origin
 		local angles = view.angles
 
-		for i=1, #entities do
+		for i = 1, #entities do
 			v = entities[i]
 
 			local nochange = (v == lply.FakeRagdoll) or (lply:Alive() and v == lply) or (not lply:Alive() and v == lply:GetNWEntity("spect"))
@@ -3663,7 +3826,7 @@ if CLIENT then
 				v.NotSeen = false
 				hg.seenents[#hg.seenents + 1] = v
 
-				--continue
+				continue
 			end
 
 			local min,max = v:GetModelBounds()
@@ -3686,20 +3849,37 @@ if CLIENT then
 	end)
 end
 
-local hullVec = Vector(5,5,5)
+local hullVec = Vector(1,1,1)
+local checkUse = {
+	"player",
+	"worldspawn",
+	"prop_dynamic"
+}
+-- local function checkUse(ent)
+	-- print(ent)
+	-- return ( not ent:IsPlayer() ) and ent.Use
+-- end
 hook.Add("FindUseEntity","findhguse",function(ply,heldent)
-	local eyetr = hg.eyeTrace(ply,100)
-	if IsValid(eyetr.Entity) then return eyetr.Entity end
-	if IsValid(heldent) and not heldent:IsScripted() then return heldent end
+	if ply.pickupCD and ply.pickupCD > CurTime() then return false end
+	if not ply:KeyDown(IN_USE) then return false end
+	--hg.eyeTrace(ply, dist, ent, aim_vector, startpos, fFilter)
+	local eyetr = hg.eyeTrace(ply,100,nil,nil,nil,checkUse)
+	--print(eyetr.Entity:GetClass())
+	if IsValid(eyetr.Entity) then 
+		return eyetr.Entity 
+	end
 
+	
+	--if IsValid(heldent) and not heldent:IsScripted() then return heldent end
+	
 	local tr = {}
-	tr.start = eyetr.StartPos
+	tr.start = eyetr.HitPos
 	tr.endpos = eyetr.HitPos
-	tr.filter = ply
+	tr.filter = checkUse	
 	tr.mins = -hullVec
 	tr.maxs = hullVec
 	tr.mask = MASK_SOLID + CONTENTS_DEBRIS + CONTENTS_PLAYERCLIP
-	tr.ignoreworld = true
+	tr.ignoreworld = false
 
 	tr = util_TraceHull(tr)
 	local ent = tr.Entity
@@ -3709,7 +3889,6 @@ hook.Add("FindUseEntity","findhguse",function(ply,heldent)
 		ent = heldent--tr.Entity
 		--return false
 	end
-
 	return ent
 end)
 
@@ -3879,6 +4058,7 @@ if CLIENT then
 	-- Страшные звуки падения
 	
 	local fallsnd = false
+	local windsnd = false
 	--local waterlevel = 0
 	--local oldwater = 0
 	--local highwater = {
@@ -3890,80 +4070,120 @@ if CLIENT then
 	--local exitwater = {
 	--	"zcity/other/exitwater_01.wav", "zcity/other/exitwater_02.wav"
 	--}
-	local windsnd = false
-	local windsndsec = false
+	local fallSndStation
+	local fallSnd_Volume = 0
+
+	local windSndStation
+	local windSnd_Volume = 0
+	local windSnd_VolumeSpeed = 0
+
+	local function createSnd()
+		if IsValid(fallSndStation) then
+			fallSndStation:Stop()
+			fallSndStation = nil
+		end
+		sound.PlayFile( "sound/zcity/other/fallstatic.wav", "noplay noblock", function(station, _, _)
+			if IsValid(station) then
+				station:EnableLooping( true )
+				station:SetVolume( 0 )
+				fallSndStation = station
+			end
+		end)
+
+		if IsValid(windSndStation) then
+			windSndStation:Stop()
+			windSndStation = nil
+		end
+		sound.PlayFile( "sound/zcity/other/runwind.wav", "noplay noblock", function(station, _, _)
+			if IsValid(station) then
+				station:EnableLooping( true )
+				station:SetVolume( 0 )
+				windSndStation = station
+			end
+		end)
+	end
 	--local DEBIL_ANGLE = Angle(0,0,0)
 	hook.Add("SetupMove","hg_FallSound",function()
 		local ply = LocalPlayer()
-		if !lply:Alive() or !lply.organism or lply.organism.otrub then
-			if fallsnd then
-				lply:StopLoopingSound(fallsnd)
+		if not ply:Alive() or not ply.organism or ply.organism.otrub then
+			if fallsnd and IsValid(fallSndStation) then
+				fallSndStation:SetVolume(0)
+				fallSnd_Volume = 0
 				fallsnd = false
+			end
+			if windsnd and IsValid(windSndStation) then
+				windSndStation:SetVolume(0)
+				windSndStation:Pause()
+				windSnd_Volume = 0
+				windSnd_VolumeSpeed = 0
+				windsnd = false
 			end
 
 			return
 		end
 		--if not ply then return end
-		local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
+		local ent = hg.GetCurrentCharacter(ply)
 		if not IsValid(ent) then 
 			if fallsnd then 
-				lply:StopLoopingSound(fallsnd)
 				fallsnd = false 
 			end 
 			return 
 		end
 		local vel = ent:GetVelocity():Length()
 		if -ent:GetVelocity().z > 700 and (ent:IsRagdoll() or !ply:OnGround()) and (ent:IsRagdoll() and !ent:IsConstrained() or ply:GetMoveType() == MOVETYPE_WALK) and ply:Alive() then
-			if !fallsnd then
-				fallsnd = lply:StartLoopingSound("zcity/other/fallstatic.wav")
+			if not fallsnd then
+				fallsnd = true
 			end
+
 			local ang = AngleRand(-(1-vel/500),1-vel/500)
-			--ang.r = 0
-			--lply:SetEyeAngles(lply:EyeAngles() + ang)
 			SetViewPunchAngles(ang)
+
 			Suppress(0.05)
-			--DEBIL_ANGLE:Add(ang)
 		elseif fallsnd then
-			lply:StopLoopingSound(fallsnd)
 			fallsnd = false
-			--local ang = lply:EyeAngles() - DEBIL_ANGLE
-			--ang[3] = 0
-			--ViewPunch2(ang)
-			--lply:SetEyeAngles(ang)
-			--DEBIL_ANGLE:Zero()
 		end
 
-		--waterlevel = ply:WaterLevel()
-
-		if vel > 700 and (ent:IsRagdoll() or !ply:OnGround()) and (ent:IsRagdoll() and !ent:IsConstrained() or ply:GetMoveType() == MOVETYPE_WALK) and ply:Alive() then
-			if !windsndsec then
-				windsndsec = ply:StartLoopingSound("zcity/other/clotheswind.wav")
+		if vel > 250 and ply:Alive() and IsValid(windSndStation) and (ent:IsRagdoll() or ply:GetMoveType() == MOVETYPE_WALK) then
+			if not windsnd then
+				windsnd = true
 			end
-		elseif windsndsec then
-			ply:StopLoopingSound(windsndsec)
-			windsndsec = false
+			windSnd_VolumeSpeed = vel/1400
+			windSndStation:SetPlaybackRate(math.min(math.max(vel/700,1),3))
+		elseif windsnd then
+			windsnd = false
 		end
 
-		--[[if lply:Alive() and waterlevel <= 1 and vel > 300 and ply:GetMoveType() == MOVETYPE_WALK and ply:OnGround() then
-			if !windsndsec then
-				windsndsec = lply:StartLoopingSound("zcity/other/runwind.wav")
-			end
-		elseif windsndsec then
-			lply:StopLoopingSound(windsndsec)
-			windsndsec = false
-		end]]
+	end)
 
-		--if waterlevel == 3 and oldwater ~= 3 then
-		--	if vel > 200 then
-		--		lply:EmitSound(table.Random(highwater),125,100,1,CHAN_AUTO)
-		--	else
-		--		lply:EmitSound(table.Random(normwater),35,100,1,CHAN_AUTO)
-		--	end
-		--end
-		--if waterlevel < 3 and oldwater == 3 then
-		--	lply:EmitSound(table.Random(exitwater),35,100,1,CHAN_AUTO)
-		--end
-		--oldwater = waterlevel
+	hook.Add("Think","hg_FallSnd",function()
+		if not IsValid(fallSndStation) or not IsValid(windSndStation) then
+			createSnd()
+			return 
+		end
+		if fallSndStation:GetState() != GMOD_CHANNEL_PLAYING and fallSnd_Volume > 0.01 then
+			fallSndStation:Play()
+		end
+
+		fallSnd_Volume = LerpFT(0.05, fallSnd_Volume, fallsnd and 1 or 0)
+		fallSndStation:SetVolume(fallSnd_Volume)
+
+		if fallSnd_Volume < 0.01 then
+			fallSndStation:Pause()
+			fallSndStation:SetTime(0)
+		end
+		--wind
+		if windSndStation:GetState() != GMOD_CHANNEL_PLAYING and windSnd_Volume > 0.01 then
+			windSndStation:Play()
+		end
+		--print(windsnd)
+		windSnd_Volume = LerpFT(0.05, windSnd_Volume, windsnd and windSnd_VolumeSpeed or 0)
+		--print(windSnd_Volume)
+		windSndStation:SetVolume(windSnd_Volume)
+
+		if windSnd_Volume < 0.01 then
+			windSndStation:Pause()
+			windSndStation:SetTime(0)
+		end
 	end)
 end
 
@@ -4029,7 +4249,7 @@ if CLIENT then
 		end
 	end)
 
-	hook.Add("PreCleanupMap", "noflashesforyounigge", function()
+	hook.Add("PreCleanupMap", "noflashesforyouMreowe", function()
 		hg.flashes = {}
 		amtflashed = 0
 		amtflashed2 = 0
@@ -4105,7 +4325,9 @@ hg.ColdMaps = {
 	["mu_smallotown_v2_snow"] = true,
 	["ttt_cosy_winter"] = true,
 	["ttt_winterplant_v4"] = true,
-	["gm_everpine_mall"] = true
+	["gm_everpine_mall"] = true,
+	["gm_boreas"] = true,
+	["gm_reservoir_a1"] = true
 }
 
 --if CLIENT then
@@ -4373,7 +4595,7 @@ if CLIENT then
 		count = #buf2
 	end)
 
-	hook.Add("HUDPaint", "huyniggersss", function()
+	hook.Add("HUDPaint", "huyUwUsss", function()
 		if not buf then return end
 
 		for i = 1, count do
@@ -4387,13 +4609,13 @@ local hg_ragdollcombat = ConVarExists("hg_ragdollcombat") and GetConVar("hg_ragd
 local hg_thirdperson = ConVarExists("hg_thirdperson") and GetConVar("hg_thirdperson") or CreateConVar("hg_thirdperson", 0, FCVAR_REPLICATED, "thirdperson combat", 0, 1)
 /*
 if SERVER then
-	util.AddNetworkString("asddasdaHUYNIGGA")
-	local timehuynigger = 0
+	util.AddNetworkString("asddasdaHUYOwO")
+	local timehuyUwU = 0
 	hook.Add("Think", "dsadsaasdfguckyou", function()
-		if timehuynigger > CurTime() then return end
-		timehuynigger = CurTime() + 0.1
+		if timehuyUwU > CurTime() then return end
+		timehuyUwU = CurTime() + 0.1
 		local ent = Entity(1)
-		net.Start("asddasdaHUYNIGGA")
+		net.Start("asddasdaHUYOwO")
 		for i = 0, ent:GetBoneCount() - 1 do
 			if ent:TranslateBoneToPhysBone(i) == -1 then continue end
 			net.WriteMatrix(ent:GetBoneMatrix(i))
@@ -4402,14 +4624,14 @@ if SERVER then
 	end)
 else
 	local mats = {}
-	net.Receive("asddasdaHUYNIGGA", function()
+	net.Receive("asddasdaHUYOwO", function()
 		local ent = Entity(1)
 		for i = 0, ent:GetBoneCount() - 1 do
 			mats[i] = net.ReadMatrix()
 		end
 	end)
 
-	hook.Add("PostDrawOpaqueRenderables", "fuckyounigger", function()
+	hook.Add("PostDrawOpaqueRenderables", "fuckyouUwU", function()
 		local ent = Entity(1)
 		//print(ent:EyeAngles(), ent:GetVehicle():GetAngles(), ent:EyeAngles() - ent:GetVehicle():GetAngles())
 		for i, mat in pairs(mats) do
@@ -4529,28 +4751,20 @@ end
 if SERVER then
 	util.AddNetworkString("GetServersInfo")
 elseif CLIENT then
-	local callback = nil
+	local callback = {}
 	local servers = {}
 	--@ fCallback parms(tTable)
 	function hg.GetServerInfo(fCallback)
 		net.Start("GetServersInfo")
 		net.SendToServer()
-		if type(fCallback) == "function" then
-			callback = fCallback
-		else
-			callback = nil
-		end
+		callback = fCallback
 	end
 	net.Receive("GetServersInfo",function()
-		if type(callback) == "function" then
+		if callback then
 			local tbl = net.ReadTable()
 			servers = table.Count(tbl) > 0 and tbl or servers
 			callback(servers)
 			callback = nil
-		else
-			-- consume the table so it doesn't remain on the net buffer
-			local tbl = net.ReadTable()
-			servers = table.Count(tbl) > 0 and tbl or servers
 		end
 	end)
 end

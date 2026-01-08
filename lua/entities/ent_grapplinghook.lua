@@ -2,7 +2,7 @@ AddCSLuaFile()
 ENT.Type = "anim"
 ENT.PrintName = "Grappling Hook"
 ENT.Author = "metal factory"
-ENT.Category = ""
+ENT.Category = "ZCity Other"
 ENT.Spawnable = true
 ENT.Model = "models/weapons/c_models/c_grappling_hook/c_grappling_hook.mdl"
 if SERVER then ENT.Model = "models/props_junk/cardboard_box004a.mdl" end
@@ -23,8 +23,8 @@ if SERVER then
 		local phys = self:GetPhysicsObject()
 		if IsValid(phys) then
 			phys:Wake()
-			phys:SetMass(20)
-			phys:SetMaterial("concrete")
+			phys:SetMass(100)
+			phys:SetMaterial("metal")
 			phys:SetDragCoefficient(0)
 		end
 
@@ -88,6 +88,14 @@ function ENT:PhysicsCollide(data, physobj)
 		if not self:GetNWBool("Impacted", false) then self:SetNWBool("Impacted", true) end
 		if data.Speed > 300 then
 			sound.Play("snds_jack_hmcd_grapple/hard.wav", self:GetPos(), 70, math.random(90, 110))
+			local ent = data.HitEntity
+			if IsValid(ent) and ent:IsPlayer() and ent:Alive() then
+				hg.LightStunPlayer(ent)
+				hg.velocityDamage(ent, data)
+				if IsValid(ent.FakeRagdoll) then
+					hg.velocityDamage(ent.FakeRagdoll, data)
+				end
+			end
 		else
 			sound.Play("snds_jack_hmcd_grapple/soft.wav", self:GetPos(), 65, math.random(90, 110))
 		end
@@ -95,23 +103,16 @@ function ENT:PhysicsCollide(data, physobj)
 end
 
 function ENT:Draw()
-	if not IsValid(self.RModel) then
+	if not self.RModel or not IsValid(self.RModel) then
 		self.RModel = ClientsideModel("models/weapons/c_models/c_grappling_hook/c_grappling_hook.mdl")
-		if IsValid(self.RModel) then
-			self.RModel:SetNoDraw(true)
-			self.RModel:SetMaterial("models/shiny")
-			self.RModel:SetColor(Color(10, 10, 10, 255))
-			self.RModel:SetParent(self)
-			self:CallOnRemove("Remove_CLMDL", function()
-				if IsValid(self.RModel) then
-					self.RModel:Remove()
-				end
-			end)
-		end
+		self.RModel:SetNoDraw(true)
+		self.RModel:SetMaterial("models/shiny")
+		self.RModel:SetColor(Color(10, 10, 10, 255))
+		self.RModel:SetParent(self)
+		self:CallOnRemove("Remove_CLMDL", function() self.RModel:Remove() end)
 	end
 
-	if not IsValid(self.RModel) then return end
-
+	--print(self.RModel)
 	local Vel, Ang = self:GetVelocity(), self:GetAngles()
 	if Vel:Length() > 100 then
 		Ang = Vel:Angle()

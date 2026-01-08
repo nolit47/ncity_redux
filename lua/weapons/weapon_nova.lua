@@ -1,5 +1,5 @@
 --ents.Reg(nil,"weapon_m4super")
-do return end
+
 SWEP.Base = "weapon_m4super"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false

@@ -33,7 +33,7 @@ local hg_realismcam = ConVarExists("hg_realismcam") and GetConVar("hg_realismcam
 local zoomPosSetter = Vector()
 local isSettingZoom = false
 
-hook.Add("HG.InputMouseApply", "huynigger", function(tbl)
+hook.Add("HG.InputMouseApply", "huyUwU", function(tbl)
 	if IsValid(lply) and lply:IsSuperAdmin() and hg_setzoompos:GetBool() and lply:KeyDown(IN_ATTACK2) then
 		zoomPosSetter:Add(Vector(tbl.cmd:GetMouseWheel(), -tbl.x / 500, -tbl.y / 500))
 		local str = "SWEP.ZoomPos = Vector("..math.Round(zoomPosSetter[1], 4)..", "..math.Round(zoomPosSetter[2], 4)..", "..math.Round(zoomPosSetter[3], 4)..")"
@@ -96,7 +96,8 @@ function SWEP:GetZoomPos(recoilZoomPos, view, eyePos)
 		if self:HasAttachment("sight","optic") then
 			posZoom = posZoom - recoilZoomPos * 0.25 - ang2:Forward() * (self.AdditionalPos2[1]) + ang2:Forward() * -1
 		else
-			local _,hitpos,dist = util.DistanceToLine(posZoom,posZoom + view.angles:Forward(),eyePos)
+			local _, hitpos, dist = util.DistanceToLine(posZoom, posZoom + view.angles:Forward(),eyePos)
+			dist = dist - 1
 			posZoom = posZoom + ang2:Forward() * dist - recoilZoomPos * 0.5
 		end
 	end
@@ -186,10 +187,10 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 	if hg_aiminganim:GetBool() then
 		self.k = Lerp(self.Ergonomics * FrameTime() * 3, self.k or 0, zoom and 1 or 0)
 	else
-		self.k = math.Approach(self.k or 0, zoom and 1 or 0, FrameTime() * 2 * self.Ergonomics)
+		self.k = math.Approach(self.k or 0, zoom and 1 or 0, FrameTime() * 3 * self.Ergonomics)
 	end
 
-	local k = math.ease.InOutCubic(self.k)
+	local k = math.min(1, math.ease.InOutCubic(self.k * 1))
 
 	local organism = ply.organism or {}
 	local larm = (type(organism.larm) == "number") and organism.larm or 0
@@ -235,19 +236,19 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 
 	spray = spray + animpos * 6 * k * mult * ply:EyeAngles():Up()
 
-	angIdle:Add(-angle_difference*2)
-	angZoom:Add(-angle_difference*1)
+	//angIdle:Add(-angle_difference*2)
+	//angZoom:Add(-angle_difference*1)
 
 	angZoom:Add(self.prankang or angle_zero)
 
 	outputPos = LerpVector(k, posIdle, posZoom)
-	outputAng = LerpAngle(k, angIdle, angZoom)
+	outputAng = LerpAngle(k, angIdle, angIdle)
 
 	if zoom or hg.KeyDown(ply, IN_SPEED) then offsetView = LerpFT(0.07, offsetView, angZero) end
 
 	outputAng:Add(-eyeSpray * 10)
-
-	outputPos:Add(-(angle_difference_localvec * 30) / (self.Ergonomics or 1))
+	
+	outputPos:Add(-(angle_difference_localvec * 30 * (-k + 2) * 2) / (self.Ergonomics or 1) + position_difference23 * -0.75 * (-k + 1.25))
 	outputPos:Add(spray * 1.1)
 	
 	local fthuy = ftlerped * 150
@@ -267,10 +268,12 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 		suicVal = (1 - math.max(ply:GetNetVar("suicide_time", CurTime()) + 4 - CurTime(), 0) / 4) * 20
 	end
 
+	self.shot = LerpFT(0.1, self.shot or 0, 0)
+
 	fovlerp = Lerp(0.01, fovlerp,
 		(ply:IsSprinting() and ply:GetVelocity():LengthSqr() > 1500 and 10 or 0)
 		- ((imm / 4) - (adr * 5)) / 2
-		 - suicVal
+		 - suicVal + self.shot * 5
 	)
 
 	ply:SetLOD(0);
@@ -283,8 +286,8 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 	end
 
 	if not hg_nofovzoom:GetBool() then
-		fov_mode_lerp = LerpFT(0.12,fov_mode_lerp,(self:HasAttachment("sight","optic") and not self.viewmode1 and -30 - (hg_fov:GetInt() - 75)) or - (hg_fov:GetInt() - 75))
-		fov = Lerp(k, fovlerp, fov_mode_lerp)
+		fov_mode_lerp = LerpFT(0.12, fov_mode_lerp, (self:HasAttachment("sight","optic") and not self.viewmode1 and -15 - (hg_fov:GetInt() - 75)) or - (hg_fov:GetInt() - 80))
+		fov = fovlerp + fov_mode_lerp * k//Lerp(k, fovlerp, fov_mode_lerp)
 	else
 		fov = fovlerp
 	end
@@ -296,8 +299,8 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 	view.origin = outputPos
 	view.angles = outputAng
 	
-	view.fov = view.fov + fov
-	
+	view.fov = math.min(hg_fov:GetInt(), view.fov + fov)
+
 	if LOW_RENDER then
 		view.zfar = 50
 	end
@@ -305,9 +308,42 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 	return view
 end
 
+hook.Add( "Think", "DOFThink", function()
+
+end)
+
+hook.Add( "Think", "DOFThink2", function()
+	do return end
+	local wep = lply:GetActiveWeapon()
+	
+	if !ishgweapon(wep) then return end
+
+	local k = 1 - math.ease.InOutCubic(wep.k * 1)
+	if k > 0.9 then k = 0 end
+
+	DOF_SPACING = Lerp(k, 512, 112)
+	DOF_OFFSET = Lerp(k, 512, 40)
+
+	if k > 0.05 then
+		if !DOF_ENABLED then
+			DOF_ENABLED = true
+
+			DOF_Start()
+		end
+	else
+		if DOF_ENABLED then
+			timer.Simple(0, function()
+				DOF_Kill()
+			end)
+
+			DOF_ENABLED = false
+		end
+	end
+end)
+
 function SWEP:GetCameraSprayValues()
 	local owner = self:GetOwner()
-	local spray = self.EyeSpray + GetViewPunchAngles2()
+	local spray = self.EyeSpray + GetViewPunchAngles2() * 0.25
 	
 	local _, newspr = LocalToWorld(vector_origin, spray * 8, vector_origin, owner:EyeAngles())
 

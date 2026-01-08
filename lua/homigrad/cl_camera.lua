@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\cl_camera.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 local view = render.GetViewSetup()
 local whitelist = {
 	weapon_physgun = true,
@@ -37,7 +35,7 @@ local sideMul = 5
 local eyeAngL = Angle(0, 0, 0)
 local IsValid = IsValid
 
-local hg_fov = ConVarExists("hg_fov") and GetConVar("hg_fov") or CreateClientConVar("hg_fov", "70", true, false, "changes fov to value", 75, 100)
+local hg_fov = ConVarExists("hg_fov") and GetConVar("hg_fov") or CreateClientConVar("hg_fov", "70", true, false, "changes fov to value", 75, 120)
 local hg_realismcam = ConVarExists("hg_realismcam") and GetConVar("hg_realismcam") or CreateClientConVar("hg_realismcam", "0", true, false, "realism camera", 0, 1)
 
 local oldview = render.GetViewSetup()
@@ -205,7 +203,9 @@ local hg_leancam_mul = ConVarExists("hg_leancam_mul") and GetConVar("hg_leancam_
 -- Сделайте чтобы локальный игрок рендерился всегда, у меня не вышло
 CalcView = function(ply, origin, angles, fov, znear, zfar)
 	if g_VR and g_VR.active then return end
-	lerpfovadd = Lerp(0.01, lerpfovadd, (ply:IsSprinting() and ply:GetVelocity():LengthSqr() > 1500 and 10 or 0) - ( ply.organism and (ply.organism and (((ply.organism.immobilization or 0) / 4) - (ply.organism.adrenaline or 0) * 5)) or 0) / 2 - (ply.suiciding and (ply:GetNetVar("suicide_time",CurTime()) < CurTime()) and (1 - math.max(ply:GetNetVar("suicide_time",CurTime()) + 8 - CurTime(),0) / 8) * 20 or 0))
+	if GetViewEntity() ~= (ply or LocalPlayer()) then return end
+	local rlEnt = hg.GetCurrentCharacter(ply)
+	lerpfovadd = Lerp(0.01, lerpfovadd, (ply:IsSprinting() and rlEnt:GetVelocity():LengthSqr() > 1500 and 10 or 0) - ( ply.organism and (ply.organism and (((ply.organism.immobilization or 0) / 4) - (ply.organism.adrenaline or 0) * 5)) or 0) / 2 - (ply.suiciding and (ply:GetNetVar("suicide_time",CurTime()) < CurTime()) and (1 - math.max(ply:GetNetVar("suicide_time",CurTime()) + 8 - CurTime(),0) / 8) * 20 or 0))
 
 	fov = hg_fov:GetInt()
 	
@@ -359,9 +359,9 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 		return view
 	end
 
-	view.znear = 3
+	view.znear = 1 -- 3
 	view.zfar = zfar
-	view.fov = math.Clamp(hg_fov:GetFloat(),75,100) + lerpfovadd
+	view.fov = math.Clamp(hg_fov:GetFloat(),75,120) + lerpfovadd
 	view.drawviewer = true--not hullcheck.Hit
 	view.origin = origin
 	view.angles = angles
@@ -409,7 +409,8 @@ local torsoOld
 
 function hg.cam_things(ply, view, angles)
 	local wep = ply:GetActiveWeapon()
-	local eyeAngs = ply:GetAimVector():Angle()
+	local eyeAngs = ply:EyeAngles()
+	eyeAngs[3] = 0
 	local oldviewa = oldview or view
 	local ent = hg.GetCurrentCharacter(ply)
 	if not ent:LookupBone("ValveBiped.Bip01_Spine") then return end
@@ -421,7 +422,7 @@ function hg.cam_things(ply, view, angles)
 	local different, _ = WorldToLocal(eyeAngs:Forward(), angle_zero, (eyeAnglesOld or eyeAngs):Forward(), angle_zero)
 	local different2, _ = WorldToLocal(torso:Forward(), angle_zero, (torsoOld or torso):Forward(), angle_zero)
 	local _, localAng = WorldToLocal(vector_origin, eyeAngs, vector_origin, eyeAnglesOld or eyeAngs)
-	
+
 	torsoOld = torso
 
 	local fthuy = ftlerped * 150 * game.GetTimeScale()--hg.FrameTimeClamped() * 300

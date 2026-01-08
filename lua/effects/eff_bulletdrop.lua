@@ -1,3 +1,4 @@
+-- local vector_up = Vector(0, 0, 1)
 -- EFFECT.Material = Material("particle/water/waterdrop_001a_refract")
 -- EFFECT.Color = Color(255, 255, 255)
 -- EFFECT.Width = 4
@@ -25,11 +26,12 @@
     
 --     local ammotype = string.lower( string.Replace( gun.Primary and gun.Primary.Ammo or "nil"," ", "") )
 --     self.bullet = (hg.ammotypes[ammotype] and hg.ammotypes[ammotype].TracerSetings) or tracer
+    
+--     --if hg.ammotypes[ammotype].TracerSetings.TracerHeadSize < 10 then self:Remove() return end
 
 --     self.SpawnTime = CurTime()
 --     self.DieTime = CurTime() + 3
 --     self.Pos = hitpos
---     self.Velocity = Vector(0, 0, 0)
 
 --     local vec = dir:Angle()
 --     vec:RotateAroundAxis(hitnormal,180)
@@ -42,6 +44,7 @@
 --     dir2:Mul(math.random(4,8) * 8 * dot)
 
 --     dir2:Add(dir * math.random(2))
+--     --dir2:Add(vector_up * math.random(2))
 
 --     if ammotype and hg.ammotypes[ammotype] and (not hg.ammotypes[ammotype].NoSpin) and (math.random(8) < (data:GetMagnitude() or 1)) then self.AddVelocity = math.random(4) * (data:GetMagnitude() or 1) * (math.random(2) == 1 and -1 or 1) end
     
@@ -75,14 +78,13 @@
 --     end
 
 --     self.Velocity:Mul(0.999)
+--     --self:NextThink(CurTime() + 0.1)
 --     return self.DieTime > CurTime()
 -- end
 
 -- local vecZero = Vector(0,0,0)
 
 -- function EFFECT:Render()
---     if not self.Velocity or not self.Pos then return end
-    
 --     local bullet = self.bullet
 
 --     local width = bullet.TracerWidth

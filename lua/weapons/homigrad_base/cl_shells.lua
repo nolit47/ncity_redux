@@ -84,7 +84,7 @@ function SWEP:MakeShell(shell, pos, ang, vel)
 	phys:SetMaterial("gmod_silent")
 	phys:SetMass(10)
 	phys:SetVelocity(vel + (((IsValid(self) and IsValid(self:GetOwner())) and self:GetOwner():GetVelocity()/1.1) or Vector(0,0,0)))
-    phys:SetAngleVelocity(VectorRand() * 200)
+    phys:SetAngleVelocity(VectorRand() * 700)
 	
 	hg_potatopc = hg_potatopc or hg.ConVars.potatopc
 	
@@ -132,7 +132,14 @@ local vec = Vector(1.3,0.2,4.5)
 local lpos, lang = Vector(-5,0,0), Angle(0,0,0)
 local lpos2, lang2 = Vector(0,5,0), Angle(0,0,0)
 function hg.CreateMag( self, vel, bodygroups, bDontChangePhys )
+	if not IsValid(self) then return end
+	if not IsValid(self:GetWM()) then return end
+	if not IsValid(self:GetOwner()) then return end
+	
 	local matrix = self:GetWM():GetBoneMatrix(isnumber(self.FakeMagDropBone) and self.FakeMagDropBone or self:GetWM():LookupBone(self.FakeMagDropBone or "Magazine") or self:GetWM():LookupBone("ValveBiped.Bip01_L_Hand"))
+	
+
+	if not matrix then return end
 	local lpos, lang = self.lmagpos or lpos, self.lmagang or lang
 	local lpos2, lang2 = self.lmagpos2 or lpos2, self.lmagang2 or lang2
 	local pos = matrix:GetTranslation()
@@ -145,14 +152,19 @@ function hg.CreateMag( self, vel, bodygroups, bDontChangePhys )
 		
 		if (LocalPlayer():EyePos() - self:GetPos()):LengthSqr() < 512*512 then -- так быстрее
 			if not bDontChangePhys then
-				local min, max = self:GetPhysicsObject():GetAABB()
-				//debugoverlay.BoxAngles( self:GetPos(), min, max, self:GetAngles(), 1)
-				local pos, ang = LocalToWorld(lpos, lang, self:GetPos(), self:GetAngles())
-				self:SetRenderOrigin(pos)
-				self:SetRenderAngles(ang)
-				self:DrawModel()
-				self:SetRenderOrigin()
-				self:SetRenderAngles()
+				local phys = self:GetPhysicsObject()
+				if IsValid(phys) then
+					local min, max = phys:GetAABB()
+					//debugoverlay.BoxAngles( self:GetPos(), min, max, self:GetAngles(), 1)
+					local pos, ang = LocalToWorld(lpos, lang, self:GetPos(), self:GetAngles())
+					self:SetRenderOrigin(pos)
+					self:SetRenderAngles(ang)
+					self:DrawModel()
+					self:SetRenderOrigin()
+					self:SetRenderAngles()
+				else
+					self:DrawModel()
+				end
 			else
 				self:DrawModel()
 			end
@@ -183,15 +195,18 @@ function hg.CreateMag( self, vel, bodygroups, bDontChangePhys )
 		ent:SetRenderBounds( -Vector(1,1,1), Vector(1,1,1), lpos2 )
 	end
 	local phys = ent:GetPhysicsObject()
-	phys:SetMaterial("gmod_silent")
-	phys:SetMass(10)
 
-	local vel = vel and -(-vel) or -(-vector_origin)
-	vel:Rotate(self:GetOwner():EyeAngles())
-	
+	if IsValid(phys) then
+		phys:SetMaterial("gmod_silent")
+		phys:SetMass(10)
 
-	phys:SetVelocity(vel + (((IsValid(self) and IsValid(self:GetOwner())) and self:GetOwner():GetVelocity()*1.1) or Vector(0,0,0)))
-	phys:SetAngleVelocity(VectorRand() * 5)
+		local vel = vel and -(-vel) or -(-vector_origin)
+		vel:Rotate(self:GetOwner():EyeAngles())
+		
+
+		phys:SetVelocity(vel + (((IsValid(self) and IsValid(self:GetOwner())) and self:GetOwner():GetVelocity()*1.1) or Vector(0,0,0)))
+		phys:SetAngleVelocity(VectorRand() * 5)
+	end
 
 	ent:AddCallback("PhysicsCollide",function(ent,data)
 		if data.Speed > 100 then
@@ -202,6 +217,8 @@ function hg.CreateMag( self, vel, bodygroups, bDontChangePhys )
 	if not hg_shouldnt_autoremove:GetBool() and ( zb.CROUND and zb.CROUND ~= "hmcd" or gamemod == "sandbox" )then	
 		SafeRemoveEntityDelayed(ent, 10)
 	end
+
+	return ent
 	--ent:Spawn()
 	--print("SHIT")
 end

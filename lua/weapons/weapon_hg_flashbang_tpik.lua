@@ -12,7 +12,7 @@ RMB - Low ready
 While low ready:
 LMB to remove spoon.
 ]]--"тильда двуеточее три"
-SWEP.Category = "ZCity Anims items"
+SWEP.Category = "Weapons - Explosive"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
 SWEP.Primary.ClipSize = -1
@@ -117,6 +117,7 @@ SWEP.AnimList = {
 }
 
 SWEP.HoldPos = Vector(2,0.2,-1.5)
+SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.ViewBobCamBase = "ValveBiped.Bip01_R_UpperArm"
 SWEP.ViewBobCamBone = "ValveBiped.Bip01_R_Hand"

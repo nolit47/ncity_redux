@@ -72,14 +72,15 @@ local function DrawCA(rx, gx, bx, ry, gy, by, mater)
 	addmat_r:SetTexture("$basetexture", mater)
 	addmat_g:SetTexture("$basetexture", mater)
 	addmat_b:SetTexture("$basetexture", mater)
-	--render.SetMaterial(vgbm)
-	--render.DrawScreenQuad()
+	local w, h = ScrW(), ScrH()
+	render.SetMaterial(vgbm)
+	render.DrawScreenQuad()
 	render.SetMaterial(addmat_r)
-	render.DrawScreenQuadEx(-rx / 2, -ry / 2, ScrW() + rx, ScrH() + ry)
+	render.DrawScreenQuadEx(-rx / 2, -ry / 2, w + rx, h + ry)
 	render.SetMaterial(addmat_g)
-	render.DrawScreenQuadEx(-gx / 2, -gy / 2, ScrW() + gx, ScrH() + gy)
+	render.DrawScreenQuadEx(-gx / 2, -gy / 2, w + gx, h + gy)
 	render.SetMaterial(addmat_b)
-	render.DrawScreenQuadEx(-bx / 2, -by / 2, ScrW() + bx, ScrH() + by)
+	render.DrawScreenQuadEx(-bx / 2, -by / 2, w + bx, h + by)
 end
 
 lodset = false
@@ -88,11 +89,13 @@ local hg_optimise_scopes = GetConVar("hg_optimise_scopes") or CreateClientConVar
 local hg_show_hitposmuzzle = ConVarExists("hg_show_hitposmuzzle") and GetConVar("hg_show_hitposmuzzle") or CreateClientConVar("hg_show_hitposmuzzle", "0", false, false, "shows weapons crosshair, work only ведьма admin rank or sv_cheats 1")
 
 local angaddhuy = Angle(0,0,0)
+local scrw, scrh = ScrW(), ScrH() --retarded
 function SWEP:DoRT()
 	LOW_RENDER = nil
 	 
 	local gun = self:GetWeaponEntity()
 	local att = self:GetMuzzleAtt(gun, true)
+	local owner = self:GetOwner()
 	
 	if not att then return end
 	if not self.sizeperekrestie then return end
@@ -144,13 +147,15 @@ function SWEP:DoRT()
 	local ang2 = ang + angaddhuy
 	local pos2 = pos-- + ang2:Right() * -scope_pos[2] + ang2:Up() * scope_pos[3]
 
+	local tr = util.QuickTrace(owner:EyePos(), (pos2 - owner:EyePos()) + (pos2 - owner:EyePos()):GetNormalized() * 5, {owner, owner.FakeRagdoll})
+
 	local rt = {
 		x = 0,
 		y = 0,
 		w = rtsize,
 		h = rtsize,
 		angles = ang2,
-		origin = pos2,
+		origin = tr.HitPos - (pos2 - owner:EyePos()):GetNormalized() * 5,
 		drawviewmodel = false,
 		fov = math.max(self.ZoomFOV,0.5) / dist * 12,
 		znear = 1,
@@ -158,15 +163,15 @@ function SWEP:DoRT()
 		bloomtone = false
 	}
 	
-	local scrw, scrh = ScrW(), ScrH() --retarded
 	--render.RenderView(rt)
 
 	local scr1 = pos:ToScreen()
 	local scr2 = point:ToScreen()
 	local diffa = Vector((scr1.x-scr2.x)/scrw,(scr1.y-scr2.y)/scrh)
-	
+
 	render.PushRenderTarget(rtmat, 0, 0, rtsize, rtsize)
 	render.Clear(1, 1, 1, 1)
+
 	local old = DisableClipping(true)
 
 	diffa[1] = diffa[1] * ScrW() * 2
@@ -175,10 +180,18 @@ function SWEP:DoRT()
 	if diffa:LengthSqr() < 10000.0 * (rtsize / 512) / (self.scope_blackout / 400) then
 		if hg_optimise_scopes:GetInt() >= 2 then
 			--LOW_RENDER = true
+			--render.UpdateScreenEffectTexture()
+			--render.UpdateFullScreenDepthTexture()
+			--local screen = render.GetScreenEffectTexture()
+
+			--render.CopyTexture( screen, rtmat )
+
+			--render.DrawTextureToScreen(rtmat_spare)
+    		--render.UpdateFullScreenDepthTexture()
 		end
 		
 		render.RenderView(rt)
-		
+
 		cam.Start3D()
 			local aimWay = (ang:Forward()) * 10000000000
 			local toscreen = aimWay:ToScreen()
@@ -193,7 +206,8 @@ function SWEP:DoRT()
 		local dist = math.sqrt(((x - scrw / 2) * distMul)^2 + ((y - scrh / 2) * distMul)^2)
 		
 		if dist > 850 * distMul then render.Clear(1, 1, 1, 1) end
-		
+		render.PushFilterMin(TEXFILTER.ANISOTROPIC)
+		render.PushFilterMag(TEXFILTER.ANISOTROPIC)
 		cam.Start2D()
 			if hg_show_hitposmuzzle:GetBool() then
 				draw.RoundedBox(0, hitPos.x / (scrw / ScrW()) - 2, hitPos.y / (scrh / ScrH()) - 2, 4, 4, color_red)
@@ -211,12 +225,17 @@ function SWEP:DoRT()
 			if self.SightDrawFunc then self:SightDrawFunc() end
 			if optic and foundatt.SightDrawFunc then foundatt.SightDrawFunc(self) end
 			--surface.DrawTexturedRectRotatedHuy(rtsize / 2, rtsize / 2, self.blackoutsize * rtsize / 512 + 100, self.blackoutsize * rtsize / 512 + 100, self.rot, -scope_pos[3] * (self.scope_blackout * self.blackoutsize / 4000), -scope_pos[2] * (self.scope_blackout * self.blackoutsize / 4000))
-			--DrawCA(0,0,0,0,0,0,rtmat)
 		cam.End2D()
+		render.PopFilterMin()
+		render.PopFilterMag()
 	end
 
 	DisableClipping(old)
 	render.PopRenderTarget()
+
+	//if self.k > 0.5 then
+		//DrawCA(10, -10, 50, 20, -10, 5, rtmat)
+	//end
 end
 
 function SWEP:ChangeFOV()
@@ -343,7 +362,6 @@ hook.Add("PostDrawTranslucentRenderables","stencil-test-holo2",function()
 	end
 
 	if models then
-		
 		render.SetStencilWriteMask( 0xFF )
 		render.SetStencilTestMask( 0xFF )
 		render.SetStencilReferenceValue( 0 )

@@ -3,7 +3,7 @@ SWEP.Base = "weapon_tpik_base"
 SWEP.PrintName = "Painkillers"
 SWEP.Instructions = "Can be used to relieve pain (thanks Mr. Obvious). RMB to use on someone else."
 SWEP.Category = "ZCity Anims items"
-SWEP.Spawnable = true
+SWEP.Spawnable = false
 SWEP.AdminOnly = false
 SWEP.Primary.Wait = 1
 SWEP.Primary.Next = 0
@@ -47,6 +47,7 @@ SWEP.AnimList = {
 }
 
 SWEP.HoldPos = Vector(-5,0,-1)
+SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.modeValuesdef = {
 	[1] = 1,

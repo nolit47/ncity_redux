@@ -3,7 +3,7 @@ if SERVER then
 end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Chair leg"
-SWEP.Instructions = "Someone's savagely ripped out chair leg, quite suitable as a cold weapon. Better than nothing i guess."
+SWEP.Instructions = "Someone's savagely ripped out chair leg, quite suitable as a cold weapon. Better than nothing i guess.\n\nLMB to attack.\nRMB to block."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -31,6 +31,7 @@ SWEP.setlh = false
 SWEP.setrh = true
 SWEP.NoHolster = true
 SWEP.HoldPos = Vector(-15, 0, 0)
+SWEP.HoldAng = Angle(0,0,0)
 SWEP.AttackPos = Vector(0, 0, 0)
 SWEP.HoldType = "melee"
 SWEP.DamageType = DMG_CLUB

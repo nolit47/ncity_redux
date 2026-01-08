@@ -60,6 +60,7 @@ SWEP.setrh = true
 SWEP.sprint_ang = Angle(20,0,0)
 
 SWEP.HoldPos = Vector(0,0,0)
+SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.basebone = 1
 
@@ -159,6 +160,11 @@ if CLIENT then
             local _,ang = LocalToWorld(vector_origin,(self.HoldAng or angle_zero),vector_origin,ang)
 			
 			local _,ang = LocalToWorld(vector_origin,self.sprint_ang * self.sprintanim,vector_origin,ang)
+
+			if self.HoldClampMax ~= nil and self.HoldClampMin ~= nil then
+				local headAng = owner:EyeAngles()
+				ang.x = math.max(math.min(headAng.x,self.HoldClampMax),self.HoldClampMin)
+			end
             
 			WorldModel:SetRenderOrigin(pos)
 			WorldModel:SetRenderAngles(ang)
@@ -295,12 +301,15 @@ function SWEP:SetHandPos(noset)
 
 	local wm = self:GetWM()
 	if !IsValid(wm) then return end
-	ent:SetupBones()
+	-- ent:SetupBones()
 
 	self.rhandik = self.setrh
 	self.lhandik = self.setlh and (ply:GetTable().ChatGestureWeight < 0.1)
 
-    local rhmat,lhmat
+    local rhmat, lhmat = ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_R_Hand")), ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_L_Hand"))
+
+	ply.rhold = rhmat
+	ply.lhold = lhmat
 
 	if self.lhandik and (ent == ply or hg.KeyDown(ply,IN_USE) or (ply:GetNetVar("lastFake",0) > CurTime())) and hg.CanUseLeftHand(ply) then
 		for _, bone in ipairs(bones) do

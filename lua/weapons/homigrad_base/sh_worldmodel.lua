@@ -59,38 +59,6 @@ if SERVER then
 		net.WriteFloat(gun.inspect)
 		net.Broadcast()
 	end)
-	
-	hook.Add("Think", "hg_auto_inspect", function()
-		for _, ply in ipairs(player.GetAll()) do
-			if not IsValid(ply) or not ply:Alive() then continue end
-			
-			local gun = ply:GetActiveWeapon()
-			if not IsValid(gun) or not gun.AllowedInspect then continue end
-
-			gun.lastMoveTime = gun.lastMoveTime or CurTime()
-			gun.lastAutoInspect = gun.lastAutoInspect or 0
-
-			local vel = ply:GetVelocity()
-			local isMoving = vel:Length() > 10 or ply:KeyDown(IN_ATTACK) or ply:KeyDown(IN_ATTACK2) or ply:KeyDown(IN_USE)
-			
-			if isMoving then
-				gun.lastMoveTime = CurTime()
-			else
-				local timeSinceMove = CurTime() - gun.lastMoveTime
-				local timeSinceLastInspect = CurTime() - gun.lastAutoInspect
-				
-				if timeSinceMove >= 30 and timeSinceLastInspect >= 30 then
-					gun.inspect = CurTime() + 5
-					gun.lastAutoInspect = CurTime()
-					gun.lastMoveTime = CurTime()
-					RunConsoleCommand("hg_inspect")
-					net.WriteEntity(gun)
-					net.WriteFloat(gun.inspect)
-					net.Broadcast()
-				end
-			end
-		end
-	end)
 else
 	net.Receive("hg_viewgun", function() 
 		local ent = net.ReadEntity()
@@ -100,10 +68,10 @@ else
 	end)
 	local function inspect() RunConsoleCommand("hg_inspect") end
 	hook.Add("radialOptions", "3", function()
-		/*local gun = lply:GetActiveWeapon()
+		local gun = lply:GetActiveWeapon()
 		if not IsValid(gun) or not gun or not gun.AllowedInspect then return end
 		local tbl = {inspect, "Inspect"}
-		hg.radialOptions[#hg.radialOptions + 1] = tbl*/
+		hg.radialOptions[#hg.radialOptions + 1] = tbl
 	end)
 end
 
@@ -117,11 +85,11 @@ hg.postureFuncWorldModel = {
 	end,
 	[3] = function(self, ply, force)
 		if self:IsZoom() and not force then return end
-		self.weaponAng:Add( self:IsPistolHoldType() and angPosture3pistol or angPosture3)
+		self.weaponAng:Add( (self:IsPistolHoldType() or self.CanEpicRun)  and angPosture3pistol or angPosture3)
 	end,
 	[4] = function(self, ply, force)
 		if self:IsZoom() and not force then return end
-		self.weaponAng:Add(self:IsPistolHoldType() and angPosture7 or (ply:IsFlagSet(FL_ANIMDUCKING) and angPosture8 or angPosture4))
+		self.weaponAng:Add((self:IsPistolHoldType() and angPosture7) or (ply:IsFlagSet(FL_ANIMDUCKING) and angPosture8 or angPosture4))
 		--self.weaponAng[2] = self.weaponAng[2] - 12
 	end,
 	[5] = function(self,ply)
@@ -144,8 +112,15 @@ function SWEP:ChangeGunPos()
 	if not ply:IsPlayer() then return end
 
 	if ply.suiciding then self.weaponAngLerp:Zero() self.weaponAng:Zero() return end
-
+	
 	local fakeRagdoll = IsValid(ply.FakeRagdoll)
+
+	local inuse = !ply:IsNPC() && (((!ply.InVehicle || !ply:InVehicle()) && self:KeyDown(IN_USE)) || ((ply.InVehicle && ply:InVehicle()) && not self:KeyDown(IN_USE))) || ply.suiciding || (!fakeRagdoll or IsValid(ply.OldRagdoll))
+
+	local should = true and not (fakeRagdoll and not (inuse))
+
+	self.lerped_positioning = Lerp(hg.lerpFrameTime2(0.1, dtime), self.lerped_positioning or 0, should and (ent != owner and 0.8 or 1) or 0.3)
+	self.lerped_angle = Lerp(hg.lerpFrameTime2(0.1, dtime), self.lerped_angle or 0, should and 1 or (hg.KeyDown(owner, IN_ATTACK2) and 1 or 0))
 
 	self.weaponAng[1] = 0
 	self.weaponAng[2] = 0
@@ -157,7 +132,7 @@ function SWEP:ChangeGunPos()
 	end
 	
 	local huya = false//self.lerpaddcloseanim > (self:IsPistolHoldType() and 0.7 or 0.39)
-	local func = hg.postureFuncWorldModel[self.reload and 0 or (self:IsSprinting() or huya) and ((ply.posture == 4 and 4) or ((ply.posture == 3 or fakeRagdoll) and 3) or (self:IsPistolHoldType() and 3 or 4)) or ply.posture] or funcNil
+	local func = hg.postureFuncWorldModel[self.reload and 0 or (self:IsSprinting() or huya) and ((ply.posture == 3 and 3) or ((ply.posture == 3 or fakeRagdoll) and 3) or (self:IsPistolHoldType() and 3 or 3)) or ply.posture] or funcNil
 	
 	if not self.inspect then
 		func(self, ply, huya)
@@ -222,7 +197,7 @@ function SWEP:PosAngChanges(ply, desiredPos, desiredAng, bNoAdditional, closeani
         return desiredPos, desiredAng
     end
 	
-	if not bNoAdditional then self:GetAdditionalValues(closeanim) end
+	//if not bNoAdditional then self:GetAdditionalValues(closeanim) end
 
 	local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
 
@@ -230,11 +205,11 @@ function SWEP:PosAngChanges(ply, desiredPos, desiredAng, bNoAdditional, closeani
 
     //if not (ent ~= ply and not (inuse)) then
 		
-		self.setrhik = true
+		self.setrhik = true//!(ent ~= ply and not (inuse or self:KeyDown(IN_ATTACK2)))
 		self.setlhik = not self:IsPistolHoldType() or (not ply.suiciding)
 
-		self.setlhik = (not (ply.posture == 7 or ply.posture == 8 or (self:IsPistolHoldType() and ply.suiciding) ) or self.reload and self.setlhik or false)
-
+		self.setlhik = (not (ply.posture == 7 or ply.posture == 8 or ( (self:IsPistolHoldType() or self.CanEpicRun) and self:IsSprinting() ) or (self:IsPistolHoldType() and ply.suiciding) ) or self.reload and self.setlhik or false)
+		self.setlhik = !(self:IsPistolHoldType() and (self:GetButtstockAttack() - CurTime() > -0.5)) and self.setlhik
 		local tr = hg.eyeTrace(ply, 60, ent)--hg.torsoTrace(ply,60,ent)
 		if not tr then return end
 		local pos = tr.StartPos - tr.Normal:Angle():Up() * 1
@@ -269,14 +244,16 @@ function SWEP:PosAngChanges(ply, desiredPos, desiredAng, bNoAdditional, closeani
 
 		ang[2] = ang[2] + self.prankang[2]
 		ang[1] = math.Clamp(ang[1] + self.prankang[1], -90, 90)
-        desiredPos, desiredAng = LocalToWorld(self.RHPos + (bNoAdditional and vector_origin or (self.AdditionalPos + self.AdditionalPos2)), bNoAdditional and angle_zero or (self.AdditionalAng + self.AdditionalAng2), pos, ang)
 
+		desiredPos, desiredAng = LocalToWorld(self.RHPos + (bNoAdditional and vector_origin or (self.AdditionalPos + self.AdditionalPos2)), bNoAdditional and angle_zero or (self.AdditionalAng + self.AdditionalAng2), pos, ang)
+		
 		//ply.offsetView = ply.offsetView or Angle()
 		//desiredAng[1] = desiredAng[1] + ply.offsetView[1]//-20
 		//desiredAng[2] = desiredAng[2] + ply.offsetView[2]//160
 
 		if self.bipodPlacement then
 			desiredPos = LocalToWorld((bNoAdditional and vector_origin or (self.AdditionalPos2)), angle_zero, self.bipodPlacement, ang)
+			desiredPos = desiredPos - ang:Forward() * (self.LocalMuzzlePos[1] + self.WorldPos[1] - (self.bipodsub or 30)) + self.bipodDir:GetNormalized() * (self.LocalMuzzlePos[1] + self.WorldPos[1] - (self.bipodsub or 30))
 		end
 
 		desiredAng[3] = desiredAng[3] + 90
@@ -383,7 +360,7 @@ local function DrawWorldModel(self, force)
 			if self.seq then self:GetWM():SetSequence(self.seq) end
 			local timing
 			if not self.cycling then
-                timing = (1 - math.Clamp((self.animtime - CurTime()) / self.animspeed,0,1))
+                timing = (1 - math.Clamp((self.animtime - CurTime()) / self.animspeed, 0, 1))
                 timing = self.reverseanim and (1 - timing) or timing
                 self.worldModel:SetCycle(timing)
 
@@ -392,7 +369,7 @@ local function DrawWorldModel(self, force)
                     self.callback = nil
                 end
 			else
-                timing = ((CurTime() - (self.animtime - self.animspeed))%self.animspeed) / self.animspeed
+                timing = ((CurTime() - (self.animtime - self.animspeed)) % self.animspeed) / self.animspeed
                 self.worldModel:SetCycle(timing)
 			end
 
@@ -437,25 +414,29 @@ local function DrawWorldModel(self, force)
 				local pos = newmat:GetTranslation()
 				local ang = newmat:GetAngles()
 				
-				self.niggamodel = IsValid(self.niggamodel) and self.niggamodel or ClientsideModel(self.MagModel or "models/weapons/upgrades/w_magazine_m1a1_30.mdl")
-				debugoverlay.BoxAngles( pos, vec, -vec, ang, 0.1, Color(255,255,255,0))
+				self.OwOmodel = IsValid(self.OwOmodel) and self.OwOmodel or ClientsideModel(self.MagModel or "models/weapons/upgrades/w_magazine_m1a1_30.mdl")
+				debugoverlay.BoxAngles( pos, vec, -vec, ang, 0.1, Color(255,0,0))
 				local pos, ang = LocalToWorld(lpos, lang, pos, ang)
-				self.niggamodel:SetNoDraw(true)
-				self.niggamodel:SetMaterial("models/wireframe")
-				self.niggamodel:SetPos(pos)
-				self.niggamodel:SetAngles(ang)
-				self.niggamodel:DrawModel()
+				self.OwOmodel:SetNoDraw(true)
+				self.OwOmodel:SetMaterial("models/wireframe")
+				self.OwOmodel:SetPos(pos)
+				self.OwOmodel:SetAngles(ang)
+				self.OwOmodel:DrawModel()
 
-				self.worldModel:CallOnRemove("removeniggu", function()
-					if IsValid(self.niggamodel) then self.niggamodel:Remove() end
+				self.worldModel:CallOnRemove("removeMreowu", function()
+					if IsValid(self.OwOmodel) then self.OwOmodel:Remove() end
 				end)
 			end
 		else
-			if IsValid(self.niggamodel) then self.niggamodel:Remove() end
+			if IsValid(self.OwOmodel) then self.OwOmodel:Remove() end
 		end
 		//print(self.worldModel:GetSequenceName(self.worldModel:GetSequence()))
 		self.worldModel:SetupBones()
+		//render.DepthRange( 0, 0 )
+		//cam.Start3D(nil, nil, nil, nil, nil, nil, nil, 1, nil)
 		self.worldModel:DrawModel()
+		//cam.End3D()
+		//render.DepthRange( 0, 1 )
 	end
 	
 	if willdraw then
@@ -557,7 +538,7 @@ function SWEP:WorldModel_Transform(bNoApply, bNoAdditional, model)
 
 		local should = hg.ShouldTPIK(owner) and not (ent ~= owner and not (inuse))
 		
-		if not should then ent:SetupBones() end
+		-- if not should then ent:SetupBones() end
 		
 		local RHand = ent:LookupBone("ValveBiped.Bip01_R_Hand")
 		
@@ -575,7 +556,7 @@ function SWEP:WorldModel_Transform(bNoApply, bNoAdditional, model)
 		
 		local aimvec = ent:IsNPC() and matrixR:GetAngles() or owner:GetAimVector():Angle()
 
-		self:ChangeGunPos()
+		//self:ChangeGunPos()
 		
 		local matrixRAngRot = matrixR:GetAngles()
 		matrixRAngRot:RotateAroundAxis(matrixRAngRot:Forward(),180)
@@ -591,15 +572,12 @@ function SWEP:WorldModel_Transform(bNoApply, bNoAdditional, model)
 		
 		--local oldPos = -(-desiredPos)
 		--local oldAng = -(-desiredAng)
-		
-		self.lerped_positioning = Lerp(hg.lerpFrameTime2(0.1, dtime), self.lerped_positioning or 0, should and (ent != owner and 0.8 or 1) or (hg.KeyDown(owner, IN_ATTACK2) and 0.3 or 0))
-		self.lerped_angle = Lerp(hg.lerpFrameTime2(0.1, dtime), self.lerped_angle or 0, should and 1 or (hg.KeyDown(owner, IN_ATTACK2) and 1 or 0))
-		
+				
 		if !owner:IsNPC() then//should then
 			local desiredPos1, desiredAng1 = self:PosAngChanges(owner, desiredPos, desiredAng, bNoAdditional)
 			
-			desiredPos = LerpVector(self.lerped_positioning, desiredPos, desiredPos1)
-			desiredAng = LerpAngle(self.lerped_angle, desiredAng, desiredAng1)
+			desiredPos = LerpVector(self.lerped_positioning or 0, desiredPos, desiredPos1)
+			desiredAng = LerpAngle(self.lerped_angle or 0, desiredAng, desiredAng1)
 			--self.lastTpikPos = desiredPos
 			--self.lastTpikAng = desiredAng
 		end
@@ -627,7 +605,6 @@ function SWEP:WorldModel_Transform(bNoApply, bNoAdditional, model)
 		model:SetRenderAngles(newAng)
 		model:SetPos(newPos)
 		model:SetAngles(newAng)
-		
 	else
 		local pos, ang = self:GetPos(), self:GetAngles()
 
@@ -647,7 +624,7 @@ local noSlingPos = Vector(9, 3, 0)
 local noSlingAng = Angle(-70, 90, 180)
 
 SWEP.holsteredBone = "ValveBiped.Bip01_Spine2"
-SWEP.holsteredPos = Vector(4, 8, -4)
+SWEP.holsteredPos = Vector(5, 8, -4)
 SWEP.holsteredAng = Angle(210, 0, 180)
 
 SWEP.addAngle = Angle(0, 0, 0)
@@ -691,7 +668,7 @@ function SWEP:WorldModel_Transform_Holstered()
 			local dotforward = vel:Dot(ang:Forward())
 			local dotright = vel:Dot(ang:Right())
 			
-			addAngle[2] = math.Clamp(-dotforward / 3, -10, 10)
+			addAngle[2] = math.Clamp(-dotforward / 3, -1, 10) + math.abs(math.Clamp(dotright / 1, -3, 3))
 			addAngle[1] = math.Clamp(dotright / 3, -10, 10)
 			
 			self.addAngle = LerpAngleFT(0.05, self.addAngle, addAngle)
@@ -831,11 +808,11 @@ function hg.RenderWeapons(ent, owner)
 		end
 	end
 
-	local inv = ent:GetNetVar("Inventory",{})
-	if ent == owner and not owner:IsPlayer() and inv["Weapons"] then
+	local inv = ent:GetNetVar("Inventory",nil) or ent.PredictedInventory
+	if ent == owner and not owner:IsPlayer()  and inv != nil and inv["Weapons"] then
 		if not ent.shouldTransmit then return end
 		if ent.NotSeen then return end
-		
+	
 		for i, wep in pairs(inv["Weapons"]) do
 			if isbool(wep) then continue end
 			if not IsValid(wep) or not wep.ishgweapon then continue end

@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\cl_hud.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 hide = {
 	["CHudHealth"] = true,
 	["CHudBattery"] = true,
@@ -7,6 +5,8 @@ hide = {
 	["CHudSecondaryAmmo"] = true,
 	["CHudCrosshair"] = true
 }
+
+CreateClientConVar("hg_qmenu_open",1)
 
 hook.Add("HUDShouldDraw", "homigrad", function(name) if hide[name] then return false end end)
 hook.Add("HUDDrawTargetID", "homigrad", function() return false end)
@@ -117,9 +117,11 @@ if IsValid(MENUPANELHUYHUY) then
 end
 
 hg.radialOptions = hg.radialOptions or {}
-local colBlack = Color(0, 0, 0, 152)
-local colWhite = Color(255, 255, 255, 255)
-local colWhiteTransparent = Color(176, 40, 40, 100)
+if not hg.ColorSettings then include("homigrad/cl_color_settings.lua") end
+local colorSettings = hg.ColorSettings
+local colBlack = colorSettings:GetColor("hud_background")
+local colWhite = colorSettings:GetColor("hud_text")
+local colWhiteTransparent = colorSettings:GetColor("hud_accent")
 local colTransparent = Color(0, 0, 0, 0)
 local matHuy = Material("vgui/white")
 local vecXY = Vector(0, 0)
@@ -129,33 +131,102 @@ local isMouseOnRadial = false
 local current_option = 1
 local current_option_select = 1
 local hook_Run = hook.Run
-local function dropWeapon()
-	RunConsoleCommand("drop")
-end
 
-hook.Add("radialOptions", "5", function()
+hook.Add("radialOptions", "exit_vehicle", function()
 	local organism = lply.organism or {}
-	if not organism.otrub and IsValid(lply:GetActiveWeapon()) and lply:GetActiveWeapon():GetClass() ~= "weapon_hands_sh" then
-		local tbl = {dropWeapon, "Drop Weapon"}
+	if organism.otrub then return end
+	if lply:InVehicle() then
+		local tbl = {
+			function()
+				net.Start("hg_exit_vehicle")
+				net.SendToServer()
+			end,
+			"Exit Vehicle"
+		}
 		hg.radialOptions[#hg.radialOptions + 1] = tbl
 	end
 end)
 
-local incoentCol = Color(128,0,0)
-local taitorCol = Color(155,0,0)
+local incoentCol = colorSettings:GetColor("hud_role_innocent")
+local taitorCol = colorSettings:GetColor("hud_role_traitor")
+local HintBackgroundColor = colorSettings:GetColor("hud_hint_background")
+
+hook.Add("HGColorsUpdated", "HG_HUDColorSync", function(id)
+	if id == "hud_background" then
+		colBlack = colorSettings:GetColor("hud_background")
+	elseif id == "hud_text" then
+		colWhite = colorSettings:GetColor("hud_text")
+	elseif id == "hud_accent" then
+		colWhiteTransparent = colorSettings:GetColor("hud_accent")
+	elseif id == "hud_role_innocent" then
+		incoentCol = colorSettings:GetColor("hud_role_innocent")
+	elseif id == "hud_role_traitor" then
+		taitorCol = colorSettings:GetColor("hud_role_traitor")
+	elseif id == "hud_hint_background" then
+		HintBackgroundColor = colorSettings:GetColor("hud_hint_background")
+	end
+end)
 
 local menuPanel
 
-local function CreateRadialMenu()
+
+local caliberAlpha = 0
+local caliberDisplayTimer = 0
+hook.Add("PlayerBindPress", "Homigrad_ReloadKeyCaliber", function(ply, bind, pressed)
+    if string.find(bind, "+reload") and pressed then
+        caliberDisplayTimer = CurTime() + 1
+    end
+end)
+hook.Add("HUDPaint", "Homigrad_ReloadCaliberDisplay", function()
+    local ply = LocalPlayer()
+    if not IsValid(ply) or not ply:Alive() or (ply.organism and ply.organism.otrub) then 
+        caliberAlpha = 0
+        return 
+    end
+
+    local wep = ply:GetActiveWeapon()
+    if not IsValid(wep) or not wep.Primary or not wep.Primary.Ammo then 
+        caliberAlpha = 0
+        return 
+    end
+    if wep.PrintName == "GAMBLER SHOTGUN" then
+        caliberAlpha = 0
+        return
+    end
+    
+    local isReloading = (wep.reload and wep.reload > CurTime())
+    local isChecking = wep.checkingammo
+    local isTimedShow = caliberDisplayTimer > CurTime()
+    
+    local targetAlpha = (isReloading or isChecking or isTimedShow) and 255 or 0
+    local lerpSpeed = (targetAlpha > caliberAlpha) and 10 or 3
+    caliberAlpha = Lerp(FrameTime() * lerpSpeed, caliberAlpha, targetAlpha)
+    if caliberAlpha > 1 then
+        local caliber = wep.Primary.Ammo
+        local x = ScrW() * 0.80
+        local y = ScrH() * 0.76
+        draw.SimpleText(caliber, "HomigradFontBig", x + 2, y + 2, Color(0, 0, 0, caliberAlpha * 0.8), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        draw.SimpleText(caliber, "HomigradFontBig", x, y, Color(255, 255, 255, caliberAlpha), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    end
+end)
+
+local function CreateRadialMenu(options)
 	local sizeX, sizeY = ScrW(), ScrH()
 	hg.radialOptions = {}
-	local paining = lply.organism and lply.organism.pain and (lply.organism.pain > 65 or lply.organism.brain > 0.2) or false
-	local functions = hook.GetTable()["radialOptions"]
-	for i, func in SortedPairs(functions) do
-		func()
+	local paining = lply.organism and lply.organism.pain and (lply.organism.pain > 100 or lply.organism.brain > 0.2) or false
+	
+	if !options then
+		local functions = hook.GetTable()["radialOptions"]
+		for i, func in SortedPairs(functions) do
+			func()
+		end
 	end
+
 	//hook_Run("radialOptions")
-	local options1 = hg.radialOptions
+	local options1 = options or hg.radialOptions
+
+	hg.radialOptions = options1
+	
 	if IsValid(MENUPANELHUYHUY) then
 		MENUPANELHUYHUY:Remove()
 		MENUPANELHUYHUY = nil
@@ -169,7 +240,7 @@ local function CreateRadialMenu()
 	menuPanel:SetKeyBoardInputEnabled(false)
 	menuPanel:SetAlpha(0)
 	menuPanel:AlphaTo(255,0.2)
-	input.SetCursorPos(sizeX / 2, sizeY / 2)
+	if !options then input.SetCursorPos(sizeX / 2, sizeY / 2) end
 
 	function menuPanel:Close()
 		if not IsValid(menuPanel) then return end
@@ -182,19 +253,23 @@ local function CreateRadialMenu()
 	end
 
 	local thinkwait = 0
-	menuPanel.Think = function()
-		if menuPanel:GetAlpha() < 255 then return end
-		if thinkwait > CurTime() then return end
-		thinkwait = CurTime() + 0.25
-		table.Empty(hg.radialOptions)
-		local functions = hook.GetTable()["radialOptions"]
-		
-		for i, func in SortedPairs(functions) do
-			//if i == "zmeyka_test" then continue end
-			func()
+	if !options then
+		menuPanel.Think = function()
+			if menuPanel:GetAlpha() < 255 then return end
+			if thinkwait > CurTime() then return end
+			thinkwait = CurTime() + 0.25
+			table.Empty(hg.radialOptions)
+			local functions = hook.GetTable()["radialOptions"]
+			
+			for i, func in SortedPairs(functions) do
+				//if i == "zmeyka_test" then continue end
+				func()
+			end
 		end
 	end
+	
 	local sizePan = 0
+	local optionSelected = {}
 	menuPanel.Paint = function(self, w, h)
 		local x, y = input.GetCursorPos()
 		x = x - sizeX / 2
@@ -221,12 +296,18 @@ local function CreateRadialMenu()
 		local viewLerp = Lerp(math.ease.OutExpo(sizePan),0,1)
 		for num, option in ipairs(options) do
 			local num = num - 1
+			
 			local r = ScrH() * 0.45 * viewLerp
 			local partDeg = 360 / #options
 			local sqrt = math.sqrt(x ^ 2 + y ^ 2)
 			isMouseOnRadial = sqrt <= r and sqrt > 4
 			isMouseIntersecting = isMouseOnRadial and deg > num * partDeg and deg < (num + 1) * partDeg
 			if isMouseIntersecting then current_option = num + 1 end
+			--if sqrt > 0 and current_option > 0 and num and !intersect_xyPartDeg then return end
+
+			optionSelected[num] = optionSelected[num] or 0
+			optionSelected[num] = LerpFT(0.1, optionSelected[num], isMouseIntersecting and 1 or 0)
+			
 			if option[3] then
 				surface.SetMaterial(matHuy)
 				surface.SetDrawColor(isMouseIntersecting and colBlack or colBlack)
@@ -250,23 +331,24 @@ local function CreateRadialMenu()
 						math.randomseed(os.time())
 					end
 
-					draw.DrawText(opt, "HomigradFont", ScrW() / 2 + math.sin(a + i / 20) * r * (i / count - 0.5 / count), ScrH() / 2 + math.cos(a + i / 20) * r * (i / count - 0.5 / count), colWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+					draw.DrawText(opt, "HomigradFont", ScrW() / 2 + math.sin(a) * r * (i / count - 0.5 / count), ScrH() / 2 + math.cos(a) * r * (i / count - 0.5 / count), colWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 				end
 
 				continue
 			end
-
+			
 			surface.SetMaterial(matHuy)	
-			surface.SetDrawColor(isMouseIntersecting and colWhiteTransparent or colBlack)
-			draw.CirclePart(w / 2, h / 2, r, 30, #options, num)
+			surface.SetDrawColor(colWhiteTransparent:Lerp(colBlack, 1 - optionSelected[num]))
+			draw.CirclePart(w / 2, h / 2, r * (1 + 0.1 * optionSelected[num]), 30, #options, num)
 			local a = -partDeg * num - partDeg / 2
 			a = math.rad(a) + math.pi
 			local txt = option[2]
-			if paining then
+			--if txt and !options_old then return end
+			--[[if paining then
 				math.randomseed(math.Round(CurTime() / 5 + num, 0))
 				txt = hg.get_status_message(ply)
 				math.randomseed(os.time())
-			end
+			end]]
 			draw.DrawText(txt, "HomigradFont", ScrW() / 2 + math.sin(a) * r * 0.75, ScrH() / 2 + math.cos(a) * r * 0.75, colWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 			
 			local col = Color(0,0,0)
@@ -282,10 +364,10 @@ local function CreateRadialMenu()
 	end
 end
 
-local function PressRadialMenu()
+local function PressRadialMenu(mouseClick)
 	local options = hg.radialOptions
 	--print(options[current_option][1])
-	if lply.organism and lply.organism.pain and lply.organism.pain > 65 then
+	if lply.organism and lply.organism.pain and lply.organism.pain > 100 then
 		hook_Run("RadialMenuPressed")
 
 		if IsValid(menuPanel) then
@@ -297,22 +379,28 @@ local function PressRadialMenu()
 
 	hook_Run("RadialMenuPressed")
 
+	local needed_mouseclick
 	if IsValid(menuPanel) and options[current_option] and isMouseOnRadial then
 		local func = options[current_option][1]
-		if isfunction(func) then func(current_option_select) end
+		if isfunction(func) then needed_mouseclick = func(mouseClick, current_option_select) end
 	end
 
-	if IsValid(menuPanel) then
+	if needed_mouseclick != -1 and IsValid(menuPanel) and mouseClick != (needed_mouseclick or 2) then
 		menuPanel:Close()
 	end
 end
+
+hg.CreateRadialMenu = CreateRadialMenu
+hg.PressRadialMenu = PressRadialMenu
 
 local firstTime = true
 local firstTime2 = true
 local firstTime3 = true
 local firstTime4 = true
-local firstTimeG = true
-local firstTimeGRelease = true
+local firstTime5 = true
+local firstTime6 = true
+
+-- first time?..
 
 hook.Add("HG_OnOtrub", "resetshit", function(ply)
 	if ply == lply then
@@ -406,36 +494,56 @@ hook.Add("Think", "hg-radial-menu", function()
 	end
 end)
 
-local list = {{"arteria", 1, true}, {"bleed", 200, true}, {"hurt", 1, true}, {"brain", 0.25, true}, {"skull", 0.25, true}, {"jaw", 0.5, true}, {"spine1", 1, true}, {"spine2", 1, true}, {"spine3", 1, true}, {"chest", 1, true}, {"pelvis", 1, true}, {"heart", 0.25, true}, {"stomach", 1, true}, {"intestines", 1, true}, {"trachea", 0.5, true}, {"lleg", 2, true}, {"rleg", 2, true}, {"larm", 2, true}, {"rarm", 2, true}}
-local function getEye()
-	 
-	local att = lply:LookupAttachment("eyes")
-	if not att then return lply:GetEyeTrace() end
-	att = lply:GetAttachment(att)
-	local tr = {}
-	tr.start = att.Pos
-	tr.endpos = att.Pos + lply:GetAimVector() * 75
-	tr.filter = {lply}
-	return util.TraceLine(tr)
+local function dropWeapon()
+	RunConsoleCommand("drop")
 end
 
-local wound4Bones = {
-	["ValveBiped.Bip01_Head1"] = "головы",
-	["ValveBiped.Bip01_L_UpperArm"] = "левого плеча",
-	["ValveBiped.Bip01_L_Forearm"] = "Левого предплечья",
-	["ValveBiped.Bip01_L_Hand"] = "Левой кисти",
-	["ValveBiped.Bip01_R_UpperArm"] = "Правого плеча",
-	["ValveBiped.Bip01_R_Forearm"] = "Правого предплечья",
-	["ValveBiped.Bip01_R_Hand"] = "Правой руки",
-	["ValveBiped.Bip01_Pelvis"] = "живота",
-	["ValveBiped.Bip01_Spine2"] = "груди",
-	["ValveBiped.Bip01_L_Thigh"] = "левого бедра",
-	["ValveBiped.Bip01_L_Calf"] = "левой голени",
-	["ValveBiped.Bip01_L_Foot"] = "левой ступни",
-	["ValveBiped.Bip01_R_Thigh"] = "правого бедро",
-	["ValveBiped.Bip01_R_Calf"] = "правой голени",
-	["ValveBiped.Bip01_R_Foot"] = "правой ступни"
+hook.Add("radialOptions", "77", function()
+	local organism = lply.organism or {}
+	if not organism.otrub and IsValid(lply:GetActiveWeapon()) and lply:GetActiveWeapon():GetClass() ~= "weapon_hands_sh" then
+		local tbl = {dropWeapon, "Drop Weapon"}
+		hg.radialOptions[#hg.radialOptions + 1] = tbl
+	end
+end)
+
+local randomGestures = {
+	"wave",
+	"salute",
+	"halt",
+	"group",
+	"forward",
+	"disagree",
+	"agree",
 }
+
+concommand.Add("hg_randomgesture",function()
+	randomGesture()
+end)
+
+hook.Add("radialOptions", "7", function()
+    local ply = LocalPlayer()
+    local organism = ply.organism or {}
+
+    if ply:Alive() and not organism.otrub and hg.GetCurrentCharacter(ply) == ply then
+        local tbl = {function(mouseClick)
+			if mouseClick == 1 then
+				RunConsoleCommand("act", randomGestures[math.random(#randomGestures)])
+			else
+				local commands = {}
+				for i, str in ipairs(randomGestures) do
+					commands[i] = {
+						[1] = function()
+							RunConsoleCommand("act", str)
+						end,
+						[2] = string.NiceName(str)
+					}
+				end
+				CreateRadialMenu(commands)
+			end
+		end, "Random Gesture (MOUSE2 to select)"}
+        hg.radialOptions[#hg.radialOptions + 1] = tbl
+    end
+end)
 
 local font_size = 50
 surface.CreateFont("HG_font", {
@@ -482,6 +590,7 @@ end
 hook.Add("HUDPaint","Identifier",function()
 	if lply.organism and lply.organism.otrub then return end
 	if !lply:Alive() then return end
+	if lply:GetNetVar("disappearance", nil) then return end 
 	
 	local trace = hg.eyeTrace(lply)
 	
@@ -492,6 +601,7 @@ hook.Add("HUDPaint","Identifier",function()
 
 	if trace.Hit and (trace.Entity:IsRagdoll() or trace.Entity:IsPlayer()) then
 		if trace.Entity.PlayerClassName == "sc_infiltrator" then return end
+		if trace.Entity:GetNetVar("disappearance", nil) then return end
 
 		draw.NoTexture()
 
@@ -510,18 +620,20 @@ end)
 --sound.PlayURL("https://cdn.discordapp.com/attachments/1254022273661145108/1257385761414582382/pon_pon_016eb317d_1.mp4?ex=66882bbe&is=6686da3e&hm=429f0e4427bdc9d80673d3bfa2eccf48221ae5572ec508fb7699274c2c7041ef&","",function() end)
 
 function scare()
-	hook.Add("RenderScreenspaceEffects","Scare",function()
-		for i = 1, 5 do
-		CopyRight("Плывиски","HomigradFontBig",ScrW()/2 +(math.cos(CurTime()*1)*15*i),ScrH()/2+(math.sin(CurTime()*1)*55*i)+15,Color(255,255,255),math.cos(CurTime()*1)*1,2+math.sin(CurTime()*1)*0.5)
-		end
-	end)
-	for i = 1, 15 do
-		sound.PlayURL("https://cdn.discordapp.com/attachments/1254022273661145108/1257385761414582382/pon_pon_016eb317d_1.mp4?ex=66882bbe&is=6686da3e&hm=429f0e4427bdc9d80673d3bfa2eccf48221ae5572ec508fb7699274c2c7041ef&","",function() end)
-	end
+	-- hook.Add("RenderScreenspaceEffects","Scare",function()
+		-- for i = 1, 5 do
+		-- CopyRight("Плывиски","HomigradFontBig",ScrW()/2 +(math.cos(CurTime()*1)*15*i),ScrH()/2+(math.sin(CurTime()*1)*55*i)+15,Color(255,255,255),math.cos(CurTime()*1)*1,2+math.sin(CurTime()*1)*0.5)
+		-- end
+	-- end)
+	-- for i = 1, 15 do
+		-- sound.PlayURL("https://cdn.discordapp.com/attachments/1254022273661145108/1257385761414582382/pon_pon_016eb317d_1.mp4?ex=66882bbe&is=6686da3e&hm=429f0e4427bdc9d80673d3bfa2eccf48221ae5572ec508fb7699274c2c7041ef&","",function() end)
+	-- end
 end
 
 local hint
 local hg_hints = ConVarExists("hg_hints") and GetConVar("hg_hints") or CreateClientConVar("hg_hints", "1", true, false, "Enable\\Disable hints.")
+
+
 hook.Add("HUDPaint","EntHints",function()
 	if not hg_hints:GetBool() then return end 
 	if lply.organism and lply.organism.otrub then return end
@@ -530,78 +642,21 @@ hook.Add("HUDPaint","EntHints",function()
 	local trace = hg.eyeTrace(lply)
 
 	if not trace then return end
-	if ( IsValid(trace.Entity) and trace.Entity.HintShow or hint) then
-		if trace.Entity.HintShow then
-			trace.Entity:HintShow(lply,1,trace)
-		elseif hint then
-			hg.BasicHudHint(nil,lply,0,trace)
-		end
-	end
+
+	HintBackgroundColor.a = LerpFT(0.1, HintBackgroundColor.a, (IsValid(trace.Entity) and trace.Entity.HudHintMarkup) and 200 or 0)
+
+	hg.BasicHudHint(trace.Entity, trace, hint)
 end)
 
-local caliberAlpha = 0
-local caliberDisplayTimer = 0
-hook.Add("PlayerBindPress", "Homigrad_ReloadKeyCaliber", function(ply, bind, pressed)
-    if string.find(bind, "+reload") and pressed then
-        caliberDisplayTimer = CurTime() + 1
-    end
-end)
-hook.Add("HUDPaint", "Homigrad_ReloadCaliberDisplay", function()
-    local ply = LocalPlayer()
-    if not IsValid(ply) or not ply:Alive() or (ply.organism and ply.organism.otrub) then 
-        caliberAlpha = 0
-        return 
-    end
+function hg.BasicHudHint(ent, trace)
+	hint = (IsValid(ent) and ent.HudHintMarkup) or hint
 
-    local wep = ply:GetActiveWeapon()
-    if not IsValid(wep) or not wep.Primary or not wep.Primary.Ammo then 
-        caliberAlpha = 0
-        return 
-    end
-    if wep.PrintName == "GAMBLER SHOTGUN" then
-        caliberAlpha = 0
-        return
-    end
-    
-    local isReloading = (wep.reload and wep.reload > CurTime())
-    local isChecking = wep.checkingammo
-    local isTimedShow = caliberDisplayTimer > CurTime()
-    
-    local targetAlpha = (isReloading or isChecking or isTimedShow) and 255 or 0
-    local lerpSpeed = (targetAlpha > caliberAlpha) and 10 or 3
-    caliberAlpha = Lerp(FrameTime() * lerpSpeed, caliberAlpha, targetAlpha)
-    if caliberAlpha > 1 then
-        local caliber = wep.Primary.Ammo
-        local x = ScrW() * 0.80
-        local y = ScrH() * 0.76
-        draw.SimpleText(caliber, "HomigradFontBig", x + 2, y + 2, Color(0, 0, 0, caliberAlpha * 0.8), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-        draw.SimpleText(caliber, "HomigradFontBig", x, y, Color(255, 255, 255, caliberAlpha), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-    end
-end)
+	if not hint then return end
 
-local HintBackgroundColor = Color( 0, 0, 0, 200 )
-
-function hg.BasicHudHint(ent,lply,fraction,trace)
-	if IsValid(ent) and IsValid(ent:GetParent()) then return end 
-	local newHint = (IsValid(ent) and ent.HudHintMarkup) or hint
-	if not newHint then return end
-	hint = newHint
-	hint.lerpedAlpha = hint.lerpedAlpha or 0
-	if (hint.lerpedAlpha < 0.01 and fraction == 0) then return end
-	hint.lerpedAlpha = LerpFT(0.1,hint.lerpedAlpha or 0,fraction)
 	local x, y = trace.HitPos:ToScreen().x, trace.HitPos:ToScreen().y
-	y = y + 145 + -45*hint.lerpedAlpha
+	y = y + 145 + -45
 
-	HintBackgroundColor.a = 205*hint.lerpedAlpha
-	draw.RoundedBox( 2, x - hint:GetWidth() / 2 - 2.5, y - 2.5, hint:GetWidth()+5, hint:GetHeight()+5, HintBackgroundColor )
+	draw.RoundedBox(2, x - hint:GetWidth() / 2 - 2.5, y - 2.5, hint:GetWidth() + 5, hint:GetHeight() + 5, HintBackgroundColor)
 	
-	hint:Draw( x, y, TEXT_ALIGN_CENTER, nil, 175*hint.lerpedAlpha, TEXT_ALIGN_CENTER )
+	hint:Draw(x, y, TEXT_ALIGN_CENTER, nil, 175 * (HintBackgroundColor.a / 200), TEXT_ALIGN_CENTER)
 end
-
---[[
-	-- Hint Example
-	ENT.HudHintMarkup = markup.Parse("<font=Default>changed font</font>\n<colour=255,0,255,255>changed colour</colour>")
-	function Entity:HintShow(lply,fraction,trace)
-		hg.BasicHudHint(self,lply,fraction,trace)
-	end
---]]

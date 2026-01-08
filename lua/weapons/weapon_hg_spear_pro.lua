@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Pro Spear"
-SWEP.Instructions = "Spear of some slug creature..."
+SWEP.Instructions = "Spear of some slug creature...\n\nLMB to attack.\nRMB to block.\nRMB + LMB to throw."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -13,7 +13,7 @@ SWEP.ViewModel = ""
 
 SWEP.NoHolster = false -- надо чтобы на спине показывался
 
-SWEP.HoldType = "camera"
+SWEP.HoldType = "revolver"
 
 SWEP.HoldPos = Vector(-11,3,-1)
 SWEP.HoldAng = Angle(0,-8,0)
@@ -53,7 +53,7 @@ SWEP.PenetrationSizeSecondary = 3
 SWEP.StaminaPrimary = 8
 SWEP.StaminaSecondary = 8
 
-SWEP.AttackLen1 = 45
+SWEP.AttackLen1 = 65
 SWEP.AttackLen2 = 45
 
 SWEP.AnimList = {
@@ -84,12 +84,15 @@ SWEP.AttackPos = Vector(0,0,0)
 if SERVER then
     function SWEP:CustomAttack2()
         local ent = ents.Create("ent_throwable")
-        ent.WorldModel = self.WorldModel
+        ent.WorldModel = self.WorldModelExchange or self.WorldModel
+        
         local ply = self:GetOwner()
+
         ent:SetPos(select(1, hg.eye(ply,60,hg.GetCurrentCharacter(ply))) - ply:GetAimVector() * 2)
         ent:SetAngles(ply:EyeAngles())
         ent:SetOwner(self:GetOwner())
         ent:Spawn()
+
         ent.localshit = Vector(50,0,0)
         ent.wep = self:GetClass()
         ent.owner = ply
@@ -100,14 +103,20 @@ if SERVER then
         ent.PenetrationSize = 25
         ent.Penetration = 45
         ent.AeroDrag = true
+
         local phys = ent:GetPhysicsObject()
+
         if IsValid(phys) then
             phys:SetVelocity(ply:GetAimVector() * ent.MaxSpeed)
             phys:AddAngleVelocity(Vector(0,0,0))
         end
-        ply:EmitSound("weapons/slam/throw.wav",50,math.random(95,105))
+
+        //ply:EmitSound("weapons/slam/throw.wav",50,math.random(95,105))
         ply:SelectWeapon("weapon_hands_sh")
+        ply:ViewPunch(Angle(0, 0, -8))
+
         self:Remove()
+
         return true
     end
 end
@@ -120,13 +129,13 @@ function SWEP:CanSecondaryAttack()
     return true
 end
 
-SWEP.AttackTimeLength = 0.05
-SWEP.Attack2TimeLength = 0.1
+SWEP.AttackTimeLength = 0.2
+SWEP.Attack2TimeLength = 0.2
 
-SWEP.AttackRads = 0
+SWEP.AttackRads = 2
 SWEP.AttackRads2 = 0
 
 SWEP.SwingAng = -90
 SWEP.SwingAng2 = 0
 
-SWEP.MinSensivity = 0.65
+SWEP.MinSensivity = 0.95

@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Pan"
-SWEP.Instructions = "A simple cooking pan that you decided to use as a weapon."
+SWEP.Instructions = "A cast iron cooking pan that can pack a deadly punch. Can't protect from bullets.\n\nLMB to attack.\nRMB to block."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -18,6 +18,7 @@ SWEP.BreakBoneMul = 0.5
 SWEP.HoldType = "melee"
 
 SWEP.HoldPos = Vector(-13,0,0)
+SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.AttackTime = 0.45
 SWEP.AnimTime1 = 1.3
@@ -63,18 +64,18 @@ SWEP.DeploySnd = "SolidMetal.ImpactSoft"
 SWEP.AttackPos = Vector(0,0,0)
 
 SWEP.DamageType = DMG_CLUB
-SWEP.DamagePrimary = 18
-SWEP.DamageSecondary = 9
+SWEP.DamagePrimary = 33
+SWEP.DamageSecondary = 13
 
-SWEP.PenetrationPrimary = 3
+SWEP.PenetrationPrimary = 4
 SWEP.PenetrationSecondary = 3
 
-SWEP.MaxPenLen = 3
+SWEP.MaxPenLen = 6
 
 SWEP.PenetrationSizePrimary = 2
 SWEP.PenetrationSizeSecondary = 2
 
-SWEP.StaminaPrimary = 25
+SWEP.StaminaPrimary = 40
 SWEP.StaminaSecondary = 15
 
 SWEP.AttackLen1 = 36

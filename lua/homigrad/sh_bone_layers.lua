@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_bone_layers.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 hg.bone = hg.bone or {} -- посттравматический синдром личности
 
 local tbl = {
@@ -161,24 +159,23 @@ local function recursive_bones(ply, bone)
 	end
 end
 
-local dtime
-function hg.HomigradBones(ply)
+local dtime2
+function hg.HomigradBones(ply, time, dtime)
 	if not IsValid(ply) or not ply:IsPlayer() or not ply:Alive() then return end
 
 	local dist = CLIENT and LocalPlayer():GetPos():Distance(ply:GetPos()) or 0
 	local drawdistance = CLIENT and hg_anims_draw_distance:GetInt() or 0
-	local time = CurTime()
 	
 	if CLIENT and (not ply.shouldTransmit or ply.NotSeen) then return end
 
-	local dtime2 = SysTime() - (ply.timeFrameasd or (SysTime() - 1))
-	local fps = CLIENT and (hg_anim_fps:GetInt() != 0 and hg_anim_fps:GetInt() or 99999) or 15
+	local dtime = (1 / hg_anim_fps:GetFloat())
 	
-	if CLIENT and (dtime2 < 1 / fps) then return end
-	
-	dtime = dtime2
-	ply.timeFrameasd = SysTime()
-
+	if CLIENT and (hg_anim_fps:GetInt() != 0) and ((time - (ply.timeFrame or 0)) < dtime) then return end
+	if CLIENT then
+		dtime = time - (ply.timeFrame or 0)
+		ply.timeFrame = time
+	end
+	dtime2 = dtime
 	hook_Run("Bones", ply, dtime)
 
 	--[[for bonename, tbl in pairs(ply.manipulated) do
@@ -189,11 +186,11 @@ function hg.HomigradBones(ply)
 	end--]]
 
 	if not ply.manipulated then reset(ply) return end
-	local dtime = dtime
+
 	for bone, tbl in pairs(ply.manipulated) do
 		for layer, tbl in pairs(tbl.layers) do
 			if (tbl.lastset != time) then
-				hg.bone.Set(ply, bone, vector_origin, angle_zero, layer, 0.01, dtime, true)
+				hg.bone.Set(ply, bone, vector_origin, angle_zero, layer, 0.5, dtime, true)
 			end
 		end
 	end
@@ -365,24 +362,12 @@ end
 
 if CLIENT then
 	//hook.Add("Player Think", "homigrad-bones", hg.HomigradBones)
-	hook.Add("Player Think", "homigrad-bones", function(ply, time, dtime)
-		//if lastcall + 0.05 > time then return end
-		//local dtime = time - lastcall
-		//lastcall = time
-		hg.HomigradBones(ply, time, dtime)
-	end)
 else
-	local lastcall = CurTime()
-	hook.Add("Player Think", "homigrad-bones", function(ply, time, dtime)
-		//if lastcall + 0.05 > time then return end
-		//local dtime = time - lastcall
-		//lastcall = time
-		hg.HomigradBones(ply, time, dtime)
-	end)
+	hook.Add("Player Think", "homigrad-bones", hg.HomigradBones)
 end
 
-function hg.bone.Set(ply, lookup_name, vec, ang, layer, lerp, dtime2)
-	local dtime = dtime2 or dtime
+function hg.bone.Set(ply, lookup_name, vec, ang, layer, lerp, dtime)
+	dtime = dtime or dtime2
 	boneName = hg.bone.matrixManual_Name[lookup_name]
 	boneID = isnumber(lookup_name) and lookup_name or ply:LookupBone(boneName ~= nil and boneName or lookup_name)
 
@@ -392,10 +377,10 @@ function hg.bone.Set(ply, lookup_name, vec, ang, layer, lerp, dtime2)
 
 	if layer and layer != "all" then
 		createLayer(ply, layer, boneID)
-		
+
 		if lerp then
-			vec = LerpVector(hg.lerpFrameTime(lerp, dtime), ply.manipulated[boneID].layers[layer].Pos, vec)
-			ang = LerpAngle(hg.lerpFrameTime(lerp, dtime), ply.manipulated[boneID].layers[layer].Ang, ang)
+			vec = LerpVector(hg.lerpFrameTime2(lerp, dtime), ply.manipulated[boneID].layers[layer].Pos, vec)
+			ang = LerpAngle(hg.lerpFrameTime2(lerp, dtime), ply.manipulated[boneID].layers[layer].Ang, ang)
 		end
 		
 		local oldpos, oldang = hg.bone.Get(ply, boneID)

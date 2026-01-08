@@ -38,6 +38,8 @@ list.Set( "PostProcess", "Depth Blur", {
 		CPanel:Help( "(Badly) Blurs the world the farther it is from you." )
 		CPanel:CheckBox( "Enable", "pp_mercdepthblur" )
 
+        CPanel:ToolPresets( "pp_mercdepthblur", {pp_mercdepthblur_depthstart = "0", pp_mercdepthblur_depthend = "1", pp_mercdepthblur_strength = "0.1"} )
+
         CPanel:NumSlider( "Depth Start", "pp_mercdepthblur_depthstart", 0, 1, 4 )
         CPanel:NumSlider( "Depth End", "pp_mercdepthblur_depthend", 0, 1, 4 )
         CPanel:NumSlider( "Strength", "pp_mercdepthblur_strength", 0, 5, 4 )

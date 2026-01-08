@@ -1,16 +1,19 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Bat"
-SWEP.Instructions = "A bat. The design features of the bat allow it to deliver powerful and heavy blows."
+SWEP.Instructions = "A bat. The design features of the bat allow it to deliver powerful and heavy blows.\n\nLMB to attack.\nRMB to block."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
 
-SWEP.WorldModel = "models/weapons/tfa_nmrih/w_me_bat_metal.mdl"
+SWEP.WorldModel = "models/weapons/tfa_nmrih/w_me_bat_wood.mdl"
 SWEP.WorldModelReal = "models/weapons/tfa_nmrih/v_me_bat_metal.mdl"
+SWEP.WorldModelExchange = "models/weapons/tfa_nmrih/w_me_bat_wood.mdl"
 SWEP.DontChangeDropped = false
 SWEP.ViewModel = ""
 SWEP.modelscale = 1
+
+SWEP.basebone = 94
 
 SWEP.Weight = 0
 
@@ -20,7 +23,7 @@ if CLIENT then
 	SWEP.BounceWeaponIcon = false
 end
 
-SWEP.HoldType = "camera"
+SWEP.HoldType = "revolver"
 
 SWEP.DamageType = DMG_CLUB
 SWEP.DamagePrimary = 25
@@ -38,6 +41,7 @@ SWEP.StaminaPrimary = 20
 SWEP.StaminaSecondary = 10
 
 SWEP.HoldPos = Vector(-7,0,0)
+SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.AttackTime = 0.3
 SWEP.AnimTime1 = 1.3
@@ -56,8 +60,8 @@ SWEP.sprint_ang = Angle(15,0,0)
 
 SWEP.basebone = 94
 
-SWEP.weaponPos = Vector(0,0,0)
-SWEP.weaponAng = Angle(0,0,0)
+SWEP.weaponPos = Vector(1.5,0.2,-0.2)
+SWEP.weaponAng = Angle(-79,5,-4)
 
 SWEP.AnimList = {
     ["idle"] = "Idle",
@@ -69,7 +73,6 @@ SWEP.AnimList = {
 SWEP.setlh = true
 SWEP.setrh = true
 
-
 SWEP.AttackHit = "physics/wood/wood_plank_impact_hard1.wav"
 SWEP.Attack2Hit = "physics/wood/wood_plank_impact_hard1.wav"
 SWEP.AttackHitFlesh = "Flesh.ImpactHard"
@@ -80,14 +83,6 @@ SWEP.AttackPos = Vector(0,0,0)
 
 SWEP.NoHolster = true
 
-
-SWEP.Swing = true -- Это отвесает за первый вид удара, изначально с права на лево
-SWEP.LSwing = false -- Это отвесает за второй вид удара, изначально с права на лево
-SWEP.SwingLeft = false -- Это отвесает за первый вид удара, переключает с лева на право
-SWEP.LSwingLeft = false -- Это отвесает за второй вид удара, переключает с лева на право
-SWEP.UpSwing = false -- Это отвесает за первый вид удара, Сверху вниз
-SWEP.LUpSwing = false -- Это отвесает за второй вид удара, Сверху вниз
-
 SWEP.BreakBoneMul = 0.5
 SWEP.PainMultiplier = 0.85
 
@@ -97,7 +92,7 @@ SWEP.Attack2TimeLength = 0.001
 SWEP.AttackRads = 85
 SWEP.AttackRads2 = 0
 
-SWEP.SwingAng = -15
+SWEP.SwingAng = -5
 SWEP.SwingAng2 = 0
 
 SWEP.MinSensivity = 0.6

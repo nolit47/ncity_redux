@@ -15,13 +15,14 @@ ENT.BlastDamage = 70
 if SERVER then
     function ENT:Initialize()
         self:SetModel(self.WorldModel)
+        self:SetBodygroup(0,1)
         self:PhysicsInit(SOLID_VPHYSICS)
-        self:SetMoveType(MOVETYPE_VPHYSICS)  -- ниггер
+        self:SetMoveType(MOVETYPE_VPHYSICS)  -- Фурри
         self:SetSolid(SOLID_VPHYSICS)
         self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
         self:SetUseType(SIMPLE_USE) 
         self:DrawShadow(true)
-        
+        self.Safety = CurTime() + 3
 
         local phys = self:GetPhysicsObject()
         if IsValid(phys) then
@@ -33,6 +34,7 @@ if SERVER then
         if IsValid(phys) then
             phys:SetMass(20)
         end
+
     end
     
 
@@ -46,8 +48,8 @@ if SERVER then
     end
 end
 
-local developer = GetConVar("developer")
-local offsetPos, offsetAng = Vector(0, 0, 6), Angle(-90, 180, 0)
+--local developer = GetConVar("developer")
+local offsetPos, offsetAng = Vector(-2.2, 2, 1), Angle(-90, 180, 0)
 
 function ENT:Think()
     local tr = {}
@@ -56,15 +58,24 @@ function ENT:Think()
     tr.start = pos
     tr.endpos = tr.start + ang:Forward() * 700
     tr.filter = self
-    tr.collisiongroup = COLLISION_GROUP_PLAYER
+    tr.collisiongroup = COLLISION_GROUP_NONE
     local tr = util.TraceLine(tr)
 
-    --if developer:GetBool() and self.owner:IsAdmin() then
+    --if developer:GetBool() then
     --    debugoverlay.Line(pos, tr.HitPos, 1, color_white, true)
     --end
+    if SERVER then
+    local beepSnd = math.abs(math.sin(CurTime() * 8))
+        self.Played = self.Played or false
+        if self.Safety > CurTime() and beepSnd > 0.9 and not self.Played then
+            self.Played = true
+            self:EmitSound("buttons/button24.wav",60,100 + (25 * (3-(self.Safety - CurTime()))) )
+        elseif beepSnd < 0.9 then
+            self.Played = false
+        end
+    end
 
-    if SERVER and tr.Hit and tr.Entity:GetVelocity():LengthSqr() > 1 then
-		if tr.Entity:IsPlayer() and tr.Entity.PlayerClassName ~= "sc_guard" then return end
+    if SERVER and tr.Hit and tr.Entity:GetVelocity():LengthSqr() > 1 and self.Safety < CurTime() then
         self:ActivateExplosive()
     end
 
@@ -81,11 +92,11 @@ if SERVER then
 
         local bullet = {}
         bullet.Src = pos
-        bullet.Penetration = 100
+        bullet.Penetration = 300
         bullet.Dir = ang:Forward()
-        bullet.Force = 100
-        bullet.Damage = 250
-        bullet.Speed = 1000
+        bullet.Force = 350
+        bullet.Damage = 450
+        bullet.Speed = 3000
         bullet.AmmoType = "14.5x114mm B32" 
         bullet.Attacker = self.owner
         bullet.Distance = 56756

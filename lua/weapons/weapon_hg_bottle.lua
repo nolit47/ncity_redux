@@ -1,7 +1,7 @@
 if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Bottle"
-SWEP.Instructions = "Just an ordinary beer bottle, the perfect murder weapon for any drunk..."
+SWEP.Instructions = "A glass beer bottle. Will break if hit too hard.\n\nLMB to attack.\nRMB to block.\nRMB + LMB to throw."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -13,8 +13,8 @@ SWEP.WorldModelExchange = "models/props_junk/glassbottle01a.mdl"
 
 SWEP.BreakBoneMul = 0.2
 
-SWEP.HoldAng = Angle(5, 0, -2)
 SWEP.HoldPos = Vector(-11,1,5)
+SWEP.HoldAng = Angle(5, 0, -2)
 SWEP.weaponAng = Angle(180,0,-5)
 SWEP.basebone = 94
 SWEP.weaponPos = Vector(-0.2,-0,-0.2)
@@ -60,47 +60,53 @@ SWEP.AttackHit = "GlassBottle.ImpactHard"
 SWEP.AttackHitFlesh = "Flesh.ImpactHard"
 SWEP.DeploySnd = "GlassBottle.ImpactSoft"
 
-if SERVER then
-    local punchang = Angle(0, 0, -8)
-    function SWEP:CustomAttack2()
-        local ent = ents.Create("ent_throwable")
-        ent.WorldModel = self.WorldModelExchange
-        local ply = self:GetOwner()
-        ent:SetPos(select(1, hg.eye(ply,60,hg.GetCurrentCharacter(ply))) - ply:GetAimVector() * 2)
-        ent:SetAngles(ply:EyeAngles())
-        ent:SetOwner(self:GetOwner())
-        ent:Spawn()
-        ent.localshit = Vector(0,0,0)
-        ent.wep = self:GetClass()
-        ent.owner = ply
-        ent.damage = 15
-        ent.MaxSpeed = 1300
-		ent.DamageType = DMG_CLUB
-		ent.AttackHit = "GlassBottle.ImpactHard"
-		ent.AttackHitFlesh = "GlassBottle.ImpactHard"
-        ent:PrecacheGibs()
-        ent.func = function(data)
-            if ent.removed then return end
-            ent.removed = true
-            timer.Simple(0, function()
-                ent:GibBreakServer(vector_origin)
-                ent:EmitSound("physics/glass/glass_pottery_break"..math.random(1,4)..".wav")
-                ent:Remove()
-            end)
-        end
+function SWEP:CustomAttack2()
+    local ent = ents.Create("ent_throwable")
+    ent.WorldModel = self.WorldModelExchange or self.WorldModel
 
-        ent.noStuck = true
-        local phys = ent:GetPhysicsObject()
-        if IsValid(phys) then
-            phys:SetVelocity(ply:GetAimVector() * ent.MaxSpeed)
-            phys:AddAngleVelocity(VectorRand() * 500)
-        end
-        ply:EmitSound("weapons/slam/throw.wav",50,math.random(95,105))
-        ply:ViewPunch(punchang)
-        ply:SelectWeapon("weapon_hands_sh")
-        self:Remove()
-        return true
+    local ply = self:GetOwner()
+
+    ent:SetPos(select(1, hg.eye(ply,60,hg.GetCurrentCharacter(ply))) - ply:GetAimVector() * 2)
+    ent:SetAngles(ply:EyeAngles())
+    ent:SetOwner(self:GetOwner())
+    ent:Spawn()
+
+    ent.localshit = Vector(0,0,0)
+    ent.wep = self:GetClass()
+    ent.owner = ply
+    ent.damage = 15
+    ent.MaxSpeed = 1300
+    ent.DamageType = DMG_CLUB
+    ent.AttackHit = "GlassBottle.ImpactHard"
+    ent.AttackHitFlesh = "GlassBottle.ImpactHard"
+    ent:PrecacheGibs()
+
+    ent.func = function(data)
+        if ent.removed then return end
+        ent.removed = true
+        timer.Simple(0, function()
+            ent:GibBreakServer(vector_origin)
+            ent:EmitSound("physics/glass/glass_pottery_break"..math.random(1,4)..".wav")
+            ent:Remove()
+        end)
     end
+
+    ent.noStuck = true
+
+    local phys = ent:GetPhysicsObject()
+
+    if IsValid(phys) then
+        phys:SetVelocity(ply:GetAimVector() * ent.MaxSpeed)
+        phys:AddAngleVelocity(VectorRand() * 500)
+    end
+
+    //ply:EmitSound("weapons/slam/throw.wav",50,math.random(95,105))
+    ply:ViewPunch(Angle(0, 0, -8))
+    ply:SelectWeapon("weapon_hands_sh")
+
+    self:Remove()
+
+    return true
 end
 
 function SWEP:CreateBottle(pos)

@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_zmeyka.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 
 local zmeyka_netsendtime = 0.05
 

@@ -1,14 +1,14 @@
 if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Broken Bottle"
-SWEP.Instructions = "Broken beer bottle, looks like someone was too drunk."
+SWEP.Instructions = "Broken beer bottle, looks like someone was too drunk.\n\nLMB to attack.\nRMB to block."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
 SWEP.HoldType = "melee"
 
 SWEP.WorldModel = "models/props_junk/glassbottle01a_chunk01a.mdl"
-SWEP.WorldModelReal = "models/weapons/tfa_nmrih/v_me_kitknife.mdl"
+SWEP.WorldModelReal = "models/weapons/salat/reanim/c_s&wch0014.mdl"
 SWEP.WorldModelExchange = "models/props_junk/glassbottle01a_chunk01a.mdl"
 
 SWEP.BreakBoneMul = 0.1
@@ -39,7 +39,7 @@ SWEP.BleedMultiplier = 1.5
 SWEP.AttackLen1 = 40
 
 SWEP.AttackHit = "GlassBottle.ImpactHard"
-SWEP.AttackHitFlesh = "snd_jack_hmcd_slash.wav"
+SWEP.AttackHitFlesh = "snd_jack_hmcd_knifestab.wav"
 
 SWEP.DeploySnd = "GlassBottle.ImpactSoft"
 
@@ -49,22 +49,24 @@ SWEP.MaxPenLen = 0.7
 SWEP.PenetrationSizePrimary = 1.2
 
 SWEP.AnimList = {
-    ["idle"] = "Idle",
-    ["deploy"] = "Draw",
-    ["attack"] = "Attack_Quick",
-    ["attack2"] = "Shove",
+    ["idle"] = "idle",
+    ["deploy"] = "draw",
+    ["attack"] = "stab",
+    ["attack2"] = "midslash1",
+    ["duct_cut"] = "cut",
+    ["inspect"] = "inspect"
 }
 
-SWEP.HoldAng = Angle(30, 0, -22)
-SWEP.HoldPos = Vector(-7,4,8)
-SWEP.weaponAng = Angle(180,0,-5)
-SWEP.basebone = 95
+SWEP.HoldPos = Vector(-4,0,-1)
+SWEP.HoldAng = Angle(0,0,0)
+SWEP.weaponPos = Vector(-0,0.5,1)
+SWEP.weaponAng = Angle(0,3,99)
+SWEP.basebone = 39
 
 function SWEP:CanSecondaryAttack()
     return false
 end
 
-SWEP.weaponPos = Vector(-0.2,0.5,1.8)
 SWEP.AttackPos = Vector(-3,8,-20)
 
 function SWEP:PrimaryAttackAdd(ent, trace)

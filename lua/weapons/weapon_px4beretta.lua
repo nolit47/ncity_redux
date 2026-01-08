@@ -1,3 +1,5 @@
+-- "addons\\homigrad-weapons\\lua\\weapons\\weapon_px4beretta.lua"
+-- Retrieved by https://github.com/lewisclark/glua-steal
 SWEP.Base = "homigrad_base"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -9,53 +11,80 @@ SWEP.Slot = 2
 SWEP.SlotPos = 10
 SWEP.ViewModel = ""
 SWEP.WorldModel = "models/weapons/zcity/w_pist_px4.mdl"
-//SWEP.WorldModelFake = "models/weapons/zcity/gleb/c_px4.mdl" -- Таже проблема что в ременгтоне
+SWEP.WorldModelFake = "models/weapons/zcity/salat/c_px4.mdl" --https://steamcommunity.com/sharedfiles/filedetails/?id=3544105055
 //PrintBones(Entity(1):GetActiveWeapon():GetWM())
 --uncomment for funny
-SWEP.FakePos = Vector(-8, 2.3, 4.8)
-SWEP.FakeAng = Angle(-2, 0, 0)
-SWEP.AttachmentPos = Vector(3.5,1.82,-27.8)
+SWEP.FakePos = Vector(-11.5, 4.1, 5.6)
+SWEP.FakeAng = Angle(0, 0, 0)
+SWEP.AttachmentPos = Vector(0,0,0)
 SWEP.AttachmentAng = Angle(0,0,0)
+SWEP.FakeAttachment = "1"
+SWEP.FakeEjectBrassATT = "2"
 //SWEP.MagIndex = 6
 //MagazineSwap
 --Entity(1):GetActiveWeapon():GetWM():AddLayeredSequence(Entity(1):GetActiveWeapon():GetWM():LookupSequence("delta_foregrip"),1)
-SWEP.FakeViewBobBone = "CAM_Homefield"
 SWEP.FakeReloadSounds = {
-	[0.25] = "weapons/ak74/ak74_magout.wav",
-	[0.34] = "weapons/ak74/ak74_magout_rattle.wav",
-	[0.85] = "weapons/ak74/ak74_magin.wav",
-	[0.95] = "weapons/universal/uni_crawl_l_05.wav",
+	[0.2] = "zcitysnd/sound/weapons/m9/handling/m9_magout.wav",
+	--[0.34] = "weapons/ak74/ak74_magout_rattle.wav",
+	[0.65] = "zcitysnd/sound/weapons/m9/handling/m9_magin.wav",
+	[0.8] = "zcitysnd/sound/weapons/m9/handling/m9_maghit.wav",
 	--[0.95] = "weapons/ak74/ak74_boltback.wav"
 }
 
 SWEP.FakeEmptyReloadSounds = {
-	--[0.22] = "weapons/ak74/ak74_magrelease.wav",
-	[0.25] = "weapons/ak74/ak74_magout.wav",
-	[0.34] = "weapons/ak74/ak74_magout_rattle.wav",
-	[0.65] = "weapons/ak74/ak74_magin.wav",
-	[0.75] = "weapons/universal/uni_crawl_l_05.wav",
-	--[0.95] = "weapons/ak74/ak74_boltback.wav",
-	[0.91] = "weapons/ak74/ak74_boltback.wav",
-	[0.96] = "weapons/ak74/ak74_boltrelease.wav",
+	[0.2] = "zcitysnd/sound/weapons/m9/handling/m9_magout.wav",
+	--[0.34] = "weapons/ak74/ak74_magout_rattle.wav",
+	[0.8] = "zcitysnd/sound/weapons/m9/handling/m9_magin.wav",
+	[0.87] = "zcitysnd/sound/weapons/m9/handling/m9_maghit.wav",
+	[1.07] = "zcitysnd/sound/weapons/m9/handling/m9_boltrelease.wav",
 }
-SWEP.MagModel = "models/weapons/upgrades/w_magazine_m1a1_30.mdl"
+SWEP.MagModel = "models/joshzemlinsky/weapons/sof3_beretta_px4_mag.mdl"
+
+SWEP.lmagpos = Vector(0,0,0)
+SWEP.lmagang = Angle(0,0,0)
+SWEP.lmagpos2 = Vector(-2,0,0)
+SWEP.lmagang2 = Angle(0,0,-90)
+
+SWEP.FakeMagDropBone = 2
+local vector_full = Vector(1,1,1)
+
 SWEP.FakeReloadEvents = {
+	[0.15] = function( self, timeMul ) 
+		if CLIENT then
+			self:GetOwner():PullLHTowards("ValveBiped.Bip01_L_Thigh", 2.5 * timeMul)
+			self:GetWM():ManipulateBoneScale(2, vector_full)
+		end 
+	end,
+	[0.37] = function( self ) 
+		if CLIENT and self:Clip1() < 1 then
+			hg.CreateMag( self, Vector(-15,5,-15) )
+			self:GetWM():ManipulateBoneScale(2, vector_origin)
+		end 
+	end,
+	[0.55] = function( self ) 
+		if CLIENT and self:Clip1() < 1 then
+			self:GetWM():ManipulateBoneScale(2, vector_full)
+		end 
+	end,
 }
 
 SWEP.AnimList = {
 	["idle"] = "idle",
-	["reload"] = "reload_charged",
-	["reload_empty"] = "reload",
+	["reload"] = "reload",
+	["reload_empty"] = "reload_empty",
 }
 --SWEP.ReloadHold = nil
 SWEP.FakeVPShouldUseHand = false
+
+SWEP.FakeViewBobBone = "ValveBiped.Bip01_R_Hand"
+SWEP.FakeViewBobBaseBone = "ValveBiped.Bip01_R_Forearm"
+SWEP.ViewPunchDiv = 50
 
 SWEP.WepSelectIcon2 = Material("vgui/wep_jack_hmcd_smallpistol")
 SWEP.IconOverride = "vgui/wep_jack_hmcd_smallpistol"
 
 SWEP.CustomShell = "9x19"
-SWEP.EjectPos = Vector(0,5,4)
-SWEP.EjectAng = Angle(-70,-85,0)
+SWEP.EjectAng = Angle(-45,0,90)
 SWEP.punchmul = 1.5
 SWEP.punchspeed = 3
 SWEP.weight = 1
@@ -75,7 +104,7 @@ SWEP.SupressedSound = {"zcitysnd/sound/weapons/m45/m45_suppressed_fp.wav", 75, 9
 SWEP.Primary.SoundEmpty = {"zcitysnd/sound/weapons/makarov/handling/makarov_empty.wav", 75, 100, 105, CHAN_WEAPON, 2}
 SWEP.Primary.Force = 23
 SWEP.Primary.Wait = PISTOLS_WAIT
-SWEP.ReloadTime = 4
+SWEP.ReloadTime = 3
 SWEP.ReloadSoundes = {
 	"none",
 	"weapons/tfa_ins2/usp_tactical/magout.wav",
@@ -145,10 +174,10 @@ SWEP.ShootAnimMul = 4
 
 
 function SWEP:DrawPost()
-	local wep = self:GetWeaponEntity()
+	local wep = self:GetWM()
 	if CLIENT and IsValid(wep) then
-		self.shooanim = LerpFT(0.4,self.shooanim or 0,(self:Clip1() > 0 or self.Reload) and 0 or 1.8)
-		wep:ManipulateBonePosition(0,Vector(-0.8*self.shooanim ,0 ,0 ),false)
+		self.shooanim = LerpFT(0.4,self.shooanim or 0,(self:Clip1() > 0 or self.reload) and 0 or 1)
+		wep:ManipulateBonePosition(0,Vector(-1.4*self.shooanim ,0 ,0 ),false)
 	end
 end
 

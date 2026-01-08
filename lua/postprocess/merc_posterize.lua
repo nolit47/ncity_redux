@@ -29,6 +29,8 @@ list.Set( "PostProcess", "Posterize", {
 		CPanel:Help( "Lowers the amount of unique colors." )
 		CPanel:CheckBox( "Enable", "pp_mercposterize" )
 
+        CPanel:ToolPresets( "pp_mercposterize", {pp_mercposterize_steps = 8, pp_mercposterize_gamma = "3"} )
+
 		CPanel:NumSlider( "Steps", "pp_mercposterize_steps", 1, 64, 0 )
         CPanel:NumSlider( "Gamma", "pp_mercposterize_gamma", -50, 50, 3 )
 

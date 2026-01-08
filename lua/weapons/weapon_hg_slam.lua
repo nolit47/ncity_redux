@@ -63,7 +63,7 @@ end
 
 function SWEP:PlaceSLAM(pos, ang, tr)
     ang:RotateAroundAxis(ang:Right(), -90)
-    ang:RotateAroundAxis(ang:Up(), 180)
+    ang:RotateAroundAxis(ang:Up(), 0)
 
     local ent = ents.Create("ent_hg_slam")
     ent:SetAngles(ang)
@@ -85,7 +85,9 @@ end
 
 function SWEP:Think()
     self:SetHoldType("slam")
-    self:SetHolding(math.max(self:GetHolding() - 3, 0))
+	if not self:GetOwner():KeyDown(IN_ATTACK) then
+		self:SetHolding(math.max(self:GetHolding() - 3, 0))
+	end
 end
 
 local bone, name
@@ -130,14 +132,14 @@ if CLIENT then
         end
         local ply = self:GetOwner()
         local tr = ply:GetEyeTrace()
-        
 
         if not tr.Hit or tr.HitSky or not tr.HitPos or not InPlacementRadius(ply, tr) then return end
+		if not IsValid(tr.Entity) then return end 
 		if tr.Entity and tr.Entity:IsPlayer() then return end
 
         local pos, ang = tr.HitPos, tr.HitNormal:Angle()
         ang:RotateAroundAxis(ang:Right(), -90)
-        ang:RotateAroundAxis(ang:Up(), 180)
+        ang:RotateAroundAxis(ang:Up(), 0)
 
         cam.Start3D()
             csent:SetPos(pos)
@@ -148,14 +150,14 @@ if CLIENT then
     end
 end
 
-function SWEP:SecondaryAttack()
+function SWEP:PrimaryAttack()
     local ply = self:GetOwner()
     
     if not self:GetPlaced() then
         local tr = ply:GetEyeTrace()
         if not tr.Hit or tr.HitSky or not InPlacementRadius(ply, tr) then return end
 
-        self:SetHolding(math.min(self:GetHolding() + 6, 100))
+        self:SetHolding(math.min(self:GetHolding() + 4, 100))
 
         if self:GetHolding() < 100 then return end
         if CLIENT then return end
@@ -166,6 +168,5 @@ function SWEP:SecondaryAttack()
     end
 end
 
-function SWEP:PrimaryAttack()
-    self:SecondaryAttack()
+function SWEP:SecondaryAttack()
 end

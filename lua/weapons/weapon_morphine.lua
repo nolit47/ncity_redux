@@ -2,7 +2,7 @@ if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_bandage_sh"
 SWEP.PrintName = "Morphine"
 SWEP.Instructions = "A very strong medicine used primarily to lower the pressure and/or as an anesthetic. Morphine dose must be strictly observed, as it can lead to opiate overdose. Contains the maximum daily dose. RMB to inject into someone else."
-SWEP.Category = "Medicine"
+SWEP.Category = "ZCity Medicine"
 SWEP.Spawnable = true
 SWEP.Primary.Wait = 1
 SWEP.Primary.Next = 0
@@ -76,7 +76,7 @@ if SERVER then
 		if owner.injectedinto[org.owner] > 1 and injected > 0 then
 			local dmgInfo = DamageInfo()
 			dmgInfo:SetAttacker(owner)
-			hook.Run("HomigradDamage", org.owner, dmgInfo, HITGROUP_RIGHTARM, hg.GetCurrentCharacter(org.owner), injected * 100)
+			hook.Run("HomigradDamage", org.owner, dmgInfo, HITGROUP_RIGHTARM, hg.GetCurrentCharacter(org.owner), injected * (zb and zb.MaximumHarm or 1))
 		end
 
 		if self.poisoned2 then

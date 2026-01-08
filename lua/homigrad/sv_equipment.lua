@@ -4,7 +4,7 @@ util.AddNetworkString("hg_drop_equipment")
 net.Receive("hg_drop_equipment", function(len, ply)
     local equipment = net.ReadString()
 
-    if not ply.organism.canmove then return end
+    if not (ply.organism and ply.organism.canmove) then return end
 
     hg.DropArmor(ply, equipment)
 end)

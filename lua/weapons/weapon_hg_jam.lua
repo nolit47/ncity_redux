@@ -29,8 +29,8 @@ if CLIENT then
 	SWEP.BounceWeaponIcon = false
 end
 
-SWEP.offsetVec = Vector(2.5, -2, -3)
-SWEP.offsetAng = Angle(0, 80, 90)
+SWEP.offsetVec = Vector(4, -1.6, -3)
+SWEP.offsetAng = Angle(0, -90, 130)
 
 local doors = {
 	["prop_door"] = true,
@@ -72,7 +72,7 @@ end
 
 function SWEP:PlaceSLAM(pos, ang, tr)
 	ang:RotateAroundAxis(ang:Right(), -90)
-	ang:RotateAroundAxis(ang:Up(), 90)
+	ang:RotateAroundAxis(ang:Up(), -90)
 	ang:RotateAroundAxis(ang:Forward(), 90)
 
 	local Doors = {tr.Entity}
@@ -105,7 +105,9 @@ end
 
 function SWEP:Think()
 	self:SetHoldType("slam")
-	self:SetHolding(math.max(self:GetHolding() - 3, 0))
+	if not self:GetOwner():KeyDown(IN_ATTACK) then
+		self:SetHolding(math.max(self:GetHolding() - 3, 0))
+	end
 end
 
 local bone, name
@@ -156,7 +158,7 @@ if CLIENT then
 
 		local pos, ang = tr.HitPos, tr.HitNormal:Angle()
 		ang:RotateAroundAxis(ang:Right(), -90)
-		ang:RotateAroundAxis(ang:Up(), 90)
+		ang:RotateAroundAxis(ang:Up(), -90)
 		ang:RotateAroundAxis(ang:Forward(), 90)
 
 		cam.Start3D()
@@ -169,14 +171,14 @@ if CLIENT then
 	end
 end
 
-function SWEP:SecondaryAttack()
+function SWEP:PrimaryAttack()
 	local ply = self:GetOwner()
 	
 	if not self:GetPlaced() then
 		local tr = ply:GetEyeTrace()
 		if not tr.Hit or tr.HitSky or not InPlacementRadius(ply, tr) or not (IsValid(tr.Entity) and doors[tr.Entity:GetClass()]) then return end
 
-		self:SetHolding(math.min(self:GetHolding() + 6, 100))
+		self:SetHolding(math.min(self:GetHolding() + 5, 100))
 
 		if self:GetHolding() < 100 then return end
 		if CLIENT then return end
@@ -187,6 +189,5 @@ function SWEP:SecondaryAttack()
 	end
 end
 
-function SWEP:PrimaryAttack()
-	self:SecondaryAttack()
+function SWEP:SecondaryAttack()
 end

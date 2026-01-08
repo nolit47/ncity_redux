@@ -6,15 +6,16 @@ ENT.Spawnable = false
 ENT.Model = "models/pwb/weapons/w_f1_thrown.mdl"
 ENT.timeToBoom = 3
 ENT.Fragmentation = 300 * 3 --300 не страшно
-ENT.BlastDis = 5 --meters
+ENT.BlastDis = 8 --meters
 ENT.Penetration = 8
 
-ENT.spoon = "models/codww2/equipment/mk,ii hand grenade spoon.mdl"
+ENT.ishggrenade = true
+
+ENT.spoon = "models/weapons/arc9/darsu_eft/skobas/rgd5_skoba.mdl"
 
 ENT.Sound = {"m67/m67_detonate_01.wav", "m67/m67_detonate_02.wav", "m67/m67_detonate_03.wav"}
 ENT.SoundFar = {"m67/m67_detonate_far_dist_01.wav", "m67/m67_detonate_far_dist_02.wav", "m67/m67_detonate_far_dist_03.wav"}
 ENT.SoundWater = "m67/water/m67_water_detonate_01.wav"
-
 
 ENT.SoundBass = {
     "snd_jack_fragsplodeclose.wav", --;; Мне насрать если чет не нравится можете изменить!!!
@@ -34,6 +35,14 @@ ENT.DebrisSounds = {
     "explosion_debris/interior/explosion_debris_sprinkle_interior_wave07.wav",
     "explosion_debris/interior/explosion_debris_sprinkle_interior_wave09.wav"
 }
+
+if CLIENT then
+	--ENT.HudHintMarkup = markup.Parse("<font=ZCity_Tiny>Grenade without spoon\n<colour=235,0,0>RUN IDIOT</colour></font>",450)
+	function ENT:HintShow(lply,fraction,trace)
+		if not self.HudHintMarkup then self.HudHintMarkup = markup.Parse("<font=ZCity_Tiny>Grenade without spoon\n<colour=235,0,0>RUN IDIOT</colour></font>",450) end
+		hg.BasicHudHint(self,lply,fraction,trace)
+	end
+end
 
 if SERVER then
 	function ENT:InitAdd()
@@ -66,6 +75,7 @@ if SERVER then
 		if self:IsPlayerHolding() then return end
 
 		ply:PickupObject(self)
+		self.owner = ply
 	end
 
 	function ENT:Think()
@@ -288,11 +298,13 @@ if SERVER then
 
 		util.BlastDamage(self, self.owner, selfPos, self.BlastDis / 0.01905, 35)
 
-
+		--;; Расскажу вам тайну но у нас трассировка делалась просто ужасно
 		local dis = self.BlastDis / 0.01905
+		local disorientation_dis = 6 / 0.01905  
 		local entsCount = 0
-		for i, enta in ipairs(ents.FindInSphere(selfPos, dis)) do
-			local tr = hg.ExplosionTrace(selfPos,enta:GetPos(),{self})
+		for i, enta in ipairs(ents.FindInSphere(selfPos, disorientation_dis)) do
+			local tracePos = enta:IsPlayer() and (enta:GetPos() + enta:OBBCenter()) or enta:GetPos()
+			local tr = hg.ExplosionTrace(selfPos, tracePos, {self})
 			local phys = enta:GetPhysicsObject()
 			if IsValid(phys) then
 				entsCount = entsCount + 1
@@ -302,16 +314,18 @@ if SERVER then
 			local force = (enta:GetPos() - selfPos)
 			local len = force:Length()
 			force:Div(len)
-			local frac = math.Clamp((dis - len) / dis, 0.5, 1)
-			local forceadd = force * frac * 50000
+			local frac = math.Clamp((disorientation_dis - len) / disorientation_dis, 0.1, 1)  
+			local physics_frac = math.Clamp((dis - len) / dis, 0.5, 1)  
+			local forceadd = force * physics_frac * 50000  
 
 			if enta.organism then
-				local behindwall = tr.Entity != enta
-				if IsValid(enta.organism.owner) and enta.organism.owner:IsPlayer() then
-					hg.ExplosionDisorientation(enta, (behindwall and 3 or 5) * frac, (behindwall and 4 or 6) * frac)
+				local behindwall = tr.Entity != enta and tr.MatType != MAT_GLASS
+				if IsValid(enta.organism.owner) and enta.organism.owner:IsPlayer() and not behindwall then
+					hg.ExplosionDisorientation(enta, 5 * frac, 6 * frac)
 				end
 			end
 
+			if len > dis then continue end
 			if tr.Entity != enta then continue end
 
 

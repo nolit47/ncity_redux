@@ -2,7 +2,7 @@ if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_bandage_sh"
 SWEP.PrintName = "Bloodbag"
 SWEP.Instructions = "A plastic bag containing neccesary instruments to acknowledge blood and transfuse it. Can be used to help with large blood loss."
-SWEP.Category = "Medicine"
+SWEP.Category = "ZCity Medicine"
 SWEP.Spawnable = true
 SWEP.Primary.Wait = 1
 SWEP.Primary.Next = 0
@@ -41,6 +41,10 @@ SWEP.modeNames = {
 SWEP.ofsV = Vector(-1,3,11)
 SWEP.ofsA = Angle(-0,-90,90)
 
+function SWEP:SetupDataTablesAdd()
+	self:NetworkVar( "Bool", 0, "HasBlood" )
+end
+
 function SWEP:InitializeAdd()
 	self:SetHold(self.HoldType)
 	self.modeValues = {
@@ -50,8 +54,8 @@ function SWEP:InitializeAdd()
 	if SERVER then
 		if math.random(2) == 1 then
 			self.modeValues[1] = 1
-			local val,index = table.Random(hg.organism.bloodtypes)
-			self.bloodtype = index
+			//local val,index = table.Random(hg.organism.bloodtypes)
+			self.bloodtype = "o-"
 		end
 	end
 end
@@ -128,7 +132,7 @@ if SERVER then
 					if not ent.organism then return end
 					if ent:GetVelocity():LengthSqr() < 25 and ent.organism.blood > 2000 and (not self.bloodtype or ent.organism.bloodtype == self.bloodtype) then
 						local old = -(-self.modeValues[1])
-						self.modeValues[1] = math.min(self.modeValues[1] + FrameTime() * (math.max(ent.organism.pulse / 70,0.3)) * 0.1,1)
+						self.modeValues[1] = math.min(self.modeValues[1] + FrameTime() * (math.max(ent.organism.pulse / 70,0.3)) * 0.5,1)
 						self.bloodtype = ent.organism.bloodtype
 						
 						if self.poisoned2 then
@@ -150,7 +154,7 @@ if SERVER then
 				if owner:KeyDown(IN_ATTACK) or owner:KeyDown(IN_ATTACK2) then
 					local ent = owner:KeyDown(IN_ATTACK) and owner or hg.eyeTrace(self:GetOwner()).Entity
 					if not ent.organism then return end
-					if ent:GetVelocity():LengthSqr() < 25 then
+					if ent:GetVelocity():LengthSqr() < 1000 then
 						local old = -(-ent.organism.blood)
 						local good_type = hg.organism.bloodtypes[self.bloodtype or "o-"][ent.organism.bloodtype or "o-"]
 
@@ -162,11 +166,16 @@ if SERVER then
 
 						--print(good_type)
 						if good_type then
-							ent.organism.blood = math.min(ent.organism.blood + math.min(FrameTime() * 0.1 * (math.max(ent.organism.pulse / 70,0.3)),self.modeValues[1]) * 500,5000)
+							ent.organism.blood = math.min(ent.organism.blood + math.min(FrameTime() * 0.5 * (math.max(ent.organism.pulse / 70,0.3)),self.modeValues[1]) * 500,5000)
 						else
-							ent.organism.blood = math.min(ent.organism.blood + math.min(FrameTime() * 0.1 * (math.max(ent.organism.pulse / 70,0.3)),self.modeValues[1]) * 200,5000)
-							ent.organism.hemotransfusionshock = ent.organism.hemotransfusionshock + math.min(FrameTime() * 0.1,self.modeValues[1])
+							ent.organism.blood = math.min(ent.organism.blood + math.min(FrameTime() * 0.5 * (math.max(ent.organism.pulse / 70,0.3)),self.modeValues[1]) * 200,5000)
+							ent.organism.hemotransfusionshock = ent.organism.hemotransfusionshock + math.min(FrameTime() * 0.5,self.modeValues[1])
 						end
+
+						if self.bloodtype == "c-" and ent.PlayerClassName != "furry" and (ent.organism.blood - old) > 0 then
+							ent.organism.furryinfected = true
+						end
+
 						self.modeValues[1] = math.max(self.modeValues[1] - (ent.organism.blood - old) / (good_type and 500 or 200),0)
 						if self.sndcd < CurTime() and old ~= ent.organism.blood  then
 							owner:EmitSound("zcity/healing/bloodbag_loop_".. math.random(8) ..".wav")
@@ -179,7 +188,14 @@ if SERVER then
 			end
 		end
 
-		if self.modeValues[1] < 0.00001 then self.modeValues[1] = 0 end
+		if self.modeValues[1] < 0.00001 then 
+			self.modeValues[1] = 0 
+			self:SetHasBlood(false) 
+			self:SetBodygroup(1,1)
+		else
+			self:SetHasBlood(true)
+			self:SetBodygroup(1,0)
+		end
 
 		if self.net_cooldown < CurTime() then
 			self:SetNetVar("modeValues",self.modeValues)
@@ -197,10 +213,13 @@ else
 	function SWEP:Think()
 		local ent = hg.eyeTrace(self:GetOwner()).Entity
 		local ent = IsValid(ent) and ent.organism and ent or self:GetOwner()
-		self.modeNames[1] = self:GetNetVar("modeValues",{})[1] == 0 and "blood | recipent blood: "..ent.organism.bloodtype or "blood | type: "..self:GetNetVar("type","o-").." | recipent blood: "..ent.organism.bloodtype
+		self.modeNames[1] = self:GetNetVar("modeValues", {})[1] == 0 and "Blood | Recipent: "..ent.organism.bloodtype or "Blood | in: "..self:GetNetVar("type","o-").." | recipent: "..ent.organism.bloodtype
+	end
 
-		if IsValid(self.model) then
-			self.model:SetBodygroup(0,self:GetNetVar("modeValues",{})[1] == 0 and 1 or 0)
+	function SWEP:AfterDrawModel(wm,nodraw)
+		local set = (self:GetHasBlood() and 0 or 1)//IsValid(self:GetOwner()) and (self:GetHasBlood() and 0 or 1) or (self:GetHasBlood() and 1 or 0)
+		if IsValid(wm) and wm:GetBodygroup(0) != set then
+			wm:SetBodygroup(0, set)
 		end
 	end
 end

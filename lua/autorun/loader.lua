@@ -12,18 +12,6 @@ local function AddFile(File, dir)
 	local fileSide = string.lower(string.Left(File, 3))
 	local fileSide2 = string.lower(string.Right(string.sub(File, 1, -5), 3))
 	local side = sides[fileSide] or sides[fileSide2]
-
-	-- Fallback: detect keywords in filename (handles names like _loadme_autoclient2.lua)
-	if not side then
-		local lfile = string.lower(File)
-		if string.find(lfile, "client") then
-			side = "cl_"
-		elseif string.find(lfile, "server") then
-			side = "sv_"
-		elseif string.find(lfile, "shared") then
-			side = "sh_"
-		end
-	end
 	if SERVER and side == "sv_" then
 		include(dir .. File)
 	elseif side == "sh_" then

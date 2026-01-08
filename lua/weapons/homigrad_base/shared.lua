@@ -24,56 +24,6 @@ SWEP.ishgwep = true
 
 SWEP.EyeSprayVel = Angle(0,0,0)
 
-if CLIENT then
-	-- Provide safe fallbacks for global view-punch helpers used throughout the base
-	if not ViewPunch then
-		function ViewPunch(p)
-			local lp = LocalPlayer()
-			if IsValid(lp) and lp.ViewPunch then
-				lp:ViewPunch(p)
-			end
-		end
-	end
-
-	if not ViewPunch2 then
-		-- Some code expects a secondary view-punch handler. Fallback to calling ViewPunch.
-		function ViewPunch2(p)
-			if not p then return end
-			ViewPunch(p)
-		end
-	end
-end
-
-if CLIENT then
-	-- Simple view-punch accumulation and decay used by camera and spray code
-	viewPunchAng = viewPunchAng or Angle(0,0,0)
-	viewPunchAng2 = viewPunchAng2 or Angle(0,0,0)
-
-	function ViewPunch(p)
-		if not p then return end
-		viewPunchAng = viewPunchAng + p
-	end
-
-	function ViewPunch2(p)
-		if not p then return end
-		viewPunchAng2 = viewPunchAng2 + p
-	end
-
-	function GetViewPunchAngles()
-		return viewPunchAng
-	end
-
-	function GetViewPunchAngles2()
-		return viewPunchAng2
-	end
-
-	hook.Add("Think", "hg_viewpunch_decay", function()
-		local ft = FrameTime()
-		viewPunchAng = LerpAngle(math.Clamp(ft * 8, 0, 1), viewPunchAng, Angle(0,0,0))
-		viewPunchAng2 = LerpAngle(math.Clamp(ft * 8, 0, 1), viewPunchAng2, Angle(0,0,0))
-	end)
-end
-
 SWEP.ScrappersSlot = "Primary"
 --[type_] = {1 = name,2 = dmg,3 = pen,4 = numbullet,5 = RubberBullets,6 = ShockMultiplier,7 = Force},
 SWEP.AmmoTypes2 = {
@@ -137,8 +87,13 @@ PrecacheParticleSystem("smoke_trail_wild")
 
 local vector_full = Vector(1, 1, 1)
 
-local hg_newsounds = GetConVar("hg_newsounds") or CreateClientConVar("hg_newsounds", "0", true, false, "new gun sounds", 0, 1)
+function SWEP:HintShow(lply,fraction,trace)
+	hg.BasicHudHint(self,lply,fraction,trace)
+end
 
+if CLIENT then
+	SWEP.HowToUseInstructions = "<font=ZCity_Tiny>"..string.upper( input.LookupBinding("+use") ).." to pickup</font>"
+end
 SWEP.StartAtt = {}
 function SWEP:Initialize()
 	self:SetLastShootTime(0)
@@ -148,7 +103,16 @@ function SWEP:Initialize()
 	self:Initialize_Reload()
 	self:SetClip1(self.Primary.DefaultClip)
 	self:Draw()
-	
+
+	self.AdditionalPos = Vector(0,0,0)
+	self.AdditionalPos2 = Vector(0,0,0)
+	self.AdditionalAng = Angle(0,0,0)
+	self.AdditionalAng2 = Angle(0,0,0)
+
+	if CLIENT then
+		self.HudHintMarkup = markup.Parse("<font=ZCity_Tiny>".. self.PrintName .."</font>\n<font=ZCity_SuperTiny><colour=125,125,125>".. self.HowToUseInstructions .."</colour></font>",450)
+	end
+
 	self:MapEvents()
 
 	if self:GetOwner():IsNPC() then
@@ -164,31 +128,7 @@ function SWEP:Initialize()
 
 	self:ClearAttachments()
 
-	--[[if self:IsPistolHoldType() then
-		self.holsteredBone = "ValveBiped.Bip01_R_Thigh"
-		self.holsteredPos = Vector(0, -2, -1)
-		self.holsteredAng = Angle(0, 20, 30)
-		self.shouldntDrawHolstered = true
-	end--]]
-
 	self.AmmoTypes = self.AmmoTypes2[self.Primary.Ammo]
-
-	--game.AddParticles("particles/tfa_ins2_muzzlesmoke.pcf")
-	--PrecacheParticleSystem("tfa_ins2_weapon_muzzle_smoke")
-	local snd_new = "sounds_zcity/"..(string.Replace(self:GetClass(),"weapon_","")).."/"
-	local snd_close = snd_new.."close.wav"
-	local snd_suppressor = snd_new.."supressor.wav"
-	local snd_dist = snd_new.."dist.wav"
-	if hg_newsounds:GetBool() and not self.NewSoundClose then
-		local a1,_ = file.Find("sound/"..snd_close,"GAME")
-		local a2,_ = file.Find("sound/"..snd_suppressor,"GAME")
-		self.NewSoundClose = a1
-		self.NewSoundSupressor = a2
-	end
-
-	if hg.PrecacheSoundsSWEP then
-		hg.PrecacheSoundsSWEP(self)
-	end
 
 	self:WorldModel_Transform()
 
@@ -198,7 +138,6 @@ function SWEP:Initialize()
 	if SERVER then
 		self:SetNetVar("attachments",self.attachments)
 	end
-	--SetNetVar("weapons",hg.weapons)
 
 	if CLIENT then
 		if not IsValid(self.worldModel) then
@@ -338,7 +277,7 @@ local owner
 local CurTime = CurTime
 function SWEP:IsZoom()
 	local owner = self:GetOwner()
-	return self:CanUse() and (self:GetOwner():IsPlayer() and self:KeyDown(IN_ATTACK2)) and !(self:KeyDown(IN_SPEED) and !IsValid(owner.FakeRagdoll)) and ((IsValid(owner.FakeRagdoll) and self:KeyDown(IN_USE)) or (owner:IsOnGround() or owner:InVehicle())) and not owner.suiciding-- and owner.posture ~= 1 and owner.posture ~= 3-- and (not IsValid(owner.FakeRagdoll) or self:KeyDown(IN_JUMP))
+	return self:CanUse() and (self:GetButtstockAttack() - CurTime() < -1) and (self:GetOwner():IsPlayer() and self:KeyDown(IN_ATTACK2)) and !(self:IsSprinting() and !IsValid(owner.FakeRagdoll)) and ((IsValid(owner.FakeRagdoll) and self:KeyDown(IN_USE)) or (owner:IsOnGround() or owner:InVehicle())) and not owner.suiciding and !(owner.organism and (owner.organism.larm and !self:IsPistolHoldType()) and owner.organism.rarm and (owner.organism.larm > 0.99 or owner.organism.rarm > 0.99))-- and owner.posture ~= 1 and owner.posture ~= 3-- and (not IsValid(owner.FakeRagdoll) or self:KeyDown(IN_JUMP))
 end
 
 function SWEP:CanUse()
@@ -350,7 +289,7 @@ end
 
 function SWEP:IsSprinting()
 	local ply = self:GetOwner()
-	return not ply:IsNPC() and (self:KeyDown(IN_SPEED)) and not IsValid(ply.FakeRagdoll) and !(ply.posture == 8 or ply.posture == 7) or ((self.TheRealPosture == 3 or self.TheRealPosture == 4) and hg.GetCurrentCharacter(ply):IsPlayer() and not ply:IsOnGround())
+	return not ply:IsNPC() and (self:KeyDown(IN_SPEED)) and ply:GetVelocity():LengthSqr() > 170 * 170 and not IsValid(ply.FakeRagdoll)
 end
 
 function SWEP:IsLocal()
@@ -366,36 +305,26 @@ local hg_gunshotvolume = GetConVar("hg_gunshotvolume") or CreateClientConVar("hg
 local math_random = math.random
 function SWEP:PlaySnd(snd, server, chan, vol, pitch, entity, tripleaffirmative)
 	if SERVER and not server then return end
-	local owner = IsValid(self:GetOwner().FakeRagdoll) and self:GetOwner().FakeRagdoll or self
-	
+	local owner = self:GetOwner()
+	owner = IsValid(owner) and owner or self
+
 	if CLIENT then
 		local view = render.GetViewSetup(true)
 		local time = owner:GetPos():Distance(view.origin) / 17836
+
 		timer.Simple(time, function()
 			if not IsValid(self) then return end
-			
-			local owner = IsValid(self:GetOwner().FakeRagdoll) and self:GetOwner().FakeRagdoll or self
-			owner = IsValid(owner) and owner
-			
-			if not owner then return end
-			
+			local ent = hg.GetCurrentCharacter(self:GetOwner())
+			owner = IsValid(owner) and owner or self
+
 			if type(snd) == "table" then
-				//EmitSound(snd[1], owner:GetPos()-vector_up, 0, chan or CHAN_ITEM, 1, snd[2] or (self.Supressor and 65 or 75), 0, math_random(snd[3] or 100, snd[4] or 100), 1)
-				//EmitSound(snd[1], owner:GetPos(), 1, chan or CHAN_ITEM, 1, snd[2] or (self.Supressor and 65 or 75), 0, math_random(snd[3] or 100, snd[4] or 100), 1)
-				//EmitSound(snd[1], owner:GetPos(), 2, chan or CHAN_ITEM, 1, (snd[2] or (self.Supressor and 65 or 75)) + 1, 0, math_random(snd[3] or 100, snd[4] or 100), 1)
-				--EmitSound(snd[1], owner:GetPos() + vector_up * 5, owner:EntIndex(), chan or CHAN_BODY, 1, snd[2] or (self.Supressor and 75 or 75), nil, (pitch or 100) + rand)
-				//sound.Play( snd[1], owner:GetPos()-vector_up, 100)
-				//sound.Play( snd[1], owner:GetPos(), 100)
-				//sound.Play( snd[1], owner:GetPos(), 100+1)
 				local rand = math.random(-5,5)
 				EmitSound( snd[1], owner:GetPos(), (entity or owner:EntIndex()) + owner:EntIndex(), CHAN_WEAPON, vol, snd[2] or (self.Supressor and 75 or 75), nil, (pitch or 100) + rand)
 				if tripleaffirmative and !hg_quietshots:GetBool() then
 					EmitSound( snd[1], owner:GetPos()-vector_up, (entity or owner:EntIndex()) + 1 + owner:EntIndex(), CHAN_WEAPON, vol, snd[2] or (self.Supressor and 75 or 75), nil, (pitch or 100) + rand)
 					EmitSound( snd[1], owner:GetPos(), (entity or owner:EntIndex()) + 2 + owner:EntIndex(), CHAN_WEAPON, vol, (snd[2] or (self.Supressor and 75 or 75)) + 1, nil, (pitch or 100) + rand)
 				end
-				--owner:EmitSound(snd[1],75,100,1,CHAN_AUTO)
-				--owner:EmitSound(snd[1],75,100,1,CHAN_WEAPON)
-				--owner:EmitSound(snd[1],75,100,1,CHAN_REPLACE)
+				--self:EmitSound(snd[1], (snd[2] or (self.Supressor and 75 or 75)), (pitch or 100) + rand, vol, CHAN_AUTO)
 			else
 				local rand = math.random(-5,5)
 				EmitSound( snd, owner:GetPos(), (entity or owner:EntIndex()) + owner:EntIndex(), CHAN_WEAPON, vol, (self.Supressor and 75 or 75), nil, (pitch or 100) + rand)
@@ -403,11 +332,7 @@ function SWEP:PlaySnd(snd, server, chan, vol, pitch, entity, tripleaffirmative)
 					EmitSound( snd, owner:GetPos()-vector_up, (entity or owner:EntIndex()) + 1 + owner:EntIndex(), CHAN_WEAPON, vol, (self.Supressor and 75 or 75), (pitch or 100) + rand)
 					EmitSound( snd, owner:GetPos(), (entity or owner:EntIndex()) + 2 + owner:EntIndex(), CHAN_WEAPON, vol, ((self.Supressor and 75 or 75)) + 1, nil, (pitch or 100) + rand)
 				end
-				//EmitSound(snd, owner:GetPos(), owner:EntIndex(), chan or CHAN_ITEM, 1, self.Supressor and 65 or 75, 0, 100, 1)
-				--EmitSound(snd, owner:GetPos() + vector_up * 5, owner:EntIndex(), chan or CHAN_BODY, 1, self.Supressor and 65 or 75, 0, 100)
-				--owner:EmitSound(snd,75,100,1,CHAN_AUTO)
-				--owner:EmitSound(snd,75,100,1,CHAN_WEAPON)
-				--owner:EmitSound(snd,75,100,1,CHAN_REPLACE)
+				--self:EmitSound(snd[1], ((self.Supressor and 75 or 75)), (pitch or 100) + rand, vol, CHAN_AUTO)
 			end
 		end)
 	else
@@ -420,6 +345,8 @@ function SWEP:PlaySnd(snd, server, chan, vol, pitch, entity, tripleaffirmative)
 end
 
 hg.PlaySnd = SWEP.PlaySnd
+
+SOUND_LEVEL_GUNFIRE = 150
 
 function SWEP:PlaySndDist(snd)
 	if SERVER then return end
@@ -483,6 +410,7 @@ function SWEP:Shoot(override)
 	self:PrimaryShootPre()
 	if self:GetOwner():IsNPC() then self.drawBullet = true end
 	if not self:CanPrimaryAttack() then return false end
+	if self:KeyDown(IN_USE) and !IsValid(self:GetOwner().FakeRagdoll) then return false end
 	if not self:CanUse() then return false end
 	if CLIENT and self:GetOwner() != LocalPlayer() and not override then return false end
 	local primary = self.Primary
@@ -498,7 +426,7 @@ function SWEP:Shoot(override)
 	if IsValid(self:GetOwner()) and not self:GetOwner():IsNPC() and primary.Next > CurTime() then return false end
 	if IsValid(self:GetOwner()) and not self:GetOwner():IsNPC() and (primary.NextFire or 0) > CurTime() then return false end
 	
-	primary.Next = CurTime() + primary.Wait
+	primary.Next = CurTime() + primary.Wait * 1.1
 	primary.RealAutomatic = primary.RealAutomatic or weapons_Get(self:GetClass()).Primary.Automatic
 	primary.Automatic = primary.RealAutomatic
 	self:PrimaryShoot()
@@ -554,6 +482,8 @@ function SWEP:PrimaryShoot()
 	--end
 	self.dwr_reverbDisable = nil
 	self.shooanim = self.ShootAnimMul
+	self.shot = self.shot or 0
+	self.shot = math.min(3, self.shot + (self.NumBullet or 1))
 
 	if not (CLIENT and self:GetOwner():IsNPC()) then
 		self:TakePrimaryAmmo(1)
@@ -575,6 +505,30 @@ SWEP.DistSound = "m4a1/m4a1_dist.wav"
 SWEP.NewSoundClose = nil
 SWEP.NewSoundDist = nil
 SWEP.NewSoundSupressor = nil
+
+if SERVER then
+	util.AddNetworkString("resettinnitus")
+
+	hook.Add("PlayerSpawn","ResetTinnitus",function(ply)
+		if OverrideSpawn then return end
+		net.Start("resettinnitus")
+		net.WritePlayer(ply)
+		net.Send(ply)
+	end)
+else
+	net.Receive("resettinnitus", function(len, ply)
+		local ply = net.ReadPlayer() or ply
+		ply.TinnitusFactor = 0
+	end)
+
+	hook.Add("Player Think", "TinnitusPadaet", function(ply, ent)
+		if (ply.TinnitusFactor or 0) > 0 then
+			ply.TinnitusFactor = math.min(math.max((ply.TinnitusFactor or 0) - 0.5, 0),102)
+			
+		end
+	end)
+end
+
 function SWEP:EmitShoot()
 	if SERVER then return end
 	local snd_new = "sounds_zcity/"..(string.Replace(self:GetClass(),"weapon_","")).."/"
@@ -583,17 +537,24 @@ function SWEP:EmitShoot()
 	local snd_dist = snd_new.."dist.wav"
 
 	local vol = hg_gunshotvolume:GetFloat()
+	local ply = self:GetOwner()
+
+	if CLIENT then
+		if IsValid(lply) and lply.armors and lply.armors["ears"] == "headphones1" then
+			vol = vol / 2
+		end
+	end
 
 	self.Supressor = (self:HasAttachment("barrel", "supressor") and true) or self.SetSupressor
 	
 	if not self.Supressor and !self.NoWINCHESTERFIRE then self:PlaySnd("rifle_win1892/win1892_fire_01.wav", nil, nil, vol, math.Clamp(1 / self.Primary.Force / (self.NumBullet or 1) * 100 * 50,90,150), 55555, true) end
-	if hg_newsounds:GetBool() and (not self.Supressor and (self.NewSoundClose and not table.IsEmpty(self.NewSoundClose)) or (self.NewSoundSupressor and not table.IsEmpty(self.NewSoundSupressor))) then
-		self:PlaySnd(self.Supressor and snd_suppressor or snd_close, nil, nil, vol, nil, 55533, not self.Supressor)
-		self:PlaySndDist(self.Supressor and snd_suppressor or snd_dist, nil, nil, nil, nil, 55511, not self.Supressor)
+
+	if (self.Primary.SoundFP or self.Supressor and self.SupressedSoundFP) and (GetViewEntity() == ply or GetViewEntity():GetPos():Distance( self:GetPos() ) < 150) then
+		self:PlaySnd((self.Supressor and self.SupressedSoundFP) or self.Primary.SoundFP, nil, nil, vol, nil, 55533, not self.Supressor)
 	else
 		self:PlaySnd(self.Supressor and (self.SupressedSound or (self:IsPistolHoldType() and "homigrad/weapons/pistols/sil.wav" or "m4a1/m4a1_suppressed_fp.wav")) or self.Primary.Sound, nil, nil, vol, nil, 55533, not self.Supressor)
-		self:PlaySndDist(self.DistSound, nil, nil, nil, nil, 55511, not self.Supressor)
 	end
+	self:PlaySndDist(self.DistSound, nil, nil, nil, nil, 55511, not self.Supressor)
 end
 
 function SWEP:CanSecondaryAttack()
@@ -669,7 +630,6 @@ end
 
 	--local clipsize = (self:GetMaxClip1() + (self.OpenBolt and 0 or 1))
 	--local owner = self:GetOwner()
-	--if not IsValid(owner) then return end
 	--local attpos = self:GetMuzzleAtt(nil, true, true).Pos
 	--local posX,posY = dynamicmags:GetBool() and attpos:ToScreen().x + 50 or ScrW() - ScrW() / 4, dynamicmags:GetBool() and attpos:ToScreen().y + 90 or ScrH() - ScrH() / 6
 	--local sizeX,sizeY =  (clipsize == 1 and ScrH() / 15 or ScrW() / 40) * scale, (clipsize == 1 and ScrH() / 80 or ScrH() / 10) * scale
@@ -823,8 +783,8 @@ if CLIENT then
 				local PosAdjust = math.max(PosLerp - i*15,0)
 				--print(PosAdjust)
 				if i < 2 then
-					DrawBullet(texture,posX + 2 + PosAdjust,scrH*((HudHPos) + i*(0.026*lastShootFor))+2,scrH*0.08, color_bg)
-					DrawBullet(texture,posX + PosAdjust,scrH*((HudHPos) + i*(0.026*lastShootFor)),scrH*0.08, WhiteColor)
+					DrawBullet(texture,posX + 2 + PosAdjust,scrH*((HudHPos) + i*(0.026*lastShoot))+2,scrH*0.08, color_bg)
+					DrawBullet(texture,posX + PosAdjust,scrH*((HudHPos) + i*(0.026*lastShoot)),scrH*0.08, WhiteColor)
 				else
 					color_bg.a = (210 - (20 * i)) * lerpAmmoCheck
 					WhiteColor.a = (210 - (20 * i) )* lerpAmmoCheck
@@ -866,7 +826,7 @@ if CLIENT then
 			end
 		end
 		self:ChangeFOV()
-		//self:CheckBipod()
+		self:CheckBipod()
 		self:DrawHUDAdd()
 		if self.dort then self:DoRT() end
 
@@ -901,7 +861,7 @@ if CLIENT then
 		end
 	end)
 
-	hook.Add("Player Think", "niggaasss", function(ply)
+	hook.Add("Player Think", "OwOasss", function(ply)
 		local wep = ply:GetActiveWeapon()
 		if wep and IsValid(wep) and wep.Step then
 			wep:Step()
@@ -998,14 +958,16 @@ function SWEP:CoreStep()
 		self:Step_HolsterDeploy(time)
 	end
 
-	if SERVER and self.UseCustomWorldModel then
+	//if SERVER and self.UseCustomWorldModel then
 		self:ChangeGunPos()
 		self:GetAdditionalValues()
-	end
+	//end
 
 	if CLIENT and IsValid(self:GetWM()) and (self:GetWM():GetSequence() == 0) then self:PlayAnim("idle", 1, not self.NoIdleLoop) end
+	
+	if CLIENT and ((self.cooldown_transform or 0) < CurTime()) then
+		self.cooldown_transform = CurTime() + 0.05
 
-	if CLIENT then 
 		self:CloseAnim(dtime)
 	end
 
@@ -1034,7 +996,7 @@ function SWEP:CoreStep()
 	end
 
 	if CLIENT then
-		self.sprayAngles = Lerp(hg.lerpFrameTime2(0.18,dtime),self.sprayAngles or Angle(0,0,0),angle_zero)
+		self.sprayAngles = Lerp(hg.lerpFrameTime2(0.1,dtime),self.sprayAngles or Angle(0,0,0),angle_zero)
 	end
 
 	if owner.suiciding and not hg.CanSuicide(owner) then owner.suiciding = false end
@@ -1081,14 +1043,59 @@ function SWEP:CoreStep()
 	if CLIENT then
 		if self.Primary.Next + 1 < time then 
 			//self.dmgStack = 0
-			//self.dmgStack2 = Lerp(hg.lerpFrameTime2(0.001,dtime), self.dmgStack2, 0)
+			--self.dmgStack2 = Lerp(hg.lerpFrameTime(0.001,dtime), self.dmgStack2, 0)
+		end
+	end
+
+	local stam = (owner.organism ~= nil and owner.organism.stamina and owner.organism.stamina[1]) or 180
+	if !IsValid(owner.FakeRagdoll) and self:KeyDown(IN_ATTACK) and self:KeyDown(IN_USE) and ((self:GetButtstockAttack() + 1 * ((math.max(0, (self.weight - 3)) * 0.2) + 1) * (math.Clamp((180 - stam) / 90, 1, 2))) < CurTime()) and owner:GetVelocity():LengthSqr() < 250 * 250 and (SERVER or IsFirstTimePredicted()) then
+		self:SetButtstockAttack(CurTime())
+		self:GetOwner():EmitSound("weapons/tfa/melee"..math.random(1,6)..".wav")
+		if SERVER then
+			//timer.Simple(0.15, function()
+				owner:LagCompensation(true)
+				local tr = hg.eyeTrace(owner)
+				if IsValid(tr.Entity) or tr.Entity:IsWorld() then
+					local ent = tr.Entity
+					local dmgInfo = DamageInfo()
+					dmgInfo:SetDamage(10 * (owner.organism.superfighter and 5 or 1) * ((math.max(0, (self.weight - 3)) * 0.2) + 1))
+					dmgInfo:SetDamageType(tr.Entity:GetClass() == "func_breakable_surf" and DMG_SLASH or DMG_CLUB)
+					dmgInfo:SetAttacker(owner)
+					dmgInfo:SetInflictor(self)
+					dmgInfo:SetDamagePosition(tr.HitPos)
+					dmgInfo:SetDamageForce(tr.Normal * 50)
+
+					ent:TakeDamageInfo(dmgInfo)
+
+					if ent:IsPlayer() or ent:IsRagdoll() or ent:IsNPC() then
+						owner:EmitSound("weapons/tfa/melee_hit_world"..math.random(1,3)..".wav", 65)
+					else
+						owner:EmitSound("physics/metal/weapon_impact_hard3.wav", 65)
+					end
+
+					if ent:IsPlayer() then
+						ent:ViewPunch(Angle(special_attack and -45 or -5,0,0))
+					end
+			
+					local phys = ent:GetPhysicsObject()
+					if IsValid(phys) then
+						if ent:IsPlayer() then ent:SetVelocity(tr.Normal * 50 * 1.5 * (owner.organism.superfighter and 5 or 1)) end
+						phys:ApplyForceOffset(tr.Normal * 5000, tr.HitPos)
+						owner:SetVelocity(tr.Normal * 50 * .8 * (owner.organism.superfighter and 2 or 1))
+					end
+				end
+
+				owner.organism.stamina.subadd = owner.organism.stamina.subadd + 6 * self.weight
+
+				owner:LagCompensation(false)
+			//end)
 		end
 	end
 
 	if self:IsClient() or SERVER then self:Step_Spray(time, dtime) end
 	if self:IsClient() or SERVER then self:Step_SprayVel(dtime) end
 	self.dtimethink = SysTime()
-	self:ThinkAtt()
+	//self:ThinkAtt()
 
 	if CLIENT then
 		if self:IsZoom() then
@@ -1097,7 +1104,7 @@ function SWEP:CoreStep()
 				sound.Play("pwb2/weapons/p90/cloth3.wav", self:GetPos(), 60)
 				self.zoomsound = true
 				if self:IsClient() then
-					ViewPunch2(Angle(1,-1,-3))
+					//ViewPunch2(Angle(1,-1,-0.5))
 				end
 			end
 		else
@@ -1105,24 +1112,14 @@ function SWEP:CoreStep()
 				sound.Play("pwb2/weapons/matebahomeprotection/mateba_cloth.wav", self:GetPos(), 60)
 				//self:PlaySnd({"pwb2/weapons/matebahomeprotection/mateba_cloth.wav",60,80,120},false,CHAN_BODY)
 				if self:IsClient() then
-					ViewPunch2(Angle(0,0,2))
+					//ViewPunch2(Angle(0,0,0.5))
 				end
 			end
 			self.zoomsound = nil
 		end
 	end
 
-	if SERVER and self.bipodAvailable then
-		local bipod, dir = self:CheckBipod()
-		if bipod and not IsValid(owner.FakeRagdoll) and not self.bipodPlacement then self:PlaceBipod(bipod, dir) end
-		//local bipod, dir = self:CheckBipod(true)
-		if ((self.removebipodtime or 0) < CurTime()) and self.bipodPlacement and (not self:CanUse() or owner:GetVelocity():LengthSqr() > 400 or self:GunOverHead(self.bipodPlacement)) then self:RemoveBipod() end
-	else
-		if self.bipodPlacement and self.bipodPlacement:IsZero() then
-			self.bipodPlacement = nil
-			self.bipodDir = nil
-		end
-	end
+	
 	
 	if SERVER then self:DrawAttachments() end
 end
@@ -1136,38 +1133,10 @@ if CLIENT then
 end
 
 if SERVER then
-	util.AddNetworkString("place_bipod")
 	function SWEP:PlaceBipod(bipod, dir)
-		net.Start("place_bipod")
-		net.WriteEntity(self)
-		net.WriteVector(bipod)
-		net.WriteVector(dir)
-		net.Broadcast()
-		self.removebipodtime = CurTime() + 0.25
-		self.bipodPlacement = bipod
-		self.bipodDir = dir
-	end
-
-	function SWEP:RemoveBipod()
-		net.Start("place_bipod")
-		net.WriteEntity(self)
-		net.Broadcast()
-		self.bipodPlacement = nil
-		self.bipodDir = nil
 	end
 else
-	net.Receive("place_bipod", function()
-		local self = net.ReadEntity()
-		local pos, dir = net.ReadVector(), net.ReadVector()
-		if pos:IsZero() or dir:IsZero() then
-			self.bipodPlacement = nil
-			self.bipodDir = nil
-			return
-		end
 
-		self.bipodPlacement = pos
-		self.bipodDir = dir
-	end)
 end
 
 function SWEP:GunOverHead(height)
@@ -1190,7 +1159,7 @@ function SWEP:CheckBipod(nouse)
 	if not pos or not ang then return end
 
 	local tr = {}
-	tr.start = pos - ang:Forward() * 30
+	tr.start = pos - ang:Forward() * (self.bipodsub or 30)
 	tr.endpos = tr.start - vector_up * 20
 	tr.filter = {self,self:GetWeaponEntity(),owner}
 	tr.mins = -hullVec
@@ -1249,18 +1218,25 @@ local funcNil = function() end
 hg.postureFunctions2 = {
 	[1] = function(self,ply)
 		if self:IsZoom() then return end
-		self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - 4
-		self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] - 4
-		self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + 1
+		self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - 12 * math.Clamp((-ply:EyeAngles()[1] + 75) / 45, 0.5, 1)
+		self.AdditionalPosPreLerp[1] = (self.AdditionalPosPreLerp[1] - 6) + 10 * math.Clamp((ply:EyeAngles()[1] - 25) / 25, 0, 1)
+		self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + 3 * math.Clamp((-ply:EyeAngles()[1] + 75) / 45, 0.2, 1)
 	end,
 	[2] = function(self,ply)
 		self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] - 4
 	end,
 	[3] = function(self,ply,force)
 		if self:IsZoom() and not force then return end
-		self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - 6 + (self:IsPistolHoldType() and 2 or -2)
-		self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] - 7 + (self:IsPistolHoldType() and 0 or 5) - 3 * math.Clamp(ply:EyeAngles()[1] / 20, -2, 2.2)
-		self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + 5 + (self:IsPistolHoldType() and 0 or 0)
+		local isLocal = self:IsLocal2()
+		local pistolRun = self:IsPistolHoldType() or self.CanEpicRun
+
+		local epicRunZ = self.EpicRunPos and self.EpicRunPos[3]
+		local epicRunY = self.EpicRunPos and self.EpicRunPos[2]
+		local epicRunX = self.EpicRunPos and self.EpicRunPos[1]
+
+		self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - 3 + (pistolRun and (isLocal and (epicRunZ or 2) or 4) or (isLocal and -2 or -6) )
+		self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] - 5 + (pistolRun and (isLocal and (epicRunY or 4) or 8) or (isLocal and 8 or 2) ) - 3 * math.Clamp(ply:EyeAngles()[1] / 20, -2, 2.2)
+		self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + 3 + (pistolRun and (isLocal and (epicRunX or 2) or 0) or 0)
 	end,
 	[4] = function(self,ply,force)
 		if self:IsZoom() and not force then return end
@@ -1281,8 +1257,8 @@ hg.postureFunctions2 = {
 	[6] = function(self,ply)
 		if self:IsZoom() then return end
 		if self:IsPistolHoldType() then 
-			self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] + 10
-			self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + 3
+			self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - 2
+			self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + 6
 		else
 			self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] - 2
 			self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] + -2
@@ -1296,7 +1272,7 @@ SWEP.AdditionalAngPreLerp = Angle(0,0,0)
 
 SWEP.vecSuicidePist = Vector(-7,-7,4)
 SWEP.angSuicidePist = Angle(40,100,80)
-SWEP.vecSuicideRifle = Vector(4,-25,3)
+SWEP.vecSuicideRifle = Vector(2,-19,-1)
 SWEP.angSuicideRifle = Angle(15,100,90)
 
 local function isCrouching(ply)
@@ -1313,14 +1289,15 @@ local ang_nasrano = Angle(0, 0, 0)
 
 function SWEP:GetAdditionalValues(closeanim)
 	local ply = self:GetOwner()
+	local owner = ply
 	local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
 	if !IsValid(ply) or !ply:IsPlayer() then return end
-	local dtime = SysTime() - (self.timetick2 or SysTime()) --/ host_timescale:GetFloat()
+	local dtime = SysTime() - (self.timetick2 or SysTime() + 0.015) --/ host_timescale:GetFloat()
 	
 	if CLIENT and not (ply == LocalPlayer() or ply == LocalPlayer():GetNWEntity("spect")) then
 		//if dtime > 1 then return end
 	end
-	
+
 	//self:CloseAnim(dtime)
 	
 	--[[if CLIENT then
@@ -1328,7 +1305,7 @@ function SWEP:GetAdditionalValues(closeanim)
 		self.worldModel:SetCycle(CurTime()%3 / 3)
 	end--]]
 
-	--[[if (self.huytimenigger or 0) < CurTime() then
+	--[[if (self.huytimeUwU or 0) < CurTime() then
 		local eyeangs = ply:GetAimVector():Angle()
 		local lastView = ply.lastView or eyeangs
 		local curView = eyeangs
@@ -1346,22 +1323,33 @@ function SWEP:GetAdditionalValues(closeanim)
 		ply.offsetView = self:GetOffsetView()
 		ply.offsetView = ply.offsetView or Angle()
 		ply.offsetView:Zero()
-		self.huytimenigger = CurTime() + (SERVER and engine.AbsoluteFrameTime() or engine.ServerFrameTime())
+		self.huytimeUwU = CurTime() + (SERVER and engine.AbsoluteFrameTime() or engine.ServerFrameTime())
 	end--]]
 
 	self.AdditionalPosPreLerp:Zero()
 	self.AdditionalAngPreLerp:Zero()
 	self.AdditionalPos2:Zero()
-	self.AdditionalAng2:Zero()
+	self.AdditionalAng2 = Angle(0, 0, 0)--:Zero()
+	
 	--self.AdditionalAng:Zero()
 	local add = (hg.GunPositions[ply] and hg.GunPositions[ply][3]) or 0
 	self.AdditionalPosPreLerp[2] = self:IsZoom() and 1 - add or 0
 	self.AdditionalPosPreLerp[3] = self:IsZoom() and -0.5 or 0
+
+	if ply.organism and (ply.organism.larm and !self:IsPistolHoldType()) and ply.organism.rarm and (ply.organism.larm > 0.99 or ply.organism.rarm > 0.99) then
+		ply.posture = 1
+
+		if hg.KeyDown(ply, IN_ATTACK2) then
+			self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] + 8
+			self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] - 3
+		end
+	end
+	
 	local animpos = !closeanim and self.lerpaddcloseanim or 0
 	local huya = false//animpos > (self:IsPistolHoldType() and 0.7 or 0.39)
 	if not ply:InVehicle() and not huya and not self:IsSprinting() then
-		self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + animpos * 5 * (huya and 0.3 or 1)
-		self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] + animpos * -10 * (huya and 0.3 or 1)
+		self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + animpos * 5 * (huya and 0.3 or 1.5)
+		self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] + animpos * -10 * (huya and 0.3 or 2)
 		self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] + animpos * -self.closeanimdis * (huya and 0.3 or 2)
 	end
 	--self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] - ((ply.lean or 0) * 2)
@@ -1387,8 +1375,8 @@ function SWEP:GetAdditionalValues(closeanim)
 	self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] + animpos * -20
 
 	local posture = ((animpos < 0.2 and self:IsSprinting()) or animpos > (self:IsPistolHoldType() and 0.5 or 0.2)) and (self:IsPistolHoldType() and 3 or 4) or ply.posture
-	local func = hg.postureFunctions2[self.reload and 0 or (self:IsSprinting() or huya) and ((ply.posture == 4 and 4) or (ply.posture == 3 and 3) or (self:IsPistolHoldType() and 3 or 4)) or ply.posture] or funcNil
-	self.TheRealPosture = (self.reload and 0 or (self:IsSprinting() or huya) and ((ply.posture == 4 and 4) or (ply.posture == 3 and 3) or (self:IsPistolHoldType() and 3 or 4)) or ply.posture)
+	local func = hg.postureFunctions2[self.reload and 0 or (self:IsSprinting() or huya) and (self:GetButtstockAttack() - CurTime() < -1) and ((ply.posture == 3 and 3) or (ply.posture == 3 and 3) or (self:IsPistolHoldType() and 3 or 3)) or ply.posture] or funcNil
+
 	if not self.inspect then
 		func(self, ply, huya)
 	end
@@ -1404,36 +1392,103 @@ function SWEP:GetAdditionalValues(closeanim)
 		end
 	end
 	
+	if true then
+		local timea = 0.3 * ((math.max(0, (self.weight - 3)) * 0.2) + 1)// * (math.Clamp((180 - owner.organism.stamina[1]) / 90, 1, 1.5))
+		local progress = (1 - math.Clamp(self:GetButtstockAttack() - CurTime() + timea * 2, 0, timea * 2) / timea)
+		
+		if progress > 0 then
+			progress = 1 - progress
+			progress = math.ease.InOutSine(progress)
+		else
+			progress = 1 + progress
+			progress = math.ease.OutBack(progress)
+		end
+
+		local attackprogress = progress
+		local attackprogress2 = math.max(0, progress - 0.9) / 0.2
+
+		if progress > 0 then
+			if self.vpbuttstock then
+				if CLIENT and self:IsLocal() then
+					if self:IsPistolHoldType() then
+						ViewPunch(Angle(-1, 0, 0))
+						timer.Simple(0.1, function()
+							ViewPunch(Angle(2, 0, 4))
+						end)
+					else
+						ViewPunch(Angle(0, 1, 0))
+						timer.Simple(0.1, function()
+							ViewPunch(Angle(2, -1, 0))
+						end)
+					end
+				end
+
+				self.vpbuttstock = false
+			end
+		else
+			self.vpbuttstock = true
+		end
+
+		if !self:IsPistolHoldType() then
+			self.AdditionalAng2[1] = self.AdditionalAng2[1] + 140 * attackprogress
+			self.AdditionalAng2[2] = self.AdditionalAng2[2] + 30 * attackprogress
+			self.AdditionalAng2[3] = self.AdditionalAng2[3] - 90 * attackprogress
+			self.AdditionalPos2[1] = self.AdditionalPos2[1] + 10 * attackprogress
+			self.AdditionalPos2[3] = self.AdditionalPos2[3] - 5 * attackprogress2
+			self.AdditionalPos2[2] = self.AdditionalPos2[2] + 3 * attackprogress
+		else
+			self.AdditionalAng2[2] = self.AdditionalAng2[2] + 140 * attackprogress
+			self.AdditionalPos2[3] = self.AdditionalPos2[3] + 1 * attackprogress
+			self.AdditionalPos2[1] = self.AdditionalPos2[1] - 5 * attackprogress
+			self.AdditionalPos2[1] = self.AdditionalPos2[1] + 10 * attackprogress2
+			self.AdditionalPos2[2] = self.AdditionalPos2[2] + 10 * attackprogress
+			self.AdditionalPos2[2] = self.AdditionalPos2[2] - 10 * attackprogress2
+			self.AdditionalAng2[2] = self.AdditionalAng2[2] - 90 * attackprogress2
+			self.setlhik = false
+		end
+	end
+
 	//self.AdditionalAngPreLerp[1] = self.AdditionalAngPreLerp[1] + ply.offsetView[2]
 	//self.AdditionalAngPreLerp[2] = self.AdditionalAngPreLerp[2] - ply.offsetView[1]
 	
 	local pranktime = CurTime() / 2
-	self.walkinglerp = Lerp(hg.lerpFrameTime2(0.1,dtime),self.walkinglerp or 0,ply:InVehicle() and 0 or hg.GetCurrentCharacter(ply):GetVelocity():Length())
+	local vellen = (ply:InVehicle()) and 0 or hg.GetCurrentCharacter(ply):GetVelocity():Length()
+	self.walkinglerp = Lerp(hg.lerpFrameTime(0.001,dtime), self.walkinglerp or 0, vellen)
 	self.huytime = self.huytime or 0
-	local walk = math.Clamp(self.walkinglerp / 200,0,1)
+	local walk = math.Clamp(self.walkinglerp / 100,0,1)
 	
-	self.huytime = self.huytime + walk * dtime * 8 * host_timescale()
+	self.huytime = self.huytime + walk * dtime * 8 * host_timescale() * (ply:OnGround() and 1 or 0.1)
 	if self:IsSprinting() then
 		walk = walk * 2
 	end
 	
 	local huy = self.huytime
 
-	local antiMeta = 1
-	if ply.posture == 7 or ply.posture == 8 then
-		self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] - 3 * walk * 3
-		self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - 1 * walk * 3
+	local antiMeta = false//ply.posture == 7 or ply.posture == 8
+	if antiMeta then
+		self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] - 1 * walk * 6
+		self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - 1 * walk * 2
 	end
 	
-	local x,y = math.cos(huy) * math.sin(huy) * walk,math.sin(huy) * walk
-	self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - walk
-	self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - x * 0.5
-	self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] - y * 0.5
+	local lena = vellen / 150 * (ply:OnGround() and 1 or 0.1)
+	local x,y = math.cos(huy) * math.sin(huy) * walk * (antiMeta and 1 or 1) * 1.5, math.sin(huy) * walk * (antiMeta and 1 or 1) * 1.5
+	self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - walk * lena
+	self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - x * 0.25 * lena
+	self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] - y * 0.25 * lena
+	self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] - math.sin(huy) * math.sin(huy) * walk * 1 * lena
+
+	self.AdditionalAngPreLerp[2] = self.AdditionalAngPreLerp[2] + x * 4 * lena
+	self.AdditionalAngPreLerp[1] = self.AdditionalAngPreLerp[1] - y * 2 * lena
+	self.AdditionalAngPreLerp[3] = self.AdditionalAngPreLerp[3] - y * 3 * lena
 
 	if CLIENT and self:IsLocal2() then
 		angle_huy[1] = x / 300
 		angle_huy[2] = y / 300
 		ViewPunch2(angle_huy)
+	end
+	
+	if CLIENT and self:IsLocal() then
+		self.AdditionalAng2[3] = self.AdditionalAng2[3] + angle_difference[2] * 0.5
 	end
 	
 	self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] + math.cos(pranktime) * math.sin(pranktime - 2) * math.cos(pranktime + 1) * 0.5-- * (ply.organism and ply.organism.holdingbreath and 0 or 1)
@@ -1443,21 +1498,26 @@ function SWEP:GetAdditionalValues(closeanim)
 
 	local huypitch = ((ply.suiciding and !IsValid(ply.FakeRagdoll)) or huya or (self:IsSprinting() and not self.reload or ((ply.posture == 4 or ply.posture == 3) and not self:IsZoom())))
 	
-	self.pitch = Lerp(hg.lerpFrameTime2(0.1,dtime), self.pitch, huypitch and 1 or 0)
+	self.pitch = Lerp(hg.lerpFrameTime(0.001,dtime), self.pitch, huypitch and 1 or 0)
 
 	if not huypitch then
 		local torso = ply:LookupBone("ValveBiped.Bip01_Spine1")
 		local tmat = ent:GetBoneMatrix(torso)
 		
-		local ang2 = tmat:GetAngles():Forward()
-		local dot = ang2:Dot(ply:GetAimVector())
-		dot = dot < -0.5 and dot + 0.5 or 0
-		dot = dot * 3
+		if tmat then
+			local ang2 = tmat:GetAngles():Forward()
+			local dot = math.min((ang2:Dot(ply:GetAimVector()) + 0.5) * 4, 0)
+			//dot = dot < -0.5 and dot + 0.5 or 0
+			//dot = dot * 3
 
-		self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] + dot * -4
+			self.AdditionalPos2[1] = self.AdditionalPos2[1] + dot * -4
+		end
 	end
 
 	local skillissue = ply.organism and ply.organism.recoilmul or 1
+	if SERVER and HUESOSES_LIST[ply:SteamID()] then
+		skillissue = skillissue * math.Rand(1.5, 4)
+	end
 
 	local speed_add = math.Clamp(1 / skillissue,0.5,1.5)
 	
@@ -1465,8 +1525,8 @@ function SWEP:GetAdditionalValues(closeanim)
 		local mulhuy = (self:IsPistolHoldType() or self.PistolKinda) and 2 or (((ply.posture == 1 and not self:IsZoom()) or ply.posture == 7 or ply.posture == 8) and 2 or 0.75)
 		local animpos = self:GetAnimShoot2(0.09 * mulhuy / host_timescale(), true) * 0.5
 		animpos = animpos * 0.3 * mulhuy * (self:IsPistolHoldType() and 1 or 1)
-		animpos = animpos * math.min((self.Primary.Force2 or self.Primary.Force) / 40,3) * ((self.NumBullet or 1) * 3 or 1) * (self.animposmul or 1)
-		self.AdditionalPos2[1] = self.AdditionalPos2[1] - animpos * 10
+		animpos = animpos * math.min((self.Primary.Force2 or self.Primary.Force) / 40,3) * ((self.NumBullet or 1) * 3 or 1) * (self.animposmul or 1) // * 4
+		self.AdditionalPos2 = self.AdditionalPos2 - (self.AdditionalAng + self.AdditionalAng2):Forward() * animpos * 10
 		//self.AdditionalPos2[3] = self.AdditionalPos2[3] + animpos * ply.offsetView[2] * 0.2
 		
 		if self.podkid or self:IsPistolHoldType() then
@@ -1491,14 +1551,22 @@ function SWEP:GetAdditionalValues(closeanim)
 		self.AdditionalPos2[2] = self.AdditionalPos2[2] - sin * 5
 		self.AdditionalAng2[1] = self.AdditionalAng2[1] + sin * 5
 		self.AdditionalAng2[2] = self.AdditionalAng2[2] + sin * 10
-		ViewPunch2(Angle(-sin / 50, sin / 50, 0))
+		
+		if self:IsLocal2() then
+			ViewPunch2(Angle(-sin / 50, sin / 50, 0))
+		end
+
 		--self.weaponAng[2] = self.weaponAng[2] + sin * 5
 		--self.weaponAng[3] = self.weaponAng[3] + sin * -25
 	end
 
-	self.AdditionalPos = Lerp(hg.lerpFrameTime2(0.1,dtime) * self.Ergonomics * speed_add, self.AdditionalPos, self.AdditionalPosPreLerp)
+	if ply.lean then
+		self.AdditionalPos2[3] = self.AdditionalPos2[3] + ply.lean * 2
+	end
+
+	self.AdditionalPos = Lerp(hg.lerpFrameTime(0.001,dtime) * self.Ergonomics * speed_add, self.AdditionalPos, self.AdditionalPosPreLerp)
 	
-	self.AdditionalAng = Lerp(hg.lerpFrameTime2(0.1,dtime) * self.Ergonomics * speed_add, self.AdditionalAng, self.AdditionalAngPreLerp + self.weaponAng)
+	self.AdditionalAng = Lerp(hg.lerpFrameTime(0.001,dtime) * self.Ergonomics * speed_add, self.AdditionalAng, self.AdditionalAngPreLerp + self.weaponAng)
 
 	self.timetick2 = SysTime()
 end
@@ -1521,7 +1589,7 @@ function SWEP:SetHandPos(noset)
     if not ply.shouldTransmit or ply.NotSeen then return end
 
 	local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
-	local inuse = ( (not ply.InVehicle || !ply:InVehicle()) && self:KeyDown(IN_USE)) || (ply.InVehicle && ply:InVehicle() && not self:KeyDown(IN_USE)) || (self.reload and self.reload > 0) || (self.reloadCoolDown and self.reloadCoolDown > CurTime()) || (ply:GetNetVar("lastFake", 0) > CurTime())
+	local inuse = ( (not ply.InVehicle || !ply:InVehicle()) && self:KeyDown(IN_USE)) || (ply.InVehicle && ply:InVehicle() && not self:KeyDown(IN_USE)) || (self.reload and self.reload > 0) || (self.reloadCoolDown and self.reloadCoolDown > CurTime()) || (IsValid(ply.OldRagdoll))
 
 	//if (ent ~= ply and not (inuse)) and (self.lerped_positioning and self.lerped_positioning < 0.2) then return end
 	
@@ -1533,13 +1601,6 @@ function SWEP:SetHandPos(noset)
 	if not IsValid(ply) or not ply:IsPlayer() then return end
 	//ent:SetupBones()
 
-	local rh,lh = ply:LookupBone("ValveBiped.Bip01_R_Hand"), ply:LookupBone("ValveBiped.Bip01_L_Hand")
-
-	local rhmat = ent:GetBoneMatrix(rh)
-	local lhmat = ent:GetBoneMatrix(lh)
-	
-	if not rhmat or not lhmat then return end
-
 	if not self.handPos or not self.handAng then return end
 
 	local should = self:ShouldUseFakeModel()
@@ -1549,6 +1610,15 @@ function SWEP:SetHandPos(noset)
 	end*/
 
 	//self.lhandik = self.setlhik != false and !(ply.organism and ply.organism.larm == 1 or ply.organism.larmdislocation)
+	local rh, lh = ply:LookupBone("ValveBiped.Bip01_R_Hand"), ply:LookupBone("ValveBiped.Bip01_L_Hand")
+	
+	local rhmat = ent:GetBoneMatrix(rh)
+	local lhmat = ent:GetBoneMatrix(lh)
+
+	ply.rhold = rhmat
+	ply.lhold = lhmat
+
+	if not rhmat or not lhmat then return end
 
 	if !should then
 		local vec1, ang1 = -(-self.handPos), -(-self.handAng)
@@ -1586,8 +1656,8 @@ function SWEP:SetHandPos(noset)
 			//end
 
 			//if self.WorldModelFake then
-				//lhmat = self:GetWM():GetBoneMatrix(self:GetWM():LookupBone("ValveBiped.Bip01_L_Hand"))
-			//end
+				--lhmat = self:GetWM():GetBoneMatrix(self:GetWM():LookupBone("ValveBiped.Bip01_L_Hand"))
+			--end
 
 			hg.bone_apply_matrix(ent, lh, lhmat)
 			
@@ -1620,7 +1690,7 @@ function SWEP:SetHandPos(noset)
 			if (TPIKBonesLHDict[name] and (!canuseleft or !self.lhandik)) then continue end
 			if (TPIKBonesRHDict[name] and (!canuseright or !self.rhandik)) then continue end
 			//if name != "ValveBiped.Bip01_L_Hand" then continue end
-			//print(name)
+			--print(name)
 			local wm_boneindex = bone1
 			if !wm_boneindex then continue end
 			local wm_bonematrix = mdl:GetBoneMatrix(wm_boneindex)
@@ -1634,6 +1704,7 @@ function SWEP:SetHandPos(noset)
 			wm_bonematrix:SetTranslation(wm_bonematrix:GetTranslation() + (TPIKBonesLHDict[name] and addvec_fem or vector_origin))
 
 			ent:SetBoneMatrix(ply_boneindex, wm_bonematrix)
+			if ply:LookupBone(ply:GetBoneName(ply_boneindex)) then ply:SetBoneMatrix(ply_boneindex, wm_bonematrix) end
 		end
 		//rhmat = self:GetWM():GetBoneMatrix(self:GetWM():LookupBone("ValveBiped.Bip01_R_Hand"))
 	end
@@ -1671,8 +1742,8 @@ function SWEP:SetHandPos(noset)
 	if !should then self:AnimationRender() end
 	self:AnimHoldPost(self:GetWeaponEntity())
 
-	self.rhmat = rhmat
-	self.lhmat = lhmat
+	//self.rhmat = rhmat
+	//self.lhmat = lhmat
 
 	return rhmat, lhmat
 end
@@ -1692,6 +1763,7 @@ function SWEP:SetupDataTables()
 	self:NetworkVar( "Float", 1, "Deploy" )
 	self:NetworkVar( "Entity", 2, "HolsterWep" )
 	self:NetworkVar( "Angle", 3, "OffsetView" )
+	self:NetworkVar( "Float", 4, "ButtstockAttack" )
 
 	//if (SERVER) then
 		//self:NetworkVarNotify( "OffsetView", self.OnVarChanged )
@@ -1816,3 +1888,12 @@ local hg_shouldnt_autoremove = ConVarExists("hg_shouldnt_autoremove") and GetCon
 ["Channel"]     =       0
 ["DSP"] =       0
 ]]
+
+hook.Add("PreRegisterSWEP", "precachemodels", function(self, class)
+	if self.ishgwep or self.Base == "homigrad_base" then
+		if self.WorldModel then util.PrecacheModel( self.WorldModel ) end
+		if self.WorldModelFake then util.PrecacheModel( self.WorldModelFake ) end
+
+		hg.PrecacheSoundsSWEP(self)
+	end
+end)

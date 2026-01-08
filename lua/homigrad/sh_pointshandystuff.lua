@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_pointshandystuff.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 if SERVER then
     CreateConVar("zb_dev", 0, FCVAR_ARCHIVE)
 end

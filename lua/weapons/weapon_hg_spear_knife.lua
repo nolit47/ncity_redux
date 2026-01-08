@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Modified spear"
-SWEP.Instructions = "A spear is an effective weapon to attack at a distance."
+SWEP.Instructions = "A spear is an effective weapon to attack at a distance.\n\nLMB to attack.\nRMB to block.\nRMB + LMB to throw."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -14,7 +14,7 @@ SWEP.ViewModel = ""
 SWEP.NoHolster = true
 
 
-SWEP.HoldType = "camera"
+SWEP.HoldType = "revolver"
 
 SWEP.HoldPos = Vector(-11,5,0)
 SWEP.HoldAng = Angle(0,-6,0)
@@ -82,54 +82,63 @@ SWEP.DeploySnd = "physics/wood/wood_plank_impact_soft2.wav"
 
 SWEP.AttackPos = Vector(0,0,0)
 
-SWEP.AttackTimeLength = 0.05
-SWEP.Attack2TimeLength = 0.1
+SWEP.AttackTimeLength = 0.2
+SWEP.Attack2TimeLength = 0.2
 
-SWEP.AttackRads = 0
+SWEP.AttackRads = 2
 SWEP.AttackRads2 = 0
 
 SWEP.SwingAng = -90
 SWEP.SwingAng2 = 0
 
-if SERVER then
-    function SWEP:CustomAttack2()
-        local ent = ents.Create("ent_throwable")
-        ent.WorldModel = self.WorldModel
-        local ply = self:GetOwner()
-        ent:SetPos(select(1, hg.eye(ply,60,hg.GetCurrentCharacter(ply))) - ply:GetAimVector() * 2)
-        ent:SetAngles(ply:EyeAngles())
-        ent:SetOwner(self:GetOwner())
-        ent:Spawn()
-        ent.localshit = Vector(50,0,0)
-        ent.wep = self:GetClass()
-        ent.owner = ply
-        ent.damage = 45
-        ent.uglublenie = 30
-        ent.returndamage = 30
-        ent.returnblood = 100
-        ent.PenetrationSize = 15
-        ent.Penetration = 40
-        ent.hitworldfunc = function(ent)
-            ent.wep = "weapon_hg_spear"
-            ent:SetModel("models/distac/spear_wood.mdl")
-            local knife = ents.Create("weapon_pocketknife")
-            knife:SetPos(ent:GetPos())
-            knife:SetAngles(ent:GetAngles())
-            knife:Spawn()
-            knife.IsSpawned = true
-            knife.init = true
-        end
-        local phys = ent:GetPhysicsObject()
-        if IsValid(phys) then
-            phys:SetVelocity(ply:GetAimVector() * ent.MaxSpeed)
-            phys:AddAngleVelocity(Vector(0,0,0))
-        end
-        ply:EmitSound("weapons/slam/throw.wav",50,math.random(95,105))
-        ply:SelectWeapon("weapon_hands_sh")
-        self:Remove()
-        return true
+SWEP.MinSensivity = 0.95
+
+function SWEP:CustomAttack2()
+    local ent = ents.Create("ent_throwable")
+    ent.WorldModel = self.WorldModelExchange or self.WorldModel
+    local ply = self:GetOwner()
+    ent:SetPos(select(1, hg.eye(ply,60,hg.GetCurrentCharacter(ply))) - ply:GetAimVector() * 2)
+    ent:SetAngles(ply:EyeAngles())
+    ent:SetOwner(self:GetOwner())
+    ent:Spawn()
+
+    ent.localshit = Vector(50,0,0)
+    ent.wep = self:GetClass()
+    ent.owner = ply
+    ent.damage = 45
+    ent.uglublenie = 30
+    ent.returndamage = 30
+    ent.returnblood = 100
+    ent.PenetrationSize = 15
+    ent.Penetration = 40
+
+    ent.hitworldfunc = function(ent)
+        ent.wep = "weapon_hg_spear"
+        ent:SetModel("models/distac/spear_wood.mdl")
+        local knife = ents.Create("weapon_pocketknife")
+        knife:SetPos(ent:GetPos())
+        knife:SetAngles(ent:GetAngles())
+        knife:Spawn()
+        knife.IsSpawned = true
+        knife.init = true
     end
+
+    local phys = ent:GetPhysicsObject()
+
+    if IsValid(phys) then
+        phys:SetVelocity(ply:GetAimVector() * ent.MaxSpeed)
+        phys:AddAngleVelocity(Vector(0,0,0))
+    end
+
+    //ply:EmitSound("weapons/slam/throw.wav",50,math.random(95,105))
+    ply:SelectWeapon("weapon_hands_sh")
+    ply:ViewPunch(Angle(0, 0, -8))
+
+    self:Remove()
+
+    return true
 end
+
 
 function SWEP:CanSecondaryAttack()
     local owner = self:GetOwner()

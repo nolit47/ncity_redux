@@ -75,27 +75,27 @@ end
 
 function SWEP:Holster()
 	self:DrawShadow(true)
-
-	local owner = self:GetOwner()
-	if IsValid(owner) and owner.PlayerClassName ~= "sc_infiltrator" then
-		owner:DrawShadow(true)
+	if IsValid(self:GetOwner()) then
+		self:GetOwner():SetNoDraw(false)
 	end
 	return true
 end
 
+SWEP.Hidden = false
 local dmgmdl1, dmgmdl2 = "models/props_junk/wood_crate001a_damaged.mdl", "models/props_junk/wood_crate001a_damagedmax.mdl"
 function SWEP:Think() -- вообще вместо манипуляций с ворлдмоделькой я бы мог тут создавать проп и парентить к игроку но эээ
 	self:SetHold(self.HoldType)
 
 	local owner = self:GetOwner()
-	if owner:GetVelocity():Length() > 0 or not owner:Crouching() then
+	if not owner:Crouching() then
 		self:DrawShadow(true)
-		if owner.PlayerClassName ~= "sc_infiltrator" then
-			owner:DrawShadow(true)
-		end
+		owner:SetNoDraw(false)
+		self.Hidden = false
 	else
-		self:DrawShadow(false)
+		self:DrawShadow(true)
 		owner:DrawShadow(false)
+		owner:SetNoDraw(true)
+		self.Hidden = true
 	end
 
 	local maxhp, hp = owner:GetMaxHealth(), owner:Health()
@@ -105,5 +105,24 @@ function SWEP:Think() -- вообще вместо манипуляций с в�
 		elseif hp < (maxhp / 4) and self.model:GetModel() ~= dmgmdl2 then
 			self.model:SetModel(dmgmdl2)
 		end
+	end
+end
+
+if CLIENT then
+	local vignetteMat = Material( "effects/shaders/zb_vignette" )
+	local lerp = 0
+	function SWEP:DrawHUD()
+		if GetViewEntity() ~= LocalPlayer() then return end
+		if LocalPlayer():InVehicle() then return end
+
+        lerp = Lerp(FrameTime() * 5, lerp, self.Hidden and 8 or 0)
+		render.UpdateScreenEffectTexture()
+
+		vignetteMat:SetFloat("$c2_x", CurTime() + 10000)
+		vignetteMat:SetFloat("$c0_z", lerp / 3 )
+		vignetteMat:SetFloat("$c1_y", lerp / 12 )
+
+		render.SetMaterial(vignetteMat)
+		render.DrawScreenQuad()
 	end
 end

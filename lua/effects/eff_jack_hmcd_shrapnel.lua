@@ -1,6 +1,8 @@
 /*---------------------------------------------------------
 	EFFECT:Init(data)
 ---------------------------------------------------------*/
+local parts = {}
+
 function EFFECT:Init(data)
 	local vOffset = data:GetOrigin()
 	
@@ -19,7 +21,7 @@ function EFFECT:Init(data)
 	if(self:WaterLevel()==3)then return end
 	
 	local Emitter=ParticleEmitter(vOffset)
-	for i=0,1000*Scayul do
+	for i=0,400*Scayul do
 		local sprite="sprites/mat_jack_nsmokethick"
 		local particle = Emitter:Add(sprite,vOffset)
 		if(particle)then
@@ -32,23 +34,50 @@ function EFFECT:Init(data)
 			particle:SetStartSize(math.Rand(1, 20)*Scayul)
 			particle:SetEndSize(math.Rand(20, 50)*Scayul)
 			particle:SetRoll(math.Rand(-3,3))
-			particle:SetRollDelta(math.Rand(-2,2))
+			particle:SetRollDelta(math.Rand(-0.2,0.2))
 			particle:SetLighting(true)
 			local darg=math.Rand(150,255)
 			particle:SetColor(darg,darg,darg)
 			particle:SetCollide(true)
-			particle:SetBounce(0)
+			particle:SetBounce(0.1)
 			particle:SetCollideCallback(function(part,hitpos,hitnormal)
-				part:SetStartAlpha(math.Rand(50,255))
+				part:SetStartAlpha(math.Rand(15,25))
+				part:SetStartSize(math.Rand(20,40))
 				part:SetLifeTime(0)
-				part:SetDieTime(math.Rand(.01,1.5))
-				part:SetVelocity(hitnormal*10)
+				part:SetDieTime(math.Rand(62,66.5))
+				part:SetVelocity( VectorRand(-120,120) - hitnormal * 200 )
+				part:SetBounce(0.5)
+				part:SetEndSize(math.Rand(250, 260))
+				part:SetGravity(-vector_up * 2.5)
+				part:SetAirResistance(30)
+				part:SetCollide(false)
 				util.Decal("ExplosiveGunshot",hitpos+hitnormal,hitpos-hitnormal)
+				part:SetCollideCallback(function(part) part:SetCollide(true) end)
+				if math.random(1,3) == 3 then 
+					part:SetDieTime(0.1)
+				else
+					parts[#parts + 1] = part
+				end
 			end)
 		end
 	end
+	timer.Create("RemoveSHIT_shrapnel",100,1,function()
+		for i = 0, #parts do
+			if parts[i] and parts[i].SetDieTime then
+				parts[i]:SetDieTime(0.1)
+			end
+		end
+	end)
 	Emitter:Finish()
 end
+
+hook.Add("PostCleanupMap","RemoveParticlesShrapnel",function()
+	for i = 0, #parts do
+		if parts[i] and parts[i].SetDieTime then
+			parts[i]:SetDieTime(0.1)
+		end
+	end
+end)
 /*---------------------------------------------------------
 	EFFECT:Think()
 ---------------------------------------------------------*/

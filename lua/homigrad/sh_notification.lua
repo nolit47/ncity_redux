@@ -1,83 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_notification.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
-local hg_furcity = ConVarExists("hg_furcity") and GetConVar("hg_furcity") or CreateConVar("hg_furcity", 0, bit.bor(FCVAR_REPLICATED, FCVAR_ARCHIVE, FCVAR_LUA_SERVER), "enable furcity", 0, 1)
-
-hg.fur = {
-    " rawr~",
-    " mrrrph~~",
-    " meow :3",
-    " uwu",
-    " >w<",
-    " OwO",
-    " *blushes*",
-    " -w-",
-}
-
-local translateSymbol = {
-    ["r"] = "w",
-    ["R"] = "W",
-    ["l"] = "w",
-    ["L"] = "W",
-    ["з"] = "в",
-    ["З"] = "В",
-    ["ш"] = "ф",
-    ["Ш"] = "Ф",
-    --["ч"] = "т",
-    --["Ч"] = "Т",
-    --["у"] = "ю",
-    --["У"] = "Ю",
-    --["т"] = "в",
-    --["Т"] = "В",
-}
-
-local repeating = {
-    ["r"] = true,
-    ["R"] = true,
-    ["р"] = true,
-    ["Р"] = true,
-}
-
-// можно сделать чтобы оно просто брало стринг, текущее местоположение буквы и добавляло ещё сверху
-// 
-
-
-
-function hg.FurrifyPhrase(msg)
-    local iter = utf8.codes(msg)
-    local len = 0
-    local chars = {}
-
-    for i, code in iter do
-        len = len + 1
-        chars[len] = utf8.char(code)
-    end
-
-    -- local lastpos = 0
-    -- while lastpos != -1 do
-    --     local newpos = string.find(msg, "[rR]", lastpos)
-
-    -- end
-
-
-    --i нельзя менять 
-    for i = #chars, 1, -1 do
-        if repeating[chars[i]] and math.random(2) == 1 then
-            for i2 = 1, math.random(3) do
-                table.insert(chars, i, chars[i])
-            end
-        elseif translateSymbol[chars[i]] and math.random(2) == 1 then
-            chars[i] = translateSymbol[chars[i]]
-        end
-    end--legendary
-
-    msg = table.concat(chars)
-
-    if math.random(4) == 1 then
-        msg = msg..hg.fur[math.random(#hg.fur)]
-    end
-
-    return msg
-end
 
 if CLIENT then
     local hg_old_notificate = ConVarExists("hg_old_notificate") and GetConVar("hg_old_notificate") or CreateConVar("hg_old_notificate",0,{FCVAR_USERINFO,FCVAR_ARCHIVE},"enable old notifications (chatprints)",0,1)
@@ -132,19 +52,14 @@ if CLIENT then
     end)
 
     local defaultShowTimer = 3
-
     local function CreateNotification(msg, showTimer, clr)
-        if hg_furcity:GetBool() or lply.PlayerClassName == "furry" then
-            msg = hg.FurrifyPhrase(msg)
-        end
-
         table.insert(hg.notifications, {msg, (showTimer or defaultShowTimer), clr or Color(255, 255, 255, 255)})
     end
 
     local PLAYER = FindMetaTable("Player")
 
     function PLAYER:Notify(...)
-        return CreateNotification(self, ...)
+        return CreateNotification(self,...)
     end
 
     net.Receive("HGNotificate",function()
@@ -220,7 +135,7 @@ if CLIENT then
             local mul = (org.brain > 0.1 and 3 or 1)// * (org.fear > 0 and math.max(1 - org.fear, 0.6) or 1)
             local time_one_symbol = 0.06 * mul//(lply.organism and lply.organism.fear >= 0.5 and 0.5 or 1)
             local time_to_read = (utf8.len(msg) * time_one_symbol)
-            local wait = math.Clamp(time_to_read / 3 * math.Clamp(1 - #hg.notifications / 1, 0.25, 1), 1, 4) + timeshow
+            local wait = math.Clamp(time_to_read / 3 * math.Clamp(1 - #hg.notifications / 1, 0.25, 1), 1, 4)
             
             if (time + time_to_read + wait > time_spent) then
                 local part = math.min(1 - (time + time_to_read - time_spent) / time_to_read, 1)
@@ -287,7 +202,6 @@ if CLIENT then
     hook.Add("Think", "HGNotificationsThink", NotificationsThink)
 else
     concommand.Add("hg_notify", function(ply, cmd, args)
-
         for i, ply in pairs(player.GetListByName(args[1])) do
             //(ply, msg, delay, msgKey, showTime, func, clr)
             ply:Notify(args[2], 6, nil, 0, nil, Color(args[3] or 255, args[4] or 255, args[5] or 255))

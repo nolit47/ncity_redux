@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\cl_postprocess.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 local function DrawSunEffect()
 	local sun = util.GetSunInfo()
 	if not sun then return end
@@ -35,10 +33,8 @@ postprs.addtiveLayer = {
 
 postprs.layers = postprs.layers or {}
 local layers = postprs.layers
-local layers_name = {}
 function postprs.LayerAdd(name, tab)
 	tab.weight = 0
-	layers_name[#layers_name+1] = name
 	layers[name] = tab
 end
 
@@ -63,13 +59,12 @@ hook.Add("RenderScreenspaceEffects", "homigrad", function()
 	//if potatopc:GetInt() >= 1 then return end
 	hook_Run("Post Processing")
 	//DrawSunEffect()
-	for _, layer in ipairs(layers_name) do
-		layer = layers[layer]
+	for name, layer in pairs(layers) do
 		local weight = layer.weight
-		--for k, v in pairs(layer) do
-			--if k == "weight" then continue end
-		addtiveLayer["brightness"] = Lerp(weight, 0, layer["brightness"]or 0)
-		--end
+		for k, v in pairs(layer) do
+			if k == "weight" then continue end
+			addtiveLayer[k] = Lerp(weight, 0, v)
+		end
 	end
 	
 	//DrawBloom(addtiveLayer.bloom_darken, addtiveLayer.bloom_mul, addtiveLayer.bloom_sizex, addtiveLayer.bloom_sizey, addtiveLayer.bloom_passes, addtiveLayer.bloom_colormul, addtiveLayer.bloom_colorr, addtiveLayer.bloom_colorg, addtiveLayer.bloom_colorb)
@@ -128,14 +123,9 @@ local CurTime = CurTime
 local timecheck = CurTime()
 hook.Add("Post Processing", "Main", function()
 	//if potatopc:GetInt() >= 1 then return end
-	if !lply:Alive() then return end
 	local waterLevel = oldWaterLevel
 	if timecheck < CurTime() then
-		local pos = hg.eye(lply)
-		
-		if !pos then return end
-
-		waterLevel = (lply:WaterLevel() == 3) or ((lply:WaterLevel() > 1) and bit.band(util.PointContents(pos), CONTENTS_WATER) == CONTENTS_WATER)//lply:WaterLevel()
+		waterLevel = (lply:WaterLevel() == 3) or ((lply:WaterLevel() > 1) and bit.band(util.PointContents(select(1, hg.eye(lply))), CONTENTS_WATER) == CONTENTS_WATER)//lply:WaterLevel()
 
 		timecheck = CurTime() + 0.1
 	end
@@ -223,13 +213,9 @@ end )]]
 local painMat = Material( "effects/shaders/zb_grain" )
 local noiseMat = Material( "effects/shaders/zb_grainwhite" )
 local vignetteMat = Material( "effects/shaders/zb_vignette" )
-local assimilationMat = Material( "effects/shaders/zb_assimilation" )
-local coldMat = Material( "effects/shaders/zb_colda" )
 
 local PainLerp = 0
 local O2Lerp = 0
-local assimilatedLerp = 0
-local tempLerp = 36.6
 
 local show_image_time = 0
 local show_some_images_time = 0
@@ -248,8 +234,6 @@ local function stopthings()
 	PainLerp = 0
 	O2Lerp = 0
 	shockLerp = 0
-	assimilatedLerp = 0
-	tempLerp = 36.6
 
 	lply.tinnitus = 0
 
@@ -292,11 +276,6 @@ local function stopthings()
 		Tinnitus:Stop()
 		Tinnitus = nil
 	end
-
-	if IsValid(AssimilationStation) then
-		AssimilationStation:Stop()
-		AssimilationStation = nil
-	end
 end
 
 local stations = {
@@ -331,54 +310,7 @@ hook.Add("Post Post Processing", "ItHurts", function()
 	shockLerp = LerpFT(org.shock > (shockLerp or 0) and 1 or 0.01, shockLerp or 0, org.shock or 0)
 	-- local immobilization = org.immobilization
 	PainLerp = LerpFT(0.05, PainLerp, math.max(pain * (org.otrub and 0.2 or 1), 0))
-	assimilatedLerp = LerpFT(0.01, assimilatedLerp, (org.assimilated or 0))
-	tempLerp = LerpFT(0.01, tempLerp, org.temperature)
 	
-	if assimilatedLerp > 0.001 then
-		render.UpdateScreenEffectTexture()
-
-		assimilationMat:SetFloat("$c0_x", -CurTime())//math.sin(CurTime() * 0.1) * CurTime() * 0.01) //time
-		assimilationMat:SetFloat("$c0_y", assimilatedLerp * 3)//(math.sin(CurTime()) + 1) * 2) //intensity (strict)
-		local ctime = CurTime() * 2
-		local val = math.Clamp(3 - 1 / 3 * (math.sin(ctime * 2.8862) + math.cos(ctime * 1.115) - math.sin(ctime * 0.6215) + 3), 0, 5)
-		local val2 = math.Clamp(1 - 1 / 6 * (math.sin(ctime * 1.1862) + math.cos(ctime * 2.315) - math.sin(ctime * 0.9215) + 3), 0, 1)
-		assimilationMat:SetFloat("$c1_y", val)
-		assimilationMat:SetFloat("$c1_x", val2 - 0.5)
-
-		if !IsValid(AssimilationStation) then
-			sound.PlayFile("sound/zbattle/furry/conversion/assimilation_noise3.ogg", "noblock noplay", function(station, err)
-				if IsValid(station) then
-					station:SetVolume(0)
-					station:Play()
-					AssimilationStation = station
-					station:EnableLooping(true)
-				end
-			end)
-		else
-			AssimilationStation:SetVolume(assimilatedLerp * 2)
-			//AssimilationStation:SetPlaybackRate(assimilatedLerp * 1)
-		end
-
-		render.SetMaterial(assimilationMat)
-		render.DrawScreenQuad()
-	else
-		if IsValid(AssimilationStation) then
-			AssimilationStation:Stop()
-			AssimilationStation = nil
-		end
-	end
-
-	if (tempLerp < 36) then
-		local tempo = math.Clamp((5 - (tempLerp - 31)) * 0.5, 0, 5)
-
-		render.UpdateScreenEffectTexture()
-
-		coldMat:SetFloat("$c0_y", tempo)
-		
-		render.SetMaterial(coldMat)
-		render.DrawScreenQuad()
-	end
-
 	if (PainLerp > 0.001 or shockLerp > 5) or org.otrub then
 		local strobe = math.ease.InOutSine(math.abs(math.cos(CurTime() * 2))) * PainLerp / 2
 		pain = PainLerp + strobe
@@ -386,8 +318,8 @@ hook.Add("Post Post Processing", "ItHurts", function()
 		render.UpdateScreenEffectTexture()
 
 		vignetteMat:SetFloat("$c2_x", CurTime() + 10000) //Time
-		vignetteMat:SetFloat("$c0_z", org.otrub and 5 or (pain / 10 + math.max(shock - 5, 0) / 2)) //ColorIntensity
-		vignetteMat:SetFloat("$c1_y", org.otrub and 10 or (pain / 5 + math.max(shock - 5, 0) / 2)) //Vignette
+		vignetteMat:SetFloat("$c0_z", org.otrub and 5 or (pain / 5 + math.max(shock - 5, 0) / 2)) //ColorIntensity
+		vignetteMat:SetFloat("$c1_y", org.otrub and 10 or (pain / 2 + math.max(shock - 5, 0) / 2)) //Vignette
 
 		render.SetMaterial(vignetteMat)
 		render.DrawScreenQuad()
@@ -395,17 +327,14 @@ hook.Add("Post Post Processing", "ItHurts", function()
 		render.UpdateScreenEffectTexture()
 
 		painMat:SetFloat("$c2_x", CurTime() + 10000) //Time
-		painMat:SetFloat("$c0_y", 0.8) //Gate
+		painMat:SetFloat("$c0_y", 0.9) //Gate
 		painMat:SetFloat("$c0_z", 1) //ColorIntensity
-		painMat:SetFloat("$c1_x", math.Clamp((pain / 90), 0, 2) * 5) //Lerp
-		painMat:SetFloat("$c1_y", pain / 90) //Vignette
+		painMat:SetFloat("$c1_x", math.Clamp((pain / 90), 0, 2) * 2) //Lerp
+		painMat:SetFloat("$c1_y", pain / 120) //Vignette
 
 		render.SetMaterial(painMat)
 		render.DrawScreenQuad()
 
-		if org.otrub then
-		end
-		
 		if pain > 10 then
 			if !IsValid(PainStation) then
 				sound.PlayFile("sound/zbattle/pain.ogg", "noblock noplay", function(station)

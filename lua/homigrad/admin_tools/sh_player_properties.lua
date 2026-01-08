@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\admin_tools\\sh_player_properties.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 local function check(self, ent, ply)
     if not ply:ZCTools_GetAccess() then return false end 
 	if ( !IsValid( ent ) ) then return false end
@@ -35,7 +33,7 @@ properties.Add( "notify", {
 		if ( !self:Filter( ent, ply ) ) then return end
         ent = hg.RagdollOwner( ent ) or ent
 
-		ent:Notify( text, 0 )
+		ent:Notify( text )
 	end 
 } )
 
@@ -223,26 +221,9 @@ properties.Add( "breakneck", {
         ent = hg.RagdollOwner( ent ) or ent
 
 		ent:Kill()
+		ent:ViewPunch(Angle(0, 0, -10))
 		ent.organism.spine3 = 1
 		ent:EmitSound("neck_snap_01.wav", 60, 100, 1, CHAN_AUTO)
-        
-        timer.Simple(0.1, function()
-            local ent = ent:GetNWEntity("RagdollDeath")
-
-            if IsValid(ent) then
-                ent:RemoveInternalConstraint(ent:TranslateBoneToPhysBone(ent:LookupBone("ValveBiped.Bip01_Head1")))
-
-                local spine = ent:TranslateBoneToPhysBone(ent:LookupBone("ValveBiped.Bip01_Spine2"))
-                local head = ent:TranslateBoneToPhysBone(ent:LookupBone("ValveBiped.Bip01_Head1"))
-
-                local pspine = ent:GetPhysicsObjectNum(spine)
-                local phead = ent:GetPhysicsObjectNum(head)
-
-                local lpos, lang = WorldToLocal(phead:GetPos() + phead:GetAngles():Forward() * -2 + phead:GetAngles():Up() * -1.5, angle_zero, pspine:GetPos(), pspine:GetAngles())
-
-                local cons = constraint.AdvBallsocket(ent, ent, spine, head, lpos, nil, 0, 0, -55, -90, -50, 55, 35, 50, 0, 0, 0, 0, 0)
-            end
-        end)
 	end 
 } )
 
@@ -467,9 +448,7 @@ local function Respawn(ply,body)
         ply:Kill()
     end
     ply.gottarespawn = true
-    OverrideSpawn = true
     ply:Spawn()
-    OverrideSpawn = false
 
     ply.inventory = table.Copy(body.inventory or defaultinv)
     --PrintTable(ply.inventory)
@@ -494,21 +473,11 @@ local function Respawn(ply,body)
 
     timer.Simple(0.1,function()
         if body.CurAppearance then
-            local color = body:GetNWVector("PlayerColor",Vector(0,0,0) )
-            body.CurAppearance.AColor = Color( color[1] * 255,color[2] * 255,color[3] * 255 )
-            ply:SetPlayerColor(color)
-            hg.Appearance.ForceApplyAppearance( ply, body.CurAppearance )
+            ApplyForceAppearance( ply, body.CurAppearance )
             ply:SetModel(body:GetModel())
         else
-			-- prevent funny submaterial glitch
-			local Appearance = ply.CurAppearance or hg.Appearance.GetRandomAppearance()
-			Appearance.AColthes = ""
-			ply:SetNetVar("Accessories", "")
             ply:SetModel(body:GetModel())
-			ply:SetSubMaterial()
-			ply:SetPlayerColor(ply:GetNWVector("PlayerColor",Vector(0,0,0) ))
         end
-        ply:Give( "weapon_hands_sh" )
     end)
 end
 

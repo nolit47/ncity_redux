@@ -127,7 +127,7 @@ if SERVER then
 		
 		if (not org.poison2notificate) and ((org.poison2 + 15) < CurTime()) then
 			org.poison2notificate = true
-			org.owner:Notify("Something stops me from brathing normally.", true, "poison2", 3)
+			org.owner:Notify("Something stops me from breathing normally.", true, "poison2", 3)
 			org.owner:EmitSound( ( ThatPlyIsFemale(org.owner) and "vo/npc/female01/moan0"..math.random(5)..".wav" ) or "vo/npc/male01/moan0"..math.random(5)..".wav")
 		end
 

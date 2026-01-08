@@ -4,7 +4,7 @@ SWEP.PrintName = "Gymnastic Stick"
 SWEP.Instructions = "A side-handle baton issued to law enforcement officers for riot control and self-defense. Its long reach and heavy weight make it an effective tool for subduing suspects. The tonfa is typically used in pairs, one in each hand, to block and strike opponents. It is an essential part of a police officer's toolkit, and a powerful weapon in the right hands."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
-SWEP.AdminOnly = false
+SWEP.AdminOnly = true
 
 SWEP.WorldModel = "models/weapons/w_jjife_t.mdl"
 SWEP.WorldModelReal = "models/weapons/tfa_nmrih/v_me_hatchet.mdl"
@@ -14,11 +14,19 @@ SWEP.ViewModel = ""
 SWEP.HoldType = "melee"
 
 SWEP.HoldPos = Vector(-12,0,0)
+SWEP.HoldAng = Angle(0,0,0)
 
-SWEP.AttackTime = 0.4
-SWEP.AnimTime1 = 1.3
-SWEP.WaitTime1 = 1
+SWEP.AttackTime = 1.0
+SWEP.AnimTime1 = 3.0
+SWEP.WaitTime1 = 3
 SWEP.ViewPunch1 = Angle(0,-5,3)
+
+SWEP.BreakBoneMul = 0
+SWEP.ImmobilizationMul = 0
+SWEP.StaminaMul = 0
+SWEP.InstantPainMul = 0
+SWEP.PainMultiplier = 0
+SWEP.BleedMultiplier = 0
 
 SWEP.Attack2Time = 0.3
 SWEP.AnimTime2 = 1
@@ -34,19 +42,19 @@ SWEP.weaponPos = Vector(0,0,-8)
 SWEP.weaponAng = Angle(0,-90,0)
 
 SWEP.DamageType = DMG_CLUB
-SWEP.DamagePrimary = 16
-SWEP.DamageSecondary = 13
+SWEP.DamagePrimary = 1000
+SWEP.DamageSecondary = 200
 
-SWEP.PenetrationPrimary = 3
-SWEP.PenetrationSecondary = 3
+SWEP.PenetrationPrimary = 0
+SWEP.PenetrationSecondary = 0
 
 SWEP.MaxPenLen = 1.5
 
-SWEP.PenetrationSizePrimary = 2
-SWEP.PenetrationSizeSecondary = 2
+SWEP.PenetrationSizePrimary = 0
+SWEP.PenetrationSizeSecondary = 0
 
-SWEP.StaminaPrimary = 12
-SWEP.StaminaSecondary = 8
+SWEP.StaminaPrimary = 1
+SWEP.StaminaSecondary = 1
 
 SWEP.AttackLen1 = 55
 SWEP.AttackLen2 = 30

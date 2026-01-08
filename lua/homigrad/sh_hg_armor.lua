@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_hg_armor.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 hg.armor = {}
 hg.armor.torso = {
 	["vest1"] = {
@@ -150,7 +148,6 @@ hg.armor.torso = {
 		ScrappersSlot = "Armor",
 		restricted = {"torso"},
 		nodrop = true,
-		Spawnable = false,
 	},
 	["cmb_armor"] = {
 		"torso",
@@ -169,26 +166,6 @@ hg.armor.torso = {
 		ScrappersSlot = "Armor",
 		restricted = {"torso"},
 		nodrop = true,
-		Spawnable = false,
-	},
-	["metrocop_armor"] = {
-		"torso",
-		"",
-		Vector(-9, 2.5, 0),
-		Angle(0, 92, 90),
-		protection = 5,
-		bone = "ValveBiped.Bip01_Spine2",
-		model = "",
-		femPos = Vector(0, 0, 0),
-		scale = 1,
-		femscale = 1,
-		effect = "Impact",
-		surfaceprop = 67,
-		mass = 8,
-		ScrappersSlot = "Armor",
-		restricted = {"torso"},
-		nodrop = true,
-		Spawnable = false,
 	},
 	["ego_equalizer"] = {
 		"torso",
@@ -244,7 +221,6 @@ hg.armor.head = {
 		surfaceprop = 67,
 		mass = 1,
 		ScrappersSlot = "Armor",
-		restricted = {"head","ears","face"},
 	},
 	["helmet3"] = {
 		"head",
@@ -326,6 +302,24 @@ hg.armor.head = {
 		mass = 1.8,
 		ScrappersSlot = "Armor",
 	},
+	["helmet8"] = {
+		"head",
+		"models/eft_props/gear/helmets/helmet_un.mdl",
+		Vector(2.2,-1, 0),
+		Angle(180, 100, 90),
+		protection = 8,
+		bone = "ValveBiped.Bip01_Head1",
+		model = "models/eft_props/gear/helmets/helmet_un.mdl",
+		femPos = Vector(-1, 0, 0.1),
+		--material = "sal/hanker",
+		norender = true,
+		viewmaterial = Material("sprites/mat_jack_hmcd_helmover"),
+		femscale = 0.92,
+		effect = "Impact",
+		surfaceprop = 67,
+		mass = 1,
+		ScrappersSlot = "Armor",
+	},
 	["gordon_helmet"] = {
 		"head",
 		"",
@@ -343,7 +337,6 @@ hg.armor.head = {
 		ScrappersSlot = "Armor",
 		restricted = {"head","ears","face"},
 		nodrop = true,
-		Spawnable = false,
 	},
 	["cmb_helmet"] = {
 		"head",
@@ -362,47 +355,6 @@ hg.armor.head = {
 		ScrappersSlot = "Armor",
 		restricted = {"head","ears","face"},
 		nodrop = true,
-		Spawnable = false,
-	},
-	["metrocop_helmet"] = {
-		"head",
-		"",
-		Vector(-9, 2.5, 0),
-		Angle(0, 92, 90),
-		protection = 7,
-		bone = "ValveBiped.Bip01_Spine2",
-		model = "",
-		femPos = Vector(0, 0, 0),
-		scale = 1,
-		femscale = 1,
-		effect = "Impact",
-		surfaceprop = 67,
-		mass = 8,
-		ScrappersSlot = "Armor",
-		restricted = {"head","ears","face"},
-		nodrop = true,
-		Spawnable = false,
-	},
-	["protovisor"] = {
-		"head",
-		"",
-		Vector(-9, 2.5, 0),
-		Angle(0, 92, 90),
-		protection = 8,
-		bone = "ValveBiped.Bip01_Spine2",
-		model = "",
-		femPos = Vector(0, 0, 0),
-		scale = 1,
-		femscale = 1,
-		effect = "Impact",
-		surfaceprop = 67,
-		mass = 8,
-		ScrappersSlot = "Armor",
-		restricted = {"head","ears","face"},
-		viewmaterial = false,
-		nodrop = true,
-		Spawnable = false,
-		inbuilt = true, --;; встронная броня надо бы еще и для комбайнов и гордона сделать
 	},
 }
 
@@ -537,7 +489,7 @@ hg.armor.face = {
 	},
 	["mask3"] = {
 		"face", -- "face"
-		"models/props_c17/metalPot001a.mdl",
+		"models/eft_props/gear/helmets/helmet_rys_t_shield.mdl",
 		Vector(0, 0.3, 0),
 		Angle(-90, 180, 90),
 		protection = 7,
@@ -624,19 +576,13 @@ if SERVER then
 		
 		local prot = placement and hg.armor[placement] and armor and hg.armor[placement][armor] and (hg.armor[placement][armor].protection - (dmgInfo:GetInflictor().bullet and dmgInfo:GetInflictor().bullet.Penetration or 1)) or (10 - ( dmgInfo:GetInflictor().bullet and dmgInfo:GetInflictor().bullet.Penetration or 1))
 		
-		org.owner.armors_health = org.owner.armors_health or {}
-
-		prot = prot * (org.owner.armors_health[armor] or 1)
-		
 		if punch then
 			if org.owner:IsPlayer() and org.alive and dmgInfo:IsDamageType(DMG_BUCKSHOT + DMG_BULLET) then
 				org.owner:ViewPunch(AngleRand(-30, 30))
-				
 				if not IsValid(org.owner.FakeRagdoll) then
 					--org.owner:EmitSound("homigrad/player/headshot_helmet.wav")
 				end
-
-				hg.ExplosionDisorientation(org.owner, 6, 6)
+				org.disorientation = org.disorientation + dmg * math.Rand(0,3)
 
 				hg.organism.input_list.spine3(org, bone, (dmg/100) * math.Rand(0,0.1), dmgInfo)
 				--org.spine3 = org.spine3 + math.Rand(0.05,1) * dmg / 5
@@ -736,6 +682,11 @@ if SERVER then
 
 	hg.organism.input_list.helmet7 = function(org, bone, dmg, dmgInfo, ...)
 		local protect = protec(org, bone, dmg, dmgInfo, "head", "helmet7", 1, 0.4, true, ...)
+		return protect
+	end
+
+	hg.organism.input_list.helmet8 = function(org, bone, dmg, dmgInfo, ...)
+		local protect = protec(org, bone, dmg, dmgInfo, "head", "helmet8", 1, 0.6, true, ...)
 		return protect
 	end
 
@@ -880,37 +831,6 @@ if SERVER then
 		local protect = protec(org, bone, dmg, dmgInfo, "leg", "cmb_leg_armor_right", 0.9, 0.7, false, ...)
 		return protect
 	end
-	-- metrocop armor
-	hg.organism.input_list.metrocop_helmet = function(org, bone, dmg, dmgInfo, ...)
-		force = true
-		local protect = protec(org, bone, dmg, dmgInfo, "head", "metrocop_helmet", 0.9, 0.7, true, ...)
-		return protect
-	end
-	
-	hg.organism.input_list.metrocop_armor = function(org, bone, dmg, dmgInfo, ...)
-		force = true
-		local protect = protec(org, bone, dmg, dmgInfo, "torso", "metrocop_armor", 0.9, 0.7, false, ...)
-		return protect
-	end
-
-	-- protogen visor
-
-	hg.organism.input_list.protovisor = function(org, bone, dmg, dmgInfo, ...)
-		force = true
-
-		org.owner.armors_health = org.owner.armors_health or {}
-
-		local protect = protec(org, bone, dmg, dmgInfo, "head", "protovisor", 0.8, 0.7, true, ...)
-		
-		org.owner.armors_health["protovisor"] = org.owner.armors_health["protovisor"] or 1
-		org.owner.armors_health["protovisor"] = org.owner.armors_health["protovisor"] * math.max((1 - dmg * 10), 0)
-		
-		if org.owner.armors_health["protovisor"] == 0 then
-			org.owner.armors["head"] = nil
-		end
-		//dmgInfo:GetAttacker():ChatPrint(tostring(org.owner.armors_health["protovisor"]))
-		return protect
-	end
 end
 
 local armorNames = {
@@ -920,6 +840,7 @@ local armorNames = {
 	["helmet3"] = "Riot Helmet",
 	["helmet4"] = "Pot",
 	["helmet7"] = "SSh-68",
+	["helmet8"] = "UNTAR Helmet",
 	["vest2"] = "Police Riot Vest",
 	["vest3"] = "Kevlar IIIA Vest",
 	["vest4"] = "Kevlar III Vest",
@@ -934,8 +855,7 @@ local armorNames = {
 	["helmet5"] = "HighCom Striker ACHHC IIIA helmet",
 	["vest8"] = "SWAT Balistic Vest",
 	["ego_equalizer"] = "[HE] Equalizer",
-	["helmet6"] = "SWAT Balistic Helmet",
-	["protovisor"] = "Protogen Visor"
+	["helmet6"] = "SWAT Balistic Helmet"
 }
 hg.armorNames = armorNames
 local armorIcons = {
@@ -945,13 +865,13 @@ local armorIcons = {
 	["helmet3"] = "vgui/icons/riothelm.png",
 	["helmet4"] = "entities/ent_jack_gmod_ezarmor_bomber.png",
 	["helmet7"] = "entities/ent_jack_gmod_ezarmor_ssh68.png",
+	["helmet8"] = "entities/ent_jack_gmod_ezarmor_untarhelm.png",
 	["vest2"] = "vgui/icons/policevest.png",
 	["vest3"] = "vgui/icons/armor01.png",
 	["vest4"] = "vgui/icons/armor02.png",
 	["mask1"] = "vgui/icons/ballisticmask",
 	["mask2"] = "vgui/icons/gasmask",
 	["mask3"] = "entities/ent_jack_gmod_ezarmor_weldingkill.png",
-	["ego_equalizer"] = "entities/ent_jack_gmod_ezarmor_hazmat.png",
 	["vest5"] = "entities/ent_jack_gmod_ezarmor_6b13flora.png",
 	["nightvision1"] = "vgui/icons/nvg",
 	["vest6"] = "entities/ent_jack_gmod_ezarmor_paca.png",
@@ -960,7 +880,6 @@ local armorIcons = {
 	["helmet5"] = "entities/ent_jack_gmod_ezarmor_achhcblack.png",
 	["vest8"] = "vgui/icons/armor01.png",
 	["helmet6"] = "vgui/icons/helmet.png",
-	["protovisor"] = "vgui/icons/helmet.png",
 }
 hg.armorIcons = armorIcons
 
@@ -979,14 +898,12 @@ local function initArmor()
 	for possibleArmor, armors in pairs(hg.armor) do
 		for armorkey, armorData in pairs(armors) do
 			if CLIENT then language.Add(armorkey, armorNames[armorkey] or armorkey) end
-			if armorData.inbuilt then continue end
-			
 			local armor = {}
 			armor.Base = "armor_base"
 			armor.PrintName = CLIENT and language.GetPhrase(armorkey) or armorkey
 			armor.name = armorkey
 			armor.Category = "HG Armor"
-			armor.Spawnable = armorData.Spawnable or true
+			armor.Spawnable = true
 			armor.Model = armorData[2]
 			armor.WorldModel = armorData[2]
 			armor.SubMats = armorData[4]

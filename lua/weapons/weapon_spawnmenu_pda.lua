@@ -410,7 +410,7 @@ Cost: Free]])
                 local button = vgui.Create( "DButton", Shop )
                 button:Dock( TOP )
                 button:SetSize( 0,55 )
-                button:SetText( gun[2] )
+                button:SetText( gun[2] or "Gun" )
                 button.Weight = 5
                 button:DockMargin( 5, 0, 5, 5 )
                 button:SetFont("ZCity_Fixed_Tiny")

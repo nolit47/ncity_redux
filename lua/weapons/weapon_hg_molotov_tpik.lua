@@ -12,7 +12,7 @@ RMB - Low ready
 While low ready:
 LMB to remove spoon.
 ]]--"тильда двуеточее три"
-SWEP.Category = "ZCity Anims items"
+SWEP.Category = "Weapons - Explosive"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
 SWEP.Primary.ClipSize = -1
@@ -188,6 +188,7 @@ SWEP.AnimsSounds = {
 }
 
 SWEP.HoldPos = Vector(2,0.2,-1.5)
+SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.ViewBobCamBase = "ValveBiped.Bip01_R_UpperArm"
 SWEP.ViewBobCamBone = "ValveBiped.Bip01_R_Hand"
@@ -225,7 +226,7 @@ SWEP.CoolDown = 0
 function SWEP:DrawPostPostModel()
 	--PrintBones(self:GetWM())
 	if self.Burn and not IsValid(self.fire) then
-		self.fire = CreateParticleSystem( self:GetWM(), "vFire_Flames_Tiny", PATTACH_POINT_FOLLOW, 2, Vector(0,0,0) )
+		self.fire = CreateParticleSystem( self:GetWM(), "vFire_Flames_Tiny", PATTACH_POINT_FOLLOW,2 )
 	elseif not self:GetShowGrenade() and IsValid(self.fire) then
 		self.fire:StopEmissionAndDestroyImmediately()
 		self.Burn = false

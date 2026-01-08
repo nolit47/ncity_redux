@@ -19,17 +19,24 @@ function SWEP:CanReload()
 			heldents[ent:EntIndex()] = nil
 		end
 	end
+
+	if !self:GetOwner().GetAmmoCount then return true end
+	
 	if self.ReloadNext or not self:CanUse() or self:GetOwner():GetAmmoCount(self:GetPrimaryAmmoType()) == 0 or self:Clip1() >= self:GetMaxClip1() + (self.drawBullet and not self.OpenBolt and 1 or 0) then --shit
 		return
 	end
+
 	return true
 end
+
 if SERVER then
 	util.AddNetworkString("hg_insertAmmo")
 end
+
 function SWEP:InsertAmmo(need)
 	local owner = self:GetOwner()
 	local primaryAmmo = self:GetPrimaryAmmoType()
+	if !owner.GetAmmoCount then self:SetClip1(self:GetMaxClip1()) return end
 	local primaryAmmoCount = owner:GetAmmoCount(primaryAmmo)
 	need = need or self:GetMaxClip1() - self:Clip1()
 	need = math.min(primaryAmmoCount, need)

@@ -148,10 +148,8 @@ function ENT:Explode()
 
         if distance <= disorientationRadius then
             if org then
-                org.disorientation = org.disorientation + 5  
-                --timer.Create("RemoveDisorientation_"..ply:UserID(), 15, 1, function()
-                --    if org then org.disorientation = 0 end  -- да сделал по говну -- а зачем тут таймер вы че шизофреники?
-                --end)
+                hg.ExplosionDisorientation(org.owner, 5, 6)
+                //org.owner:ViewPunch(Angle(0, 0, org.owner:GetAimVector():Dot((SelfPos - org.owner:EyePos()):GetNormalized()) * 55))
             end
         end
     end

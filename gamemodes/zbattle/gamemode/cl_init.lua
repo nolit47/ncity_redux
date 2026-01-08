@@ -2,6 +2,7 @@ zb = zb or {}
 include("shared.lua")
 include("loader.lua")
 
+-- [ДОБАВЛЕНО] Система локализации
 zb.Languages = {
     ["en"] = {
         ["spectating_player"] = "Spectating player: ",
@@ -52,7 +53,6 @@ function CurrentRound()
 end
 
 zb.ROUND_STATE = 0
---0 = players can join, 1 = round is active, 2 = endround
 local vecZero = Vector(0.2, 0.2, 0.2)
 local vecFull = Vector(1, 1, 1)
 spect,prevspect,viewmode = nil,nil,1
@@ -99,10 +99,12 @@ hook.Add("HUDPaint","FUCKINGSAMENAMEUSEDINHOOKFUCKME",function()
 	
 	surface.SetFont("HomigradFont")
 	surface.SetTextColor(255, 255, 255, 255)
+	-- [ИЗМЕНЕНО] Использование локализации
 	local txt = zb:GetTerm("spectating_player")..spect:Name()
 	local w, h = surface.GetTextSize(txt)
 	surface.SetTextPos(ScrW() / 2 - w / 2, ScrH() / 8 * 7)
 	surface.DrawText(txt)
+	-- [ИЗМЕНЕНО] Использование локализации
 	local txt = zb:GetTerm("ingame_name")..spect:GetPlayerName()
 	local w, h = surface.GetTextSize(txt)
 	surface.SetTextPos(ScrW() / 2 - w / 2, ScrH() / 8 * 7 + h)
@@ -181,7 +183,6 @@ hook.Add("HG_CalcView", "zzzzzzznigger", function(ply, pos, angles, fov)
 			angles = ang,
 			fov = fov,
 		}
-
 	else
 		lply:SetObserverMode(OBS_MODE_NONE)
 	end
@@ -198,7 +199,6 @@ net.Receive("RoundInfo", function()
 	end
 
 	zb.CROUND = rnd
-
 	zb.ROUND_STATE = net.ReadInt(4)
 
 	if zb.CROUND ~= "" then
@@ -285,6 +285,8 @@ local colBlueUp = Color(160,30,30)
 local col = Color(255,255,255,255)
 local colSpect1 = Color(75,75,75,255)
 local colSpect2 = Color(85,85,85,255)
+local colorBG = Color(55,55,55,255)
+local colorBGBlacky = Color(40,40,40,255)
 
 local blur = Material("pp/blurscreen")
 local hg_potatopc
@@ -319,6 +321,7 @@ local function OpenPlayerSoundSettings(selfa, ply)
 	local Menu = DermaMenu()
 	if not hg.playerInfo[ply:SteamID()] or not istable(hg.playerInfo[ply:SteamID()]) then addToPlayerInfo(ply, false, 1) end
 
+	-- [ИЗМЕНЕНО] Использование локализации
 	local mute = Menu:AddOption( zb:GetTerm("mute"), function(self)
 		if hg.muteall || hg.mutespect then return end
 		self:SetChecked(not ply:IsMuted())
@@ -335,7 +338,7 @@ local function OpenPlayerSoundSettings(selfa, ply)
 	volumeSlider:SetSlideX(hg.playerInfo[ply:SteamID()][2]) 
 	volumeSlider.OnValueChanged = function(self, x, y)
 		if not IsValid(ply) then return end
-		if hg.muteall or (hg.mutespect && !ply:Alive()) then return end
+		if hg.muteall or (hg.mutespect and not ply:Alive()) then return end
 		hg.playerInfo[ply:SteamID()][2] = x
 		ply:SetVoiceVolumeScale(hg.playerInfo[ply:SteamID()][2])
 		addToPlayerInfo(ply, ply:IsMuted(), hg.playerInfo[ply:SteamID()][2])
@@ -382,6 +385,7 @@ function GM:ScoreboardShow()
 	local w, h = ScreenScale(30),ScreenScale(6)
 	muteallbut:SetPos(ScreenScale(60),scoreBoardMenu:GetTall() - h * 1.5)
 	muteallbut:SetSize(w, h)
+	-- [ИЗМЕНЕНО] Использование локализации
 	muteallbut:SetText(zb:GetTerm("mute_all"))
 	
 	muteallbut.Paint = function(self,w,h)
@@ -404,6 +408,7 @@ function GM:ScoreboardShow()
 	local w, h = ScreenScale(30),ScreenScale(6)
 	mutespectbut:SetPos(ScreenScale(60 + 35),scoreBoardMenu:GetTall() - h * 1.5)
 	mutespectbut:SetSize(w, h)
+	-- [ИЗМЕНЕНО] Использование локализации
 	mutespectbut:SetText(zb:GetTerm("mute_spectators"))
 	
 	mutespectbut.Paint = function(self,w,h)
@@ -444,16 +449,22 @@ function GM:ScoreboardShow()
 
 		surface.SetFont( "ZB_InterfaceMediumLarge" )
 		surface.SetTextColor(col.r,col.g,col.b,col.a)
-		local lenghtX, lenghtY = surface.GetTextSize(zb:GetTerm("players"))
+		-- [ИЗМЕНЕНО] Использование локализации
+		local txt_players = zb:GetTerm("players")
+		local lenghtX, lenghtY = surface.GetTextSize(txt_players)
 		surface.SetTextPos(w / 4 - lenghtX/2,ScreenScale(25))
-		surface.DrawText(zb:GetTerm("players"))
+		surface.DrawText(txt_players)
 
 		surface.SetFont( "ZB_InterfaceMediumLarge" )
 		surface.SetTextColor(col.r,col.g,col.b,col.a)
-		local lenghtX, lenghtY = surface.GetTextSize(zb:GetTerm("spectators"))
+		-- [ИЗМЕНЕНО] Использование локализации
+		local txt_specs = zb:GetTerm("spectators")
+		local lenghtX, lenghtY = surface.GetTextSize(txt_specs)
 		surface.SetTextPos(w * 0.75 - lenghtX/2,ScreenScale(25))
-		surface.DrawText(zb:GetTerm("spectators"))
+		surface.DrawText(txt_specs)
+
 		tick = math.Round(Lerp(0.025, tick or math.Round(1 / engine.ServerFrameTime(),1), math.Round(1 / engine.ServerFrameTime(),1)),1)
+		-- [ИЗМЕНЕНО] Использование локализации
 		local txt = zb:GetTerm("server_tick") .. tick
 		local lenghtX, lenghtY = surface.GetTextSize(txt)
 		surface.SetTextPos(w * 0.5 - lenghtX/2,ScreenScale(25))
@@ -477,6 +488,7 @@ function GM:ScoreboardShow()
 			surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 			surface.SetFont( "ZB_InterfaceMedium" )
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
+			-- [ИЗМЕНЕНО] Центрированный текст кнопки Join
 			local txt = zb:GetTerm("join")
 			local lx, ly = surface.GetTextSize(txt)
 			surface.SetTextPos(w/2 - lx/2, h/2 - ly/2)
@@ -501,6 +513,7 @@ function GM:ScoreboardShow()
 			surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 			surface.SetFont( "ZB_InterfaceMedium" )
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
+			-- [ИЗМЕНЕНО] Центрированный текст кнопки Join
 			local txt = zb:GetTerm("join")
 			local lx, ly = surface.GetTextSize(txt)
 			surface.SetTextPos(w/2 - lx/2, h/2 - ly/2)
@@ -539,6 +552,7 @@ function GM:ScoreboardShow()
 			surface.DrawRect(0, h / 2, w, h / 2)
 			surface.SetFont("ZB_InterfaceMediumLarge")
 			surface.SetTextColor(col.r, col.g, col.b, col.a)
+			-- [ИЗМЕНЕНО] Использование локализации для вышедшего игрока
 			local name = ply:Name() or zb:GetTerm("he_quit")
 			local lx, ly = surface.GetTextSize(name)
 			surface.SetTextPos(15, h / 2 - ly / 2)
@@ -549,11 +563,13 @@ function GM:ScoreboardShow()
 			surface.DrawText(ping)
 		end
 		function but:DoClick()
+			-- [ИЗМЕНЕНО] Использование локализации
 			if ply:IsBot() then chat.AddText(Color(255,0,0), zb:GetTerm("no_permission")) return end
 			gui.OpenURL("https://steamcommunity.com/profiles/"..ply:SteamID64())
 		end
 		function but:DoRightClick()
 			local Menu = DermaMenu()
+			-- [ИЗМЕНЕНО] Использование локализации
 			Menu:AddOption( zb:GetTerm("account"), function() zb.Experience.AccountMenu( ply ) end)
 			Menu:AddOption( zb:GetTerm("medal"), function() 
 				zb.Experience.OpenMenu(ply)
@@ -595,6 +611,7 @@ function GM:ScoreboardShow()
 			surface.DrawRect(0,h/2,w,h/2)
 			surface.SetFont( "ZB_InterfaceMediumLarge" )
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
+			-- [ИЗМЕНЕНО] Использование локализации
 			local name = ply:Name() or zb:GetTerm("he_quit")
 			local lx, ly = surface.GetTextSize(name)
 			surface.SetTextPos(15,h/2 - ly/2)
@@ -652,6 +669,30 @@ if CLIENT then
 	end)
 end
 
+if CLIENT then
+    net.Receive("PluvCommand", function()
+        local imageURLs = {"https://sadsalat.github.io/salatis/music/boof.gif", "https://i.ibb.co/drt1Lks/KtvCLSs.webp", "https://media.tenor.com/kG4PmVvJuRIAAAAC/rain-world-rain-world-saint.gif"} 
+        local soundURLs = {"https://sadsalat.github.io/salatis/music/sus-rock.mp3", "https://sadsalat.github.io/salatis/music/tiktok-raaaah-scream.mp3", "https://sadsalat.github.io/salatis/music/sus-rock.mp3"} 
+
+        local chosenImage = imageURLs[math.random(#imageURLs)]
+        local chosenSound = soundURLs[math.random(#soundURLs)]
+
+        sound.PlayURL(chosenSound, "", function(station)
+            if IsValid(station) then station:Play() end
+        end)
+
+        local html = vgui.Create("HTML")
+        html:OpenURL(chosenImage)
+        html:SetSize(ScrW(), ScrH())
+        html:Center()
+        html:MakePopup()
+
+        timer.Simple(3, function()
+            if IsValid(html) then html:Remove() end
+        end)
+    end)
+end
+
 local lightningMaterial = Material("sprites/lgtning")
 net.Receive("AnotherLightningEffect", function()
     local target = net.ReadEntity()
@@ -683,6 +724,7 @@ local snakeGameOpen = false
 concommand.Add("zb_snake", function()
     if snakeGameOpen then return end
     local frame = vgui.Create("ZFrame")
+    -- [ИЗМЕНЕНО] Использование локализации
     frame:SetTitle(zb:GetTerm("snake_game"))
     frame:SetSize(400, 400)
     frame:Center()
@@ -730,8 +772,10 @@ concommand.Add("zb_snake", function()
                 surface.DrawRect(food.x * gridSize, food.y * gridSize, gridSize - 1, gridSize - 1)
             end
         else
+            -- [ИЗМЕНЕНО] Использование локализации
             draw.SimpleText(zb:GetTerm("snake_game_over"), "DermaDefault", w / 2, h / 2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         end
+        -- [ИЗМЕНЕНО] Использование локализации
         draw.SimpleText(zb:GetTerm("score") .. score, "DermaDefault", 10, 10, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
     end
 

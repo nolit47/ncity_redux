@@ -33,6 +33,8 @@ list.Set( "PostProcess", "Radial Blur", {
 		CPanel:Help( "Blurs the screen around the edges." )
 		CPanel:CheckBox( "Enable", "pp_mercradblur" )
 
+        CPanel:ToolPresets( "pp_mercradblur", {pp_mercradblur_width = "0.1"} )
+
 		CPanel:NumSlider( "Blur Width", "pp_mercradblur_width", 0, 10, 3 )
 
 	end

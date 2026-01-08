@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Crowbar"
-SWEP.Instructions = "The Crowbar is a two-handed tool which can be used as a melee weapon. It is also an iconic signature weapon of Gordon Freeman."
+SWEP.Instructions = "The Crowbar is a two-handed tool which can be used as a melee weapon. It is also an iconic signature weapon of Gordon Freeman. Can break down doors.\n\nLMB to attack.\nRMB to block."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -13,11 +13,12 @@ SWEP.ViewModel = ""
 
 SWEP.NoHolster = true
 
-SWEP.HoldType = "camera"
+SWEP.HoldType = "revolver"
 
 SWEP.DamageType = DMG_SLASH
 
 SWEP.HoldPos = Vector(-11, 0, 0)
+SWEP.HoldAng = Angle()
 
 SWEP.AttackTime = 0.25
 SWEP.AnimTime1 = 1.2

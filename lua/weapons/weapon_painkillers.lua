@@ -2,7 +2,7 @@ if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_bandage_sh"
 SWEP.PrintName = "Painkillers"
 SWEP.Instructions = "Can be used to relieve pain (thanks Mr. Obvious). RMB to use on someone else."
-SWEP.Category = "Medicine"
+SWEP.Category = "ZCity Medicine"
 SWEP.Spawnable = true
 SWEP.Primary.Wait = 1
 SWEP.Primary.Next = 0
@@ -56,14 +56,15 @@ if SERVER then
 	function SWEP:Heal(ent, mode)
 		local org = ent.organism
 		if not org then return end
-		if ent ~= self:GetOwner() and not ent.organism.otrub then return end
+		if ent ~= self:GetOwner() and !IsValid(org.owner.FakeRagdoll) then return end
+		if !org.analgesiaAdd or !self.modeValues or !self.modeValues[1] then return end
 		self:SetBodygroup(1, 1)
 		local owner = self:GetOwner()
 		local entOwner = IsValid(owner.FakeRagdoll) and owner.FakeRagdoll or owner
 		entOwner:EmitSound(table.Random(rndsounds), 60, math.random(95, 105))
 		--org.adrenaline = math.min(org.adrenaline + self.modeValues[1] / 4, 3)
 		//org.painkiller = math.min(org.painkiller + self.modeValues[1] * 1, 3)
-		org.analgesiaAdd = math.min(org.analgesiaAdd + self.modeValues[1] * 0.3, 4)
+		org.analgesiaAdd = math.min(org.analgesiaAdd + self.modeValues[1] * 0.4, 4)
 		self.modeValues[1] = 0
 		if self.modeValues[1] == 0 then
 			owner:SelectWeapon("weapon_hands_sh")

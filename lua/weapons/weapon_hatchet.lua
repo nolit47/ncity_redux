@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Hatchet"
-SWEP.Instructions = "A single-handed striking tool with a sharp blade on one side used to cut and split wood, and a hammerhead on the other side."
+SWEP.Instructions = "A single-handed striking tool with a sharp blade on one side used to cut and split wood, and a hammerhead on the other side.\n\nLMB to attack.\nRMB to block.\nRMB + LMB to throw."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -18,6 +18,7 @@ SWEP.DontChangeDropped = true
 SWEP.ViewModel = ""
 
 SWEP.HoldPos = Vector(-12,0,0)
+SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.AttackTime = 0.35
 SWEP.AnimTime1 = 1.5
@@ -97,29 +98,35 @@ function SWEP:CanSecondaryAttack()
     return true
 end
 
-if SERVER then
-    function SWEP:CustomAttack2()
-        local ent = ents.Create("ent_throwable")
-        ent.WorldModel = "models/weapons/tfa_nmrih/w_me_hatchet.mdl"
-        local ply = self:GetOwner()
-        ent:SetPos(select(1, hg.eye(ply,60,hg.GetCurrentCharacter(ply))) - ply:GetAimVector() * 2)
-        ent:SetAngles(ply:EyeAngles())
-        ent:SetOwner(self:GetOwner())
-        ent:Spawn()
-        ent.localshit = Vector(4,6,0)
-        ent.wep = self:GetClass()
-        ent.owner = ply
-        ent.damage = 25
-        local phys = ent:GetPhysicsObject()
-        if IsValid(phys) then
-            phys:SetVelocity(ply:GetAimVector() * ent.MaxSpeed)
-            phys:AddAngleVelocity(Vector(0,ent.MaxSpeed,0) )
-        end
-        ply:EmitSound("weapons/slam/throw.wav",50,math.random(95,105))
-        ply:SelectWeapon("weapon_hands_sh")
-        self:Remove()
-        return true
+function SWEP:CustomAttack2()
+    local ent = ents.Create("ent_throwable")
+    ent.WorldModel = self.WorldModelExchange or self.WorldModel
+
+    local ply = self:GetOwner()
+
+    ent:SetPos(select(1, hg.eye(ply,60,hg.GetCurrentCharacter(ply))) - ply:GetAimVector() * 2)
+    ent:SetAngles(ply:EyeAngles())
+    ent:SetOwner(self:GetOwner())
+    ent:Spawn()
+    ent.localshit = Vector(4,6,0)
+    ent.wep = self:GetClass()
+    ent.owner = ply
+    ent.damage = 25
+
+    local phys = ent:GetPhysicsObject()
+
+    if IsValid(phys) then
+        phys:SetVelocity(ply:GetAimVector() * ent.MaxSpeed)
+        phys:AddAngleVelocity(Vector(0,ent.MaxSpeed,0) )
     end
+    
+    //ply:EmitSound("weapons/slam/throw.wav",50,math.random(95,105))
+    ply:SelectWeapon("weapon_hands_sh")
+    ply:ViewPunch(Angle(0, 0, -8))
+
+    self:Remove()
+
+    return true
 end
 
 SWEP.NoHolster = true

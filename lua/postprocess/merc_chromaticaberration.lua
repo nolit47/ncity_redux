@@ -34,6 +34,8 @@ list.Set( "PostProcess", "Chromatic Aberration", {
 		CPanel:CheckBox( "Enable", "pp_merccaber" )
         CPanel:CheckBox( "Center falloff", "pp_merccaber_center" )
 
+        CPanel:ToolPresets( "pp_merccaber", { pp_merccaber_center = "0", pp_merccaber_amount = "0.5" } )
+
 		CPanel:NumSlider( "Strength", "pp_merccaber_amount", -1, 1, 4 )
 
 	end

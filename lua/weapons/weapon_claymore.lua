@@ -126,6 +126,7 @@ if CLIENT then
         local ply = self:GetOwner()
         local tr = hg.eyeTrace(ply)
         if not tr.Hit or tr.HitSky then return end
+		if not IsValid(tr.Entity) then return end 
 		if tr.Entity and tr.Entity:IsPlayer() then return end
         if tr.HitNormal:Dot(vector_up) < math.cos(math.rad(30)) then return end
         local pos,ang = tr.HitPos,tr.HitNormal:Angle()

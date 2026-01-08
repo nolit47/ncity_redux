@@ -1,18 +1,22 @@
--- "addons\\homigrad-otherweapons\\lua\\weapons\\weapon_hands_sh.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_base"
+
+-- Global table for ragdoll impact damage cooldowns
+if not RagdollImpactCooldowns then
+	RagdollImpactCooldowns = {}
+end
+
 local function RagdollOwner(ent)
 	return hg.RagdollOwner(ent)
 end
 
 SWEP.Category = "ZCity Other"
-SWEP.Instructions = "LMB - raise fists\nRELOAD - lower fists\n\nIn the raised state: LMB - strike, RMB - block\n\nIn the lowered state: RMB - raise the object, RMB+R - check the pulse (when used on someone's head or hand)\n\nWhen holding the object: RELOAD - fix the object in air, E - spin the object in the air."
+SWEP.Instructions = "LMB / Reload - raise / lower fists\n\nIn the raised state: LMB - strike, RMB - block\n\nIn the lowered state: RMB - raise the object, R - check the pulse\n\nWhen holding the object: Reload - fix the object in air, E - spin the object in the air."
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
 SWEP.HoldType = "normal"
 SWEP.ViewModel = ""
-SWEP.WorldModel = "models/weapons/c_arms.mdl"
+SWEP.WorldModel = "models/weapons/tfa_nmrih/v_me_fists.mdl"
 SWEP.UseHands = true
 SWEP.AttackSlowDown = .5
 SWEP.Primary.ClipSize = -1
@@ -28,10 +32,37 @@ SWEP.HomicideSWEP = true
 SWEP.NoDrop = true
 SWEP.ShockMultiplier = 1
 SWEP.PainMultiplier = 1
-SWEP.BreakBoneMul = 0.33
+SWEP.BreakBoneMul = 0.4
 SWEP.Penetration = 1
 SWEP.DamageMul = 1
+SWEP.ParryStaminaCost = 6  -- Stamina cost for blocking with hands (lower than melee weapons)
+
+-- Blocking configuration for hands (hand-to-hand combat blocking)
+SWEP.BlockHoldPos = Vector(-5, 5, 3)  -- Closer blocking position for hands
+SWEP.BlockHoldAng = Angle(0, 0, 10)   -- Slight angle for hand blocking
+SWEP.BlockDamageReduction = 0.3       -- 30% damage reduction (less than weapons)
+SWEP.BlockStaminaCost = 12            -- Stamina cost when taking damage while blocking
+SWEP.BlockStaminaThreshold = 30       -- Minimum stamina required to block (lower for hands)
+SWEP.ParryWindow = 0.3                -- Shorter parry window for hands
+SWEP.ParryCooldown = 1.5              -- Shorter cooldown for hand blocking
+SWEP.BlockSound = "Flesh.ImpactHard"  -- Flesh impact sound for hand blocking
+
+-- Advanced Directional Hitbox Blocking System Configuration for Hands
+SWEP.BlockHitboxWidth = 60            -- Narrower blocking hitbox for hands
+SWEP.BlockHitboxHeight = 55           -- Lower height for hand blocking
+SWEP.BlockHitboxDepth = 35            -- Shorter reach for hand blocking
+SWEP.BlockHitboxOffset = Vector(20, 0, 0)  -- Closer offset for hand blocking
+SWEP.BlockArcAngle = 120              -- Smaller blocking arc for hands (60 degrees each side)
+SWEP.BlockVerticalRange = 90          -- Increased vertical range for hand blocking (matches base melee weapon)
+SWEP.BlockMinDistance = 3             -- Very close minimum distance for hand blocking
+SWEP.BlockMaxDistance = 80            -- Increased maximum distance for hand blocking (was 60, now matches typical combat range)
+SWEP.BlockPrecisionSamples = 4        -- Same precision samples as other weapons
+
 SWEP.animtime = 0
+
+-- Carrying optimization settings
+SWEP.CarryStaminaMultiplier = 0.02 -- Heavily reduce stamina consumption while carrying (2% of normal)
+SWEP.RagdollCarryForceMultiplier = 2 -- Make ragdolls much easier to carry
 
 SWEP.lefthandmodel = "models/weapons/gleb/w_firematch.mdl"
 SWEP.offsetVec2 = Vector(4,-1.2,1)
@@ -41,10 +72,10 @@ SWEP.ModelScale2 = 1.5
 SWEP.blockinganim = 0
 
 local function qerp(delta, a, b)
-	local qdelta = -(delta ^ 2) + (delta * 2)
-	qdelta = math.Clamp(qdelta, 0, 1)
+    local qdelta = -(delta ^ 2) + (delta * 2)
+    qdelta = math.Clamp(qdelta, 0, 1)
 
-	return Lerp(qdelta, a, b)
+    return Lerp(qdelta, a, b)
 end
 
 function SWEP:Initialize()
@@ -53,12 +84,15 @@ function SWEP:Initialize()
 	self:SetHoldType(self.HoldType)
 	self:SetFists(false)
 	self:SetBlocking(false)
+	self:SetIsShoving(false)
+	self:SetBlockCounter(0)
+	self:SetLastBlockTime(0)
 end
 
 function SWEP:OnRemove()
-	--[[if IsValid(self.worldModel) then
-		self.worldModel:Remove()
-	end--]]
+    --[[if IsValid(self.worldModel) then
+        self.worldModel:Remove()
+    end--]]
 end
 
 if CLIENT then
@@ -81,10 +115,6 @@ if CLIENT then
 			self.worldModel = ClientsideModel(self.WorldModel)
 		end
 
-		if owner.PlayerClassName == "furry" and self.worldModel != "models/weapons/salat/anims/furry_fists.mdl" then
-			self.worldModel:SetModel("models/weapons/salat/anims/furry_fists.mdl")
-		end
-
 		if not self:GetFists() then return end
 
 		local WorldModel = self.worldModel
@@ -101,16 +131,11 @@ if CLIENT then
 			if owner.PlayerClassName == "sc_infiltrator" then
 				pos = tr.StartPos + ang:Forward() * (-18) + ang:Up() * -5 -- этим кулакам никакой оффсет не поможет
 			end
-			
 			local ang = owner:EyeAngles()
 			
 			local _,ang = LocalToWorld(vector_origin,blocking_ang * self.blockinganim,vector_origin,ang)
 
 			local pos, ang = self:ModelAnim(WorldModel, pos, ang)
-
-			if owner.PlayerClassName == "furry" then
-				pos = pos + ang:Forward() * 10
-			end
 
 			WorldModel:SetRenderOrigin(pos)
 			WorldModel:SetRenderAngles(ang)
@@ -133,35 +158,35 @@ local addPos = Vector()
 local vechuy = Vector(-12, 0, 0)
 
 function SWEP:ModelAnim(model, pos, ang)
-	local owner = self:GetOwner()
+    local owner = self:GetOwner()
 
-	if !IsValid(owner) or !owner:IsPlayer() then return end
+    if !IsValid(owner) or !owner:IsPlayer() then return end
 
-	local ent = hg.GetCurrentCharacter(owner)
-	local tr = hg.eyeTrace(owner, 60, ent)
-	local eyeAng = owner:EyeAngles()
+    local ent = hg.GetCurrentCharacter(owner)
+    local tr = hg.eyeTrace(owner, 60, ent)
+    local eyeAng = owner:EyeAngles()
 
-	local vel = ent:GetVelocity()
-	local vellen = vel:Length()
+    local vel = ent:GetVelocity()
+    local vellen = vel:Length()
 
-	local vellenlerp = self.velocityAdd and self.velocityAdd:Length() or vellen
+    local vellenlerp = self.velocityAdd and self.velocityAdd:Length() or vellen
 
-	if !tr then return end
+    if !tr then return end
 
-	self.walkLerped = LerpFT(0.1, self.walkLerped or 0, (owner:InVehicle()) and 0 or vellenlerp * 200)
+    self.walkLerped = LerpFT(0.1, self.walkLerped or 0, (owner:InVehicle()) and 0 or vellenlerp * 200)
 	self.walkTime = self.walkTime or 0
-	
+    
 	local walk = math.Clamp(self.walkLerped / 200, 0, 1)
 	
 	self.walkTime = self.walkTime + walk * FrameTime() * 1 * game.GetTimeScale() * (owner:OnGround() and 1 or 0)
 
-	self.velocityAdd = self.velocityAdd or Vector()
-	self.velocityAddVel = self.velocityAddVel or Vector()
+    self.velocityAdd = self.velocityAdd or Vector()
+    self.velocityAddVel = self.velocityAddVel or Vector()
 
-	self.velocityAddVel = LerpFT(0.9, self.velocityAddVel * 0.99, -vel * 0.01)
-	self.velocityAddVel[3] = self.velocityAddVel[3]
+    self.velocityAddVel = LerpFT(0.9, self.velocityAddVel * 0.99, -vel * 0.01)
+    self.velocityAddVel[3] = self.velocityAddVel[3]
 
-	self.velocityAdd = LerpFT(0.03, self.velocityAdd, self.velocityAddVel)
+    self.velocityAdd = LerpFT(0.03, self.velocityAdd, self.velocityAddVel)
 
 	local huy = self.walkTime
 	
@@ -170,57 +195,57 @@ function SWEP:ModelAnim(model, pos, ang)
 	x = x * 0.5
 	y = y * 0.5
 
-	if self:IsLocal() then
+    if self:IsLocal() then
 		addPos:Zero()
 		addAng:Zero()
 
-		addPos.z = x * 2 * vellenlerp * 0.3 - vellenlerp * 1
-		addPos.y = y * 2 * vellenlerp * 0.3
-	
-		addAng.z = -x * 2// * vellenlerp * 0.3
-		addAng.y = -y * 2// * vellenlerp * 0.3
+        addPos.z = x * 2 * vellenlerp * 0.3 - vellenlerp * 1
+        addPos.y = y * 2 * vellenlerp * 0.3
+    
+        addAng.z = -x * 2// * vellenlerp * 0.3
+        addAng.y = -y * 2// * vellenlerp * 0.3
 
-		addPos.y = addPos.y - angle_difference.y * 2
-		addAng.y = addAng.y + angle_difference.y * 4
+        addPos.y = addPos.y - angle_difference.y * 2
+        addAng.y = addAng.y + angle_difference.y * 4
 
-		addPos.z = addPos.z + angle_difference.p * 2
-		addAng.p = addAng.p + angle_difference.p * 4
+        addPos.z = addPos.z + angle_difference.p * 2
+        addAng.p = addAng.p + angle_difference.p * 4
 
-		addAng.p = addAng.p + math.cos(CurTime() * 2) * 1
+        addAng.p = addAng.p + math.cos(CurTime() * 2) * 1
 
-		//addPos.z = addPos.z + eyeAng[1] * 0.05
-		addPos.x = addPos.x + eyeAng[1] * 0.05
+        //addPos.z = addPos.z + eyeAng[1] * 0.05
+        addPos.x = addPos.x + eyeAng[1] * 0.05
 
-		local veldot = self.velocityAdd:Dot(tr.Normal:Angle():Right())
+        local veldot = self.velocityAdd:Dot(tr.Normal:Angle():Right())
+        
+        addAng.r = addAng.r - veldot * 5 + math.cos(CurTime() * 5) * walk * 2
+
+        //addAng.p = addAng.p + math.cos(CurTime() * 2) * 1
 		
-		addAng.r = addAng.r - veldot * 5 + math.cos(CurTime() * 5) * walk * 2
-
-		//addAng.p = addAng.p + math.cos(CurTime() * 2) * 1
-		
-		self.lastAddPos = addPos
+        self.lastAddPos = addPos
 	end
 
 
-	//local inattack1 = self:GetAttackType() == 1 and math.max(self:GetLastAttack() - CurTime(),0) / self.AttackTime > 0 or false
-	//local inattack2 = self:GetAttackType() == 2 and math.max(self:GetLastAttack() - CurTime(),0) / self.AttackTime > 0 or false
+    //local inattack1 = self:GetAttackType() == 1 and math.max(self:GetLastAttack() - CurTime(),0) / self.AttackTime > 0 or false
+    //local inattack2 = self:GetAttackType() == 2 and math.max(self:GetLastAttack() - CurTime(),0) / self.AttackTime > 0 or false
 
-	//self.attackanim = LerpFT(0.1, self.attackanim, (inattack1 and 0.8 or 0) - (inattack2 and 0.3 or 0))
-	//self.sprintanim = LerpFT(0.05, self.sprintanim, self:IsSprinting() and 1 or 0)
+    //self.attackanim = LerpFT(0.1, self.attackanim, (inattack1 and 0.8 or 0) - (inattack2 and 0.3 or 0))
+    //self.sprintanim = LerpFT(0.05, self.sprintanim, self:IsSprinting() and 1 or 0)
 
-	local hpos = (self.HoldPos or vector_origin) + vechuy
-	local hang = (self.HoldAng or angle_zero)
+    local hpos = (self.HoldPos or vector_origin) + vechuy
+    local hang = (self.HoldAng or angle_zero)
 
-	local pos, ang = LocalToWorld(hpos + addPos, hang + addAng, tr.StartPos + self.velocityAdd, eyeAng)
+    local pos, ang = LocalToWorld(hpos + addPos, hang + addAng, tr.StartPos + self.velocityAdd, eyeAng)
 
-	return pos, ang
+    return pos, ang
 end
 
 SWEP.supportTPIK = true
 SWEP.ismelee = true
 function SWEP:Camera(eyePos, eyeAng, view, vellen)
-	//self:SetHandPos()
+	self:SetHandPos()
 	self:DrawWorldModel()
-	local owner = self:GetOwner()
+    local owner = self:GetOwner()
 	if not IsValid(owner) then return end
 	
 	self.walkinglerp = Lerp(hg.lerpFrameTime2(0.1),self.walkinglerp or 0, owner.InVehicle and owner:InVehicle() and 0 or hg.GetCurrentCharacter(owner):GetVelocity():LengthSqr())
@@ -239,8 +264,8 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen)
 	eyePos = eyePos - eyeAng:Up() * x * 0.5
 	eyePos = eyePos - eyeAng:Right() * y * 0.5
 
-	view.origin = (eyePos - (angle_difference_localvec * 150) - (position_difference * 0.5))
-	
+    view.origin = (eyePos - (angle_difference_localvec * 150) - (position_difference * 0.5))
+    
 	return view
 end
 
@@ -325,28 +350,36 @@ SWEP.offsetAng = Angle(0, 90, 90)
 SWEP.idleVec = Vector(4.5, -2, -0.2)
 SWEP.idleAng = Angle(0, 0, -80)
 
-local blockingR = Vector()
-local blockingL = Vector()
-local vecBlockingR = Vector(-2, 3, -2)
-local vecBlockingL = Vector(-2, -3, 4)
+-- TPIK blocking vectors
+local vecBlockingR = Vector(-2, 3, 6)
+local vecBlockingL = Vector(-2, -3, 8)
+
+-- TPIK shove animation vectors - arms pushed back
+local vecShoveR = Vector(-4, 0, -1)  -- Right hand pushed back
+local vecShoveL = Vector(-4, 0, -1)  -- Left hand pushed back
+
+-- Custom idle positioning vectors and angles for higher hand positions
+local customIdleVecR = Vector(0,0,2)  -- Right hand higher position
+local customIdleAngR = Angle(0,0,0)
+local customIdleVecL = Vector(0,0,2) -- Left hand higher position  
+local customIdleAngL = Angle(0,0,0)
 
 function SWEP:SetHandPos(noset)
 	local ply = self:GetOwner()
 	
-	if not IsValid(ply) or not IsValid(self.worldModel) then return end
+    if not IsValid(ply) or not IsValid(self.worldModel) then return end
 	if IsValid(ply) and (not ply.shouldTransmit or ply.NotSeen) then return end
-	-- ply:SetupBones()
+	ply:SetupBones()
 
 	self.rhandik = (self:GetFists()) or (IsValid(ent) and twohands)
 	self.lhandik = (self:GetFists() and hg.CanUseLeftHand(ply)) or IsValid(ent)
 
 	local bones2 = hg.TPIKBonesOther
 	
-	local ply_spine_index = ply:LookupBone("ValveBiped.Bip01_Spine4")
-	if !ply_spine_index then return end
-	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
-	if !ply_spine_matrix then return end
-	local wmpos = ply_spine_matrix:GetTranslation()
+    local ply_spine_index = ply:LookupBone("ValveBiped.Bip01_Spine4")
+    if !ply_spine_index then return end
+    local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
+    local wmpos = ply_spine_matrix:GetTranslation()
 
 	local wm = self:GetWM()
 	if !IsValid(wm) then return end
@@ -380,11 +413,6 @@ function SWEP:SetHandPos(noset)
 
 	local ang = ply:EyeAngles()
 
-	local rhmat, lhmat = ply:GetBoneMatrix(ply:LookupBone("ValveBiped.Bip01_R_Hand")), ply:GetBoneMatrix(ply:LookupBone("ValveBiped.Bip01_L_Hand"))
-
-	ply.rhold = rhmat
-	ply.lhold = lhmat
-
 	if self:GetFists() then
 		local bones = hg.TPIKBonesRH
 
@@ -392,9 +420,27 @@ function SWEP:SetHandPos(noset)
 		local posadd, _ = LocalToWorld(lastaddpos, angle_zero, vector_origin, ply:EyeAngles())
 		//local posadd = self:IsLocal() and self.lastAddPos and -(-self.lastAddPos) or -(-vector_origin)
 
+		-- TPIK blocking for right hand
 		self.blockingR = LerpFT(0.1, self.blockingR or vector_origin, (self:GetBlocking() and vecBlockingR or vector_origin))
 		local blocking = -(-self.blockingR)
 		blocking:Rotate(ang)
+		
+		-- TPIK shove animation for right hand
+		self.shovingR = LerpFT(0.08, self.shovingR or vector_origin, (self:GetIsShoving() and vecShoveR or vector_origin))
+		local shoving = -(-self.shovingR)
+		shoving:Rotate(ang)
+		
+		-- Custom idle positioning for right hand
+		local targetIdleR = self:GetIsSwinging() and vector_origin or customIdleVecR
+		self.customIdleR = LerpFT(0.15, self.customIdleR or vector_origin, targetIdleR)
+		local customIdle = -(-self.customIdleR)
+		customIdle:Rotate(ang)
+		
+		-- Fist raising effect for right hand
+		local targetRaiseR = (self.fistRaising and Vector(0, 0, 3)) or vector_origin
+		self.fistRaiseR = LerpFT(0.2, self.fistRaiseR or vector_origin, targetRaiseR)
+		local fistRaise = -(-self.fistRaiseR)
+		fistRaise:Rotate(ang)
 
 		if self.rhandik then
 			for _, bone in ipairs(bones) do
@@ -415,7 +461,7 @@ function SWEP:SetHandPos(noset)
 				bonepos.y = clamp(bonepos.y, wmpos.y - 38, wmpos.y + 38)
 				bonepos.z = clamp(bonepos.z, wmpos.z - 38, wmpos.z + 38)
 
-				ply_bonematrix:SetTranslation(bonepos + posadd * -0.2 - ang:Right() * 2 + blocking)
+				ply_bonematrix:SetTranslation(bonepos + posadd * -0.2 - ang:Right() * 2 + blocking + shoving + customIdle + fistRaise)
 				ply_bonematrix:SetAngles(boneang)
 				
 				ply:SetBoneMatrix(ply_boneindex, ply_bonematrix)
@@ -427,9 +473,27 @@ function SWEP:SetHandPos(noset)
 
 		posadd:Rotate(Angle(0,0,0))
 
+		-- TPIK blocking for left hand
 		self.blockingL = LerpFT(0.1, self.blockingL or vector_origin, (self:GetBlocking() and vecBlockingL or vector_origin))
 		local blocking = -(-self.blockingL)
 		blocking:Rotate(ang)
+		
+		-- TPIK shove animation for left hand
+		self.shovingL = LerpFT(0.08, self.shovingL or vector_origin, (self:GetIsShoving() and vecShoveL or vector_origin))
+		local shovingL = -(-self.shovingL)
+		shovingL:Rotate(ang)
+		
+		-- Custom idle positioning for left hand
+		local targetIdleL = self:GetIsSwinging() and vector_origin or customIdleVecL
+		self.customIdleL = LerpFT(0.15, self.customIdleL or vector_origin, targetIdleL)
+		local customIdleL = -(-self.customIdleL)
+		customIdleL:Rotate(ang)
+		
+		-- Fist raising effect for left hand
+		local targetRaiseL = (self.fistRaising and Vector(0, 0, 3)) or vector_origin
+		self.fistRaiseL = LerpFT(0.2, self.fistRaiseL or vector_origin, targetRaiseL)
+		local fistRaiseL = -(-self.fistRaiseL)
+		fistRaiseL:Rotate(ang)
 
 		if self.lhandik then
 			for _, bone in ipairs(bones) do
@@ -450,7 +514,7 @@ function SWEP:SetHandPos(noset)
 				bonepos.y = clamp(bonepos.y, wmpos.y - 38, wmpos.y + 38)
 				bonepos.z = clamp(bonepos.z, wmpos.z - 38, wmpos.z + 38)
 
-				ply_bonematrix:SetTranslation(bonepos + posadd * -0.7 + ang:Right() * 2 + blocking)
+				ply_bonematrix:SetTranslation(bonepos + posadd * -0.7 + ang:Right() * 2 + blocking + shovingL + customIdleL + fistRaiseL)
 				ply_bonematrix:SetAngles(boneang)
 				
 				ply:SetBoneMatrix(ply_boneindex, ply_bonematrix)
@@ -501,13 +565,10 @@ else
 	local colGray = Color(200, 200, 200, 200)
 	local lerpthing = 1
 	local lerpalpha = 0
-	local lerpalpha2 = 0
 	local colwhite = Color(0, 0, 0, 0)
 	local colred = Color(122, 0, 0, 0)
-	
 	function SWEP:DrawHUD()
 		local owner = LocalPlayer()
-
 		if GetViewEntity() ~= owner then return end
 		if owner:InVehicle() then return end
 		local Tr = hg.eyeTrace(owner,self.ReachDistance)
@@ -515,13 +576,26 @@ else
 		local Size = math.max(math.min(1 - (Tr and Tr.Fraction or 0), 1), 0.1)
 		local x, y = Tr.HitPos:ToScreen().x, Tr.HitPos:ToScreen().y
 
-		lerpthing = Lerp(0.1, lerpthing, Tr.Hit and not self:GetFists() and self:CanPickup(Tr.Entity) and 1 or 0)
-		colWhite.a = 255 * Size * lerpthing
-		surface.SetDrawColor(colWhite)
-		surface.DrawRect(x - 25 * lerpthing * 0.1, y - 2.5, 50 * lerpthing * 0.1, 5)
-		surface.DrawRect(x - 2.5, y - 25 * lerpthing * 0.1, 5, 50 * lerpthing * 0.1)
+		if Tr.Hit and not self:GetFists() then
+			if self:CanPickup(Tr.Entity) then
+				lerpthing = Lerp(0.1, lerpthing, 0.1)
+				colWhite.a = 255 * Size
+				surface.SetDrawColor(colWhite)
+				surface.DrawRect(x - 25 * lerpthing, y - 2.5, 50 * lerpthing, 5)
+				surface.DrawRect(x - 2.5, y - 25 * lerpthing, 5, 50 * lerpthing)
+			else
+				lerpthing = Lerp(0.1, lerpthing, 1)
+				colWhite.a = 255 * Size
+				surface.SetDrawColor(colGray)
+				draw.NoTexture()
+				surface.SetDrawColor(colWhite)
+				draw.NoTexture()
+				surface.DrawRect(x - 25 * lerpthing, y - 2.5, 50 * lerpthing, 5)
+				surface.DrawRect(x - 2.5, y - 25 * lerpthing, 5, 50 * lerpthing)
+			end
+		end
 
-		do return end // mannytko stupid nigger
+		do return end
 
 		local ent = IsValid(Tr.Entity) and Tr.Entity.organism and Tr.Entity or owner
 		if ent.organism then
@@ -601,7 +675,7 @@ else
 				add_x = add_x + w + add
 			end
 
-			--hg.DrawAffliction(scrw * 0.05 + add_x, scrh * 0.95 - h, w, h, 1, 3, 255)
+			//hg.DrawAffliction(scrw * 0.05 + add_x, scrh * 0.95 - h, w, h, 1, 3, 255)
 
 			if add_x == 0 then
 				surface.SetFont("HomigradFontLarge")
@@ -614,7 +688,7 @@ else
 end
 
 local function WhomILookinAt(ply, cone, dist)
-	local CreatureTr, ObjTr, OtherTr
+	local CreatureTr, ObjTr, OtherTr = nil, nil, nil
 	for i = 1, 150 * cone do
 		local Tr = hg.eyeTrace(ply,dist)
 		if Tr.Hit and not Tr.HitSky and Tr.Entity then
@@ -629,11 +703,10 @@ local function WhomILookinAt(ply, cone, dist)
 		end
 	end
 
-	if CreatureTr then return CreatureTr.Entity, CreatureTr.HitPos, CreatureTr.HitNormal, CreatureTr.PhysicsBone, CreatureTr end
-	if ObjTr then return ObjTr.Entity, ObjTr.HitPos, ObjTr.HitNormal, ObjTr.PhysicsBone, ObjTr end
-	if OtherTr then return OtherTr.Entity, OtherTr.HitPos, OtherTr.HitNormal, OtherTr.PhysicsBone, OtherTr end
-
-	return
+	if CreatureTr then return CreatureTr.Entity, CreatureTr.HitPos, CreatureTr.HitNormal, CreatureTr.PhysicsBone end
+	if ObjTr then return ObjTr.Entity, ObjTr.HitPos, ObjTr.HitNormal, ObjTr.PhysicsBone end
+	if OtherTr then return OtherTr.Entity, OtherTr.HitPos, OtherTr.HitNormal, OtherTr.PhysicsBone end
+	return nil, nil, nil, nil
 end
 
 
@@ -643,14 +716,16 @@ function SWEP:SetupDataTables()
 	self:NetworkVar("Float", 1, "NextDown")
 	self:NetworkVar("Bool", 3, "Blocking")
 	self:NetworkVar("Bool", 4, "IsCarrying")
-	self:NetworkVar("Bool", 5, "Blocking")
-	self:NetworkVar("Float", 6, "LastBlocked")
-	self:NetworkVar("Float", 7, "StartedBlocking")
+	self:NetworkVar("Bool", 5, "IsSwinging")
+	self:NetworkVar("Float", 3, "NextShove")
+	self:NetworkVar("Bool", 6, "IsShoving")  -- Track shove animation state
+	self:NetworkVar("Int", 0, "BlockCounter")  -- Track consecutive blocks
+	self:NetworkVar("Float", 4, "LastBlockTime")  -- Track when last block occurred
 end
 
 function SWEP:Deploy()
 	if not IsFirstTimePredicted() then
-		self:DoBFSAnimation("fists_draw",1)
+		self:DoBFSAnimation("Draw",1)
 		local owner = self:GetOwner()
 		if not IsValid(owner:GetViewModel()) then
 			owner:GetViewModel():SetPlaybackRate(.1)
@@ -660,8 +735,12 @@ function SWEP:Deploy()
 
 	self:SetNextPrimaryFire(CurTime() + .5)
 	self:SetFists(false)
+	self:SetIsShoving(false)
+	self:SetBlockCounter(0)
+	self:SetLastBlockTime(0)
 	self:SetNextDown(CurTime())
-	self:DoBFSAnimation("fists_draw",1)
+	self:SetNextShove(CurTime())
+	self:DoBFSAnimation("Draw",1)
 	if self:GetOwner().PlayerClassName == "sc_infiltrator" then
 		self.PrintName = "CQC"
 		self.WepSelectIcon = Material("vgui/inventory/perk_quick_reload")
@@ -710,24 +789,12 @@ function SWEP:SecondaryAttack()
 	if SERVER then
 		self:SetCarrying()
 		local ply = self:GetOwner()
-		local pos = hg.eye(self:GetOwner())
-		local tr = util.QuickTrace(pos, self:GetOwner():GetAimVector() * self.ReachDistance, {self:GetOwner()})
-		
-		if ply.PlayerClassName == "furry" then
-			tr = util.TraceHull({
-				start = pos,
-				endpos = pos + self:GetOwner():GetAimVector() * self.ReachDistance,
-				filter = {self:GetOwner()},
-				mins = Vector(-5, -5, -5),
-				maxs = Vector(5, 5, 5),
-			})
-		end
-
+		local tr = util.QuickTrace(select(1, hg.eye(self:GetOwner())), self:GetOwner():GetAimVector() * self.ReachDistance, {self:GetOwner()})
 		--if (IsValid(tr.Entity) or game.GetWorld() == tr.Entity) and self:CanPickup(tr.Entity) and not tr.Entity:IsPlayer() then
 		if (IsValid(tr.Entity)) and self:CanPickup(tr.Entity) and not tr.Entity:IsPlayer() then
 			local Dist = (select(1, hg.eye(self:GetOwner())) - tr.HitPos):Length()
 			--if Dist < self.ReachDistance then
-				sound.Play("Flesh.ImpactSoft", self:GetOwner():GetShootPos(), 65, math.random(90, 110))
+				sound.Play("fists/hit" .. math.random(1, 10) .. ".wav", self:GetOwner():GetShootPos(), 65, math.random(90, 110))
 				self:SetCarrying(tr.Entity, tr.PhysicsBone, tr.HitPos, Dist)
 				tr.Entity.Touched = true
 				self:ApplyForce()
@@ -735,11 +802,25 @@ function SWEP:SecondaryAttack()
 		elseif IsValid(tr.Entity) and tr.Entity:IsPlayer() then
 			local Dist = (select(1, hg.eye(self:GetOwner())) - tr.HitPos):Length()
 			if Dist < self.ReachDistance then
-				sound.Play("Flesh.ImpactSoft", self:GetOwner():GetShootPos(), 65, math.random(90, 110))
+				sound.Play("fists/hit" .. math.random(1, 10) .. ".wav", self:GetOwner():GetShootPos(), 65, math.random(90, 110))
 				self:GetOwner():SetVelocity(self:GetOwner():GetAimVector() * 20)
 				tr.Entity:SetVelocity(-self:GetOwner():GetAimVector() * 50)
 				self:SetNextSecondaryFire(CurTime() + .25)
-				if self:GetOwner().organism.superfighter or self:GetOwner().PlayerClassName == "sc_infiltrator" or (self:GetOwner().PlayerClassName == "furry" and tr.Entity.PlayerClassName ~= "furry") then
+				
+				-- Check if target can be grabbed (superfighter OR Fury-13 OR target has low stamina/blood)
+				local canGrab = self:GetOwner().organism.superfighter
+				local isFury13 = self:GetOwner():GetNetVar("Fury13_Active", false)
+				
+				-- Fury-13 allows grabbing anyone regardless of stamina
+				if isFury13 then
+					canGrab = true
+				elseif not canGrab and tr.Entity.organism then
+					local targetStamina = tr.Entity.organism.stamina and tr.Entity.organism.stamina[1] or 0
+					local targetBlood = tr.Entity.organism.blood or 5000
+					canGrab = (targetStamina < 75) or (targetBlood < 3200)
+				end
+				
+				if canGrab then
 					hg.LightStunPlayer(tr.Entity, 3)
 					timer.Simple(0,function()
 						local rag = hg.GetCurrentCharacter(tr.Entity)
@@ -782,18 +863,34 @@ function SWEP:ApplyForce()
 		
 		vec:Normalize()
 
+		-- Make ragdolls easier to carry
+		if self.CarryEnt:GetClass() == "prop_ragdoll" then
+			mul = mul * self.RagdollCarryForceMultiplier
+		end
+
 		if (ply.organism and ply.organism.superfighter) then
 			mul = mul * 5
 		end
 		
-		local avec = vec * len * 8 - phys:GetVelocity()
+		-- Fury-13 provides enhanced carrying force (3x multiplier)
+		local isFury13 = ply:GetNetVar("Fury13_Active", false)
+		if isFury13 then
+			mul = mul * 3
+		end
+		
+		local avec = vec * len * 3 - phys:GetVelocity()
 		
 		local Force = avec * mul
-		local ForceMagnitude = math.min(Force:Length(), 3000)
+		-- Increase force limit for ragdolls to make them more responsive
+		local forceLimit = 2000
+		if self.CarryEnt:GetClass() == "prop_ragdoll" then
+			forceLimit = forceLimit * 1.8
+		end
+		local ForceMagnitude = math.min(Force:Length(), forceLimit)
 		
 		Force = Force:GetNormalized() * ForceMagnitude
 		
-		if len > 12000 then
+		if len > 15000 then
 			self:SetCarrying()
 			return
 		end
@@ -843,11 +940,11 @@ function SWEP:ApplyForce()
 						end
 						
 						if org.blood < 3500 then
-							//if org.blood < 1000 then
-								//ply:ChatPrint("The skin looks almost white.")
-							//else
-								ply:ChatPrint("The skin is pale.")
-							//end
+							if org.blood < 1000 then
+								ply:ChatPrint("Blood is barely present in this body.")
+							else
+								ply:ChatPrint("Pale skin.")
+							end
 						end
 
 						if org.bleed > 0 then
@@ -910,7 +1007,7 @@ function SWEP:ApplyForce()
 		if SERVER then
 			local ply2 = self.CarryEnt
 			local org = ply2.organism
-			if ply:KeyDown(IN_ATTACK) and !ply.organism.superfighter and !(org and ply.PlayerClassName == "furry" and org.owner.PlayerClassName != "furry") then
+			if ply:KeyDown(IN_ATTACK) and not ply.organism.superfighter then
 				local bone = self.CarryEnt:GetBoneName(self.CarryEnt:TranslatePhysBoneToBone(self.CarryBone))
 
 				local tr = {}
@@ -920,7 +1017,37 @@ function SWEP:ApplyForce()
 				local trace = util.TraceLine(tr)
 
 				if bone != "ValveBiped.Bip01_Spine2" or not trace.Hit then
-					phys:ApplyForceCenter(ply:GetAimVector() * math.min(5000, phys:GetMass() * 800))
+					-- Adrenaline-based throwing force system
+					local baseForce = 10000
+					local maxForce = 16500
+					local adrenalineLevel = ply.organism and ply.organism.adrenaline or 0
+					local adrenalineMultiplier = math.min(adrenalineLevel / 3, 1) -- Cap at adrenaline level 3
+					local throwForce = baseForce + (maxForce - baseForce) * adrenalineMultiplier
+					
+					-- Fury-13 provides 3x throw power
+					local isFury13 = ply:GetNetVar("Fury13_Active", false)
+					if isFury13 then
+						throwForce = throwForce * 3
+					end
+					phys:ApplyForceCenter(ply:GetAimVector() * throwForce)
+					-- Removed body impact sound for throwing
+					
+					-- Set up ragdoll impact damage system
+					if SERVER and self.CarryEnt:IsValid() and self.CarryEnt:GetClass() == "prop_ragdoll" then
+						local ragdoll = self.CarryEnt
+						local ragdollOwner = RagdollOwner(ragdoll)
+						
+						if ragdollOwner and ragdollOwner:IsValid() and ragdollOwner:IsPlayer() then
+						-- Set up collision detection for thrown ragdoll
+						timer.Simple(0.05, function()
+							if IsValid(ragdoll) then
+								ragdoll.IsThrownRagdoll = true
+								ragdoll.ThrownTime = CurTime()
+							end
+						end)
+						end
+					end
+					
 					self:SetCarrying()
 				end
 
@@ -966,22 +1093,39 @@ function SWEP:ApplyForce()
 				self.firstTimePrint2 = true
 			end
 
-			if ply:KeyDown(IN_ATTACK) and ply.PlayerClassName == "furry" and org.alive and org.owner.PlayerClassName != "furry" then
-				org.assimilated = math.Approach(org.assimilated, 1, FrameTime() / 6)
-				ply:SetLocalVar("assimilation", org.assimilated)
-
-				if org.assimilated == 1 then
-					org.owner:SetPlayerClass("furry")
-				end
-
-				hg.LightStunPlayer(org.owner, 1)
-
-				//phys:ApplyForceCenter(ply:GetAimVector() * 40000 * self.Penetration)
-				//self:SetCarrying()
-			end
-
 			if ply:KeyDown(IN_ATTACK) and ply.organism.superfighter then
-				phys:ApplyForceCenter(ply:GetAimVector() * 40000 * self.Penetration)
+				-- Adrenaline-based superfighter throwing force - extremely powerful
+				local baseForce = 15000
+				local maxForce = 20000
+				local adrenalineLevel = ply.organism and ply.organism.adrenaline or 0
+				local adrenalineMultiplier = math.min(adrenalineLevel / 3, 1) -- Cap at adrenaline level 3
+				local adrenalineThrowForce = baseForce + (maxForce - baseForce) * adrenalineMultiplier
+				local superThrowForce = adrenalineThrowForce * self.Penetration * 2 -- Superfighter multiplier
+				
+				-- Fury-13 provides additional 3x throw power even for superfighters
+				local isFury13 = ply:GetNetVar("Fury13_Active", false)
+				if isFury13 then
+					superThrowForce = superThrowForce * 3
+				end
+				phys:ApplyForceCenter(ply:GetAimVector() * superThrowForce)
+				-- Removed body impact sound for throwing
+				
+				-- Set up ragdoll impact damage system for superfighter throws
+				if SERVER and self.CarryEnt:IsValid() and self.CarryEnt:GetClass() == "prop_ragdoll" then
+					local ragdoll = self.CarryEnt
+					local ragdollOwner = RagdollOwner(ragdoll)
+					
+					if ragdollOwner and ragdollOwner:IsValid() and ragdollOwner:IsPlayer() then
+						-- Set up collision detection for thrown ragdoll
+						timer.Simple(0.05, function()
+							if IsValid(ragdoll) then
+								ragdoll.IsThrownRagdoll = true
+								ragdoll.ThrownTime = CurTime()
+							end
+						end)
+					end
+				end
+				
 				self:SetCarrying()
 			end
 		end
@@ -992,15 +1136,13 @@ function SWEP:ApplyForce()
 			phys:ApplyForceCenter(Force)
 		end
 
-		--[[if IsValid(self.CarryEnt) and self.CarryBone then
-			hg.ShadowControl(self.CarryEnt, self.CarryBone, 0.1, angle_zero, 0, 0, target, 60, 40)
-		end]]
+		//hg.ShadowControl(self.CarryEnt, self.CarryBone, 0.1, angle_zero, 0, 0, target, 60, 40)
 
 		if ply:KeyDown(IN_USE) then
 			SetAng = SetAng or ply:EyeAngles()
 			local commands = ply:GetCurrentCommand()
 			local x, y = commands:GetMouseX(), commands:GetMouseY()
-			if IsValid(self.CarryEnt) and self.CarryEnt:IsRagdoll() then
+			if self.CarryEnt:IsRagdoll() then
 				rotate = Vector(0, -x, -y) / 6
 			else
 				rotate = Vector(0, -x, -y) / 4
@@ -1079,64 +1221,18 @@ function SWEP:SetCarrying(ent, bone, pos, dist)
 	end
 end
 
-SWEP.DamagePrimary = 10
-
-function SWEP:BlockingLogic(ent, mul, attacktype, trace)
-	local ent = hg.RagdollOwner(ent) or ent
-
-	if ent:IsPlayer() then
-		local wep = ent:GetActiveWeapon()
-
-		local owner = self:GetOwner()
-
-		local pos, aimvec = hg.eye(ent)
-		local pos2, aimvec2 = hg.eye(owner)
-
-		local dist, posHit, distLine = util.DistanceToLine(pos + aimvec * 100, pos, trace.HitPos)
-
-		//print(dist, distLine)
-
-		local dmg = wep.DamagePrimary
-		local selfdmg = self.DamagePrimary * 0.2
-
-		if wep.GetBlocking and wep:GetBlocking() and wep.SetStartedBlocking and dist < 10 then
-			ent.organism.stamina.subadd = ent.organism.stamina.subadd + mul * math.Clamp(selfdmg / dmg, 0.1, 1) * selfdmg * (1 - math.Clamp((self:GetStartedBlocking() - CurTime() + 0.1), 0, 0.1) / 0.1)
-			
-			wep:SetLastBlocked(CurTime())
-
-			//viewpunch the attacker maybe?
-			//self:PunchPlayer(owner, attacktype, -owner:GetAimVector(), selfdmg / 2)
-			//self:PunchPlayer(ent, attacktype, owner:GetAimVector(), selfdmg / 2)
-
-			//ent:EmitSound("physics/metal/metal_computer_impact_bullet3.wav") -- parry sound
-
-			if wep.SetLastBlocked then
-				wep:SetLastBlocked(CurTime())
-			end
-
-			return math.Clamp(selfdmg / dmg / math.Clamp(ent.organism.stamina[1] / (ent.organism.stamina.max * 0.66), 0.1, 1), 0.1, 1)
-		end
-	end
-
-	return 1
-end
-
---[[hook.Add("UpdateAnimation", "blockingfists", function(ply , vel, seq)//salat balbes
-	if IsValid(ply:GetActiveWeapon()) and ply:GetActiveWeapon().GetBlocking and ply:GetActiveWeapon():GetBlocking() then
-		//ply:DoAnimationEvent(ACT_HL2MP_FIST_BLOCK)
-	end
-end)]]
+-- Removed ACT_HL2MP_FIST_BLOCK animation hook - using TPIK blocking only
 
 function SWEP:Think()
 	local owner = self:GetOwner()
-	
-	self.Secondary.Automatic = false//owner.PlayerClassName == "furry"
 
 	self.Checking = math.max(self.Checking - FrameTime(), 0)
 
 	if self:GetOwner():GetNWBool("TauntHolsterWeapons", false) then
 		self:SetFists(false)
 		self:SetBlocking(false)
+		self:SetIsShoving(false)
+		self:SetBlockCounter(0)
 		self:SetCarrying()
 		self:Reload()
 		return
@@ -1153,14 +1249,18 @@ function SWEP:Think()
 		self:SetBlocking(true)
 	else
 		self:SetBlocking(false)
+		-- Reset block counter when not blocking
+		if SERVER then
+			self:SetBlockCounter(0)
+		end
 	end
 
 	local HoldType = "normal"
 	if self:GetFists() then
-		if CLIENT and self:GetHoldType() != "revolver" then
-			self:DoBFSAnimation("fists_draw",1)
+		if CLIENT and self:GetHoldType() != "camera" then
+			self:DoBFSAnimation("Draw",1)
 		end
-		HoldType = "revolver"
+		HoldType = "camera"
 		local Time = CurTime()
 		if self:GetNextIdle() < Time then
 			//self:DoBFSAnimation("fists_idle_0" .. math.random(1, 2),2)
@@ -1174,116 +1274,137 @@ function SWEP:Think()
 		end
 		
 		//if (self:GetNextDown() < Time) or owner:KeyDown(IN_SPEED) then
-		if owner:KeyDown(IN_SPEED) and (owner.PlayerClassName != "furry" or owner:KeyDown(IN_WALK)) then
+		if owner:KeyDown(IN_SPEED) then
 			self:SetNextDown(Time + 1)
 			self:SetFists(false)
 			self:SetBlocking(false)
+			self:SetIsShoving(false)
+			self:SetBlockCounter(0)
 		end
 	else
 		HoldType = "normal"
 	end
 
 	if IsValid(self.CarryEnt) or self.CarryEnt then HoldType = "normal" end
-	if owner:KeyDown(IN_SPEED) and (owner.PlayerClassName != "furry" or owner:KeyDown(IN_WALK)) then HoldType = "normal" end
+	if owner:KeyDown(IN_SPEED) then HoldType = "normal" end
 	if SERVER then self:SetHoldType(HoldType) end
 end
 
 function SWEP:PrimaryAttack(forcespecial)
-	local owner = self:GetOwner()
-	if not IsValid(owner) or owner:InVehicle() then return end
+	if self:GetOwner():InVehicle() then return end
 	if (self.attacked or 0) > CurTime() then return end
 	local side = "fists_left"
 	local rand = math.Round(util.SharedRandom( "fist_Punching", 1, 2 ),0) == 1
-	local twohands = (owner:GetNetVar("carrymass",0) ~= 0 and owner:GetNetVar("carrymass",0) or owner:GetNetVar("carrymass2",0)) > 15
+	local ply = self:GetOwner()
+	local twohands = (ply:GetNetVar("carrymass",0) ~= 0 and ply:GetNetVar("carrymass",0) or ply:GetNetVar("carrymass2",0)) > 15
 
-	local inv = owner:GetNetVar("Inventory",{})
-	if not inv then return end
+	local inv = ply:GetNetVar("Inventory",{})
 	local havekastet = inv["Weapons"] and inv["Weapons"]["hg_brassknuckles"]
 
-	if rand or (CLIENT and ((owner:GetTable().ChatGestureWeight >= 0.1) or twohands)) or havekastet then
+	if rand or (CLIENT and ((self:GetOwner():GetTable().ChatGestureWeight >= 0.1) or twohands)) or havekastet then
 		side = "fists_right"
 	end
-	if owner:KeyDown(IN_ATTACK2) and owner.PlayerClassName ~= "sc_infiltrator" then return end
-	if owner:GetNetVar("handcuffed",false) then return end
+	if self:GetOwner():KeyDown(IN_ATTACK2) and self:GetOwner().PlayerClassName ~= "sc_infiltrator" then return end
+	if self:GetOwner():GetNetVar("handcuffed",false) then return end
 	local olddown = self:GetNextDown()
 	self:SetNextDown(CurTime() + 7)
 	if not self:GetFists() then
 		self:SetFists(true)
-		self:DoBFSAnimation("fists_draw",1)
+		self:DoBFSAnimation("Draw",1)
 		self:SetNextPrimaryFire(CurTime() + .35)
 		return
 	end
 	
 	if self:GetBlocking() then return end
-	--if owner:KeyDown(IN_SPEED) then return end
+	if self:GetOwner():KeyDown(IN_SPEED) then return end
+	
+	-- Check for shove input: E key held while fists are raised
+	if self:GetOwner():KeyDown(IN_USE) and self:GetFists() then
+		if (self:GetNextShove() or 0) <= CurTime() then
+			self:ShoveAttack()
+			return
+		else
+			return -- Still on cooldown
+		end
+	end
 	
 	if not IsFirstTimePredicted() then
-		self:DoBFSAnimation(side,1)
+		self:DoBFSAnimation(side,0.5)
 		return
 	end
-	self.attacked = CurTime() + 0.2
+	self.attacked = CurTime() + 0.5
 	
 	local special_attack = (olddown - 5) < CurTime()
 	if forcespecial then
 		special_attack = true
 	end
 	
+	-- Set swinging state for custom idle positioning
+	self:SetIsSwinging(true)
+	timer.Simple(special_attack and 1.1 or 0.8, function()
+		if IsValid(self) then
+			self:SetIsSwinging(false)
+		end
+	end)
+	
 	if CLIENT and self.IsLocal and self:IsLocal() then
-		ViewPunch(special_attack and Angle(0, 0, 0) or Angle((-1), -(rand and 2 or -2), (rand and 6 or -6)))
-		//ViewPunch2(special_attack and Angle(5, -2, 2) or Angle((-1), -(rand and 2 or -2), (rand and 6 or -6)))
 		if special_attack then
-			timer.Simple(0.06, function()
-				ViewPunch(Angle(-15, 2, 2))
+			-- Right hook motion: start with slight right movement, then heavy left swing
+			ViewPunch(Angle(-2, 3, -2)) -- Initial right position
+			timer.Simple(0.5, function() -- Timing matches Attack_Charge_End
+				ViewPunch(Angle(-8, -28, 6)) -- Right hook sideways motion (increased range and wideness)
 			end)
+		else
+			ViewPunch(Angle((-1), -(rand and 2 or -2), (rand and 6 or -6)))
+		end
+	end
+	
+	if special_attack then
+		-- Right hook sequence: start with charge begin, then quickly to charge end
+		self:DoBFSAnimation("Attack_Charge_Begin",0.85)
+		timer.Simple(0.5, function()
+			if IsValid(self) then
+				self:DoBFSAnimation("Attack_Charge_End",1)
+				-- Trigger fist raising effect during Attack_Charge_End
+				self.fistRaising = true
+				-- Attack happens during Attack_Charge_End for special attacks
+				if SERVER then
+					-- Higher pitch version of shove sound for swing
+					sound.Play("weapons/nmrih/items/shove_0" .. math.random(1,5) .. ".wav", self:GetPos(), 65, math.random(130, 150))
+					self:AttackFront(special_attack,rand)
+				end
+				-- Lerp fists back down after Attack_Charge_End completes
+				timer.Simple(0.8, function()
+					if IsValid(self) then
+						self.fistRaising = false
+					end
+				end)
+			end
+		end)
+	else
+		-- Regular punches use the new animation mappings
+		if side == "fists_right" then
+			self:DoBFSAnimation("Attack_Quick",0.8)
+		else
+			self:DoBFSAnimation("Attack_Quick2",0.8)
+		end
+		-- Regular attacks happen immediately
+		if SERVER then
+			-- Higher pitch version of shove sound for swing
+			sound.Play("weapons/nmrih/items/shove_0" .. math.random(1,5) .. ".wav", self:GetPos(), 65, math.random(130, 150))
+			self:AttackFront(special_attack,rand)
 		end
 	end
 	
 	if CLIENT and self.IsLocal and not self:IsLocal() then
-		owner:AddVCDSequenceToGestureSlot(GESTURE_SLOT_ATTACK_AND_RELOAD,owner:LookupSequence((special_attack or rand) and "range_fists_r" or "range_fists_l"),0,true)
+		self:GetOwner():AddVCDSequenceToGestureSlot(GESTURE_SLOT_ATTACK_AND_RELOAD,self:GetOwner():LookupSequence((special_attack or rand) and "range_fists_r" or "range_fists_l"),0,true)
 	end
 
 	self:UpdateNextIdle()
 
-	self:SetNextPrimaryFire(CurTime() + .35 * math.Clamp((180 - owner.organism.stamina[1]) / 90,1,2) + (special_attack and 0.5 or owner.PlayerClassName == "furry" and 0.4 or 0))
-	self:SetNextSecondaryFire(CurTime() + .35 + (special_attack and 0.5 or owner.PlayerClassName == "furry" and 0.4 or 0))
+	self:SetNextPrimaryFire(CurTime() + .6 * math.Clamp((180 - self:GetOwner().organism.stamina[1]) / 90,1,2) + (special_attack and 0.5 or 0))
+	self:SetNextSecondaryFire(CurTime() + .6 + (special_attack and 0.5 or 0))
 	self:SetLastShootTime(CurTime())
-	
-	if owner.PlayerClassName == "furry" then
-		local Ent = WhomILookinAt(owner, .3, 45)
-		if IsValid(Ent) then
-			local ent_org = Ent.organism -- ServerLog: Mr. Point: я люблю плывиски mrrrph~~
-			if ent_org and ent_org.owner.PlayerClassName == "furry" then
-				if (owner.cooldownlick or 0) < CurTime() and SERVER then
-					owner.cooldownlick = CurTime() + 1
-
-					ent_org.avgpain = math.Approach(ent_org.avgpain, 0, 15)
-					ent_org.painadd = math.Approach(ent_org.painadd, 0, 15)
-
-					owner:EmitSound("zbattle/furry/lick"..math.random(3)..".wav")
-					self:SetNextPrimaryFire(CurTime() + .5)
-				end
-
-				//self:SetFists(false)
-				return
-			else
-				if SERVER then sound.Play("weapons/slam/throw.wav", self:GetPos(), 65, math.random(110, 120)) end
-			end
-		else
-			if SERVER then sound.Play("weapons/slam/throw.wav", self:GetPos(), 65, math.random(110, 120)) end
-		end
-	else
-		if SERVER then sound.Play("weapons/slam/throw.wav", self:GetPos(), 65, math.random(110, 120)) end
-	end
-
-	if SERVER then
-		self:AttackFront(special_attack,rand) -- this nigga
-	end
-
-	if special_attack then
-		self:DoBFSAnimation("fists_uppercut",1)
-	else
-		self:DoBFSAnimation(side,owner.PlayerClassName == "furry" and 1 or 0.5)
-	end
 end
 
 function SWEP:AttackFront(special_attack,rand)
@@ -1291,13 +1412,13 @@ function SWEP:AttackFront(special_attack,rand)
 	local owner = self:GetOwner()
 	--self.PenetrationCopy = -(-self.Penetration) -- это как
 	owner:LagCompensation(true)
-	local Ent, HitPos, _, physbone, trace = WhomILookinAt(owner, .3, special_attack and 35 or 45)
+	local Ent, HitPos, _, physbone = WhomILookinAt(owner, .3, special_attack and 35 or 45)
 	local AimVec = owner:GetAimVector()
 	if IsValid(Ent) or (Ent and Ent.IsWorld and Ent:IsWorld()) then
 		if string.find(Ent:GetClass(),"break") and Ent:GetBrushSurfaces()[1] and string.find(Ent:GetBrushSurfaces()[1]:GetMaterial():GetName(),"glass") then
 			Ent:EmitSound("physics/glass/glass_sheet_impact_hard"..math.random(3)..".wav")
 			if math.random(1,8) == 8 then
-				hg.organism.AddWoundManual(owner, math.Rand(50,75), vector_origin, AngleRand(), owner:LookupBone("ValveBiped.Bip01_"..(rand and "R" or "L").."_Hand"), CurTime())
+				hg.organism.AddWoundManual(owner, math.Rand(15,25), vector_origin, AngleRand(), owner:LookupBone("ValveBiped.Bip01_"..(rand and "R" or "L").."_Hand"), CurTime())
 				Ent:Fire("Break")
 			end
 
@@ -1312,46 +1433,34 @@ function SWEP:AttackFront(special_attack,rand)
 		if self:IsEntSoft(Ent) then
 			SelfForce = 25
 			if Ent:IsPlayer() and IsValid(Ent:GetActiveWeapon()) and Ent:GetActiveWeapon().GetBlocking and Ent:GetActiveWeapon():GetBlocking() and not RagdollOwner(Ent) then
-				sound.Play( owner.PlayerClassName == "furry" and "pwb/weapons/knife/hit"..math.random(1,4)..".wav" or "Flesh.ImpactSoft", HitPos, 65, math.random(90, 110))
+				sound.Play("fists/hit" .. math.random(1, 10) .. ".wav", HitPos, 65, math.random(90, 110))
 			else
-				sound.Play( owner.PlayerClassName == "furry" and "pwb/weapons/knife/hit"..math.random(1,4)..".wav" or "Flesh.ImpactHard", HitPos, 65, math.random(90, 110))
-			end
-			if owner.PlayerClassName == "furry" then
-				util.Decal("Blood",HitPos + owner:EyeAngles():Forward() * -1,HitPos - owner:EyeAngles():Forward() * -1)
-				timer.Simple(0,function()
-					local effectdata2 = EffectData()
-					effectdata2:SetNormal(owner:EyeAngles():Forward() * -1)
-					effectdata2:SetStart(HitPos + owner:EyeAngles():Forward() * -1)
-					effectdata2:SetMagnitude(1)
-					util.Effect("zippy_impact_flesh",effectdata2)
-					Mul = Mul + 7.5
-				end)
+				sound.Play("fists/hit" .. math.random(1, 10) .. ".wav", HitPos, 65, math.random(90, 110))
 			end
 		else
-			sound.Play(owner.PlayerClassName == "furry" and "pwb/weapons/knife/hitwall.wav" or "Flesh.ImpactSoft", HitPos, 65, math.random(90, 110))
+			sound.Play("fists/hit" .. math.random(1, 10) .. ".wav", HitPos, 65, math.random(90, 110))
+			-- Add pain to attacker when hitting hard surfaces
+			if not self:IsEntSoft(Ent) then
+				local painAmount = special_attack and math.Rand(8, 15) or math.Rand(3, 8)
+				hg.organism.AddWoundManual(owner, painAmount, vector_origin, AngleRand(), owner:LookupBone("ValveBiped.Bip01_"..(rand and "R" or "L").."_Hand"), CurTime())
+			end
 		end
 
-		local DamageAmt = (math.random(3, 5) * (special_attack and 3 or 1)) * (self.DamageMul or 1)
+		-- Increased damage: heavier punches pack more punch
+		local DamageAmt = (math.random(6, 9) * (special_attack and 4 or 1)) * (self.DamageMul or 1)
 		local ent = Ent
 		local vec = AimVec
-
-		Ent:PrecacheGibs()
-
 		if string.find(ent:GetClass(),"prop_") and not ent:IsRagdoll() then
 			ent:CallOnRemove("gibbreak",function()
-				ent:GibBreakClient( vec * 100 )
+				ent:PrecacheGibs()
+				ent:GibBreakServer( vec * 100 )
 			end)
-
 			timer.Simple(1,function()
 				if IsValid(ent) then ent:RemoveCallOnRemove("gibbreak") end
 			end)
 		end
 
 		Mul = Mul * (owner.MeleeDamageMul or 1)
-
-		if Ent:IsPlayer() and IsValid(Ent:GetActiveWeapon()) and Ent:GetActiveWeapon().GetBlocking then
-			Mul = Mul * (self:GetBlocking() and 0.5 or 1)
-		end
 
 		if owner.organism.superfighter then
 			Mul = Mul * 5 * self.Penetration
@@ -1360,21 +1469,23 @@ function SWEP:AttackFront(special_attack,rand)
 			end
 		end
 
-		Mul = Mul * self:BlockingLogic(Ent, Mul, 0, trace)
-
 		local Dam = DamageInfo()
 		Dam:SetAttacker(owner)
-		Dam:SetInflictor(self)
-		Dam:SetDamage(DamageAmt * Mul * 0.75 * (owner.PlayerClassName == "furry" and 2 or 1))
+		Dam:SetInflictor(self.Weapon)
+		Dam:SetDamage(DamageAmt * Mul * 0.75)
 		Dam:SetDamageForce(AimVec * Mul ^ 2)
-		Dam:SetDamageType(owner.PlayerClassName == "furry" and DMG_SLASH or DMG_CLUB)
+		Dam:SetDamageType(DMG_CLUB)
 		Dam:SetDamagePosition(HitPos)
 		Ent:TakeDamageInfo(Dam)
-
 		local Phys = Ent:IsPlayer() and Ent:GetPhysicsObject() or Ent:GetPhysicsObjectNum(physbone or 0)
 
 		if Ent:IsPlayer() then
-			Ent:ViewPunch(Angle(special_attack and -45 or -5,0,0))
+			if special_attack then
+				-- Right hook victim impact: victim looks left from the punch (increased impact)
+				Ent:ViewPunch(Angle(-30, -20, 8))
+			else
+				Ent:ViewPunch(Angle(-5,0,0))
+			end
 		end
 
 		if IsValid(Phys) then
@@ -1382,12 +1493,202 @@ function SWEP:AttackFront(special_attack,rand)
 			Phys:ApplyForceOffset(AimVec * 5000 * Mul, HitPos)
 			owner:SetVelocity(AimVec * SelfForce * .8 * (owner.organism.superfighter and 2 or 1))
 		end
+
+		
+
+		--add bleeding when punching glass -- plz dont
 	end
 
 	if SERVER then
-		owner.organism.stamina.subadd = owner.organism.stamina.subadd + 4
+		-- Heavily reduce stamina consumption when carrying objects
+		local staminaCost = 1
+		if self:GetIsCarrying() then
+			staminaCost = staminaCost * self.CarryStaminaMultiplier
+		end
+		owner.organism.stamina.subadd = owner.organism.stamina.subadd + staminaCost
 	end
+	owner:LagCompensation(false)
+end
 
+function SWEP:ShoveAttack()
+	local owner = self:GetOwner()
+	if not IsValid(owner) then return end
+	
+	-- Play shove animation
+	self:DoBFSAnimation("Shove", 0.9)
+	
+	-- Set shove animation state for TPIK
+	self:SetIsShoving(true)
+	timer.Simple(0.9, function()
+		if IsValid(self) then
+			self:SetIsShoving(false)
+		end
+	end)
+	
+	if CLIENT then return end
+	
+	-- Set cooldown for shove attacks
+	self:SetNextShove(CurTime() + 1.5)
+	self:SetNextPrimaryFire(CurTime() + 0.8)
+	self:SetNextSecondaryFire(CurTime() + 0.8)
+	
+	if SERVER then
+		-- Random nmrih shove sound
+		sound.Play("weapons/nmrih/items/shove_0" .. math.random(1,5) .. ".wav", self:GetPos(), 70, math.random(80, 100))
+	end
+	
+	owner:LagCompensation(true)
+	local Ent, HitPos, _, physbone = WhomILookinAt(owner, .6, 70) -- Increased cone (.4 to .6) and range (50 to 70)
+	local AimVec = owner:GetAimVector()
+	
+	if IsValid(Ent) or (Ent and Ent.IsWorld and Ent:IsWorld()) then
+		-- Handle glass breaking with shoves
+		if string.find(Ent:GetClass(),"break") and Ent:GetBrushSurfaces()[1] and string.find(Ent:GetBrushSurfaces()[1]:GetMaterial():GetName(),"glass") then
+			Ent:EmitSound("physics/glass/glass_sheet_break" .. math.random(1,3) .. ".wav")
+			Ent:Fire("Break")
+			owner:LagCompensation(false)
+			return
+		end
+		
+		local SelfForce = 200 -- Stronger push force than regular punches
+		local isPlayerTarget = Ent:IsPlayer()
+		local isRagdollTarget = Ent:IsRagdoll() or hg.RagdollOwner(Ent)
+		
+		if self:IsEntSoft(Ent) then
+			sound.Play("fists/hit" .. math.random(1, 10) .. ".wav", HitPos, 70, math.random(85, 105))
+		else
+			sound.Play("physics/concrete/concrete_impact_hard" .. math.random(1,3) .. ".wav", HitPos, 70, math.random(90, 110))
+		end
+		
+		-- Check if target is blocking and break their block
+		if isPlayerTarget and IsValid(Ent:GetActiveWeapon()) and Ent:GetActiveWeapon().GetBlocking and Ent:GetActiveWeapon():GetBlocking() then
+			-- Break the block
+			if Ent:GetActiveWeapon().SetBlocking then
+				Ent:GetActiveWeapon():SetBlocking(false)
+			end
+			if Ent:GetActiveWeapon().SetIsShoving then
+				Ent:GetActiveWeapon():SetIsShoving(false)
+			end
+			-- Reset block counter when block is broken
+			if Ent:GetActiveWeapon().SetBlockCounter then
+				Ent:GetActiveWeapon():SetBlockCounter(0)
+			end
+			-- Extra force when breaking blocks
+			SelfForce = SelfForce * 1
+		end
+		
+		-- Minimal damage for shoves
+		local DamageAmt = math.random(1, 3)
+		local Dam = DamageInfo()
+		Dam:SetAttacker(owner)
+		Dam:SetInflictor(self.Weapon)
+		Dam:SetDamage(DamageAmt)
+		Dam:SetDamageForce(AimVec * SelfForce * 2)
+		Dam:SetDamageType(DMG_CLUB)
+		Dam:SetDamagePosition(HitPos)
+		Ent:TakeDamageInfo(Dam)
+		
+		-- Check if target is weak and should be ragdolled
+		local shouldRagdoll = false
+		if isPlayerTarget and Ent.organism then
+			local stamina = Ent.organism.stamina[1] or 100
+			local blood = Ent.organism.blood or 100
+			-- Consider weak if stamina < 95 or blood < 3500
+			if stamina < 95 or blood < 3500 then
+				shouldRagdoll = true
+			end
+		end
+		
+		local Phys = Ent:IsPlayer() and Ent:GetPhysicsObject() or Ent:GetPhysicsObjectNum(physbone or 0)
+		
+		if IsValid(Phys) then
+			-- Apply strong push force
+			if Ent:IsPlayer() then 
+				Ent:SetVelocity(AimVec * SelfForce * 2.5)
+				-- Heavy viewpunch for shoves
+				Ent:ViewPunch(Angle(-15, math.random(-8, 8), math.random(-5, 5)))
+				
+				-- Simple timer-based collision detection for ragdolling when victim hits props
+				if not IsValid(Ent.FakeRagdoll) and not RagdollOwner(Ent) and Ent:IsPlayer() and Ent:Alive() then
+					-- Start a simple timer to check for prop collisions
+					local timerName = "ShoveCollision_" .. Ent:SteamID64()
+					local checkCount = 0
+					local maxChecks = 10 -- Check for 1 second (10 checks * 0.1 seconds)
+					
+					timer.Create(timerName, 0.1, maxChecks, function()
+						if not IsValid(Ent) or not Ent:Alive() or IsValid(Ent.FakeRagdoll) or RagdollOwner(Ent) then
+							timer.Remove(timerName)
+							return
+						end
+						
+						checkCount = checkCount + 1
+						
+						-- Check for props around the player
+						local playerPos = Ent:GetPos() + Vector(0, 0, 36) -- Center mass
+						local directions = {
+							Vector(1, 0, 0),   -- Forward
+							Vector(-1, 0, 0),  -- Backward
+							Vector(0, 1, 0),   -- Right
+							Vector(0, -1, 0),  -- Left
+						}
+						
+						local hitProp = false
+						for _, dir in ipairs(directions) do
+							local trace = util.TraceLine({
+								start = playerPos,
+								endpos = playerPos + (dir * 30), -- Check 30 units around player
+								filter = Ent,
+								mask = MASK_SOLID
+							})
+							
+							if trace.Hit and IsValid(trace.Entity) then
+								local hitClass = trace.Entity:GetClass()
+								if hitClass == "prop_physics" or 
+								   hitClass == "prop_physics_multiplayer" or 
+								   hitClass == "prop_dynamic" or
+								   hitClass == "func_breakable" or
+								   trace.Entity:IsWorld() then
+									hitProp = true
+									break
+								end
+							end
+						end
+						
+						-- Ragdoll if touching a prop
+						if hitProp then
+							hg.Fake(Ent)
+							sound.Play("physics/body/body_medium_impact_hard" .. math.random(1,6) .. ".wav", 
+									  Ent:GetPos(), 75, math.random(90, 110))
+							timer.Remove(timerName)
+							return
+						end
+						
+						-- Stop checking after max time
+						if checkCount >= maxChecks then
+							timer.Remove(timerName)
+						end
+					end)
+				end
+				
+				-- Ragdoll weak opponents (existing functionality)
+				if shouldRagdoll and not RagdollOwner(Ent) then
+					hg.LightStunPlayer(Ent, 2) -- 2 second stun
+				end
+			end
+			
+			-- Double-check physics object validity before applying force
+			if IsValid(Phys) and Phys:IsMotionEnabled() then
+				Phys:ApplyForceOffset(AimVec * 8000, HitPos) -- Much stronger than regular punches
+			end
+			owner:SetVelocity(AimVec * SelfForce * 0.3) -- Less recoil for attacker
+		end
+	end
+	
+	-- Stamina cost for shoving
+	if SERVER then
+		owner.organism.stamina.subadd = owner.organism.stamina.subadd + 6 -- Higher stamina cost than regular punches
+	end
+	
 	owner:LagCompensation(false)
 end
 
@@ -1463,6 +1764,8 @@ function SWEP:Reload()
 	if not IsFirstTimePredicted() then return end
 	self:SetFists(false)
 	self:SetBlocking(false)
+	self:SetIsShoving(false)
+	self:SetBlockCounter(0)
 
 	local ent = self:GetCarrying()
 	
@@ -1549,10 +1852,10 @@ if SERVER then
 				mul = mul * 5
 			end
 			
-			local avec = vec * len * 8 - phys:GetVelocity()
+			local avec = vec * len * 3 - phys:GetVelocity()
 			
 			local Force = avec * mul
-			local ForceMagnitude = math.min(Force:Length(), 3000)
+			local ForceMagnitude = math.min(Force:Length(), 2000)
 			
 			phys:Wake()
 
@@ -1586,6 +1889,8 @@ if SERVER then
 			phys:AddAngleVelocity(-phys:GetAngleVelocity() * m2 + vec / 1 * (ent:IsRagdoll() and 1 or 1) * m2)
 		end
 	end)
+	
+
 end
 
 if SERVER then
@@ -1625,10 +1930,10 @@ if CLIENT then
 		if not IsValid(self) then return end
 		if self.IsLocal and not self:IsLocal() then
 			if not self.DoBFSAnimation then return end
-			self:DoBFSAnimation(anim,net.ReadFloat())
-			if anim == "fists_left" or anim == "fists_right" or anim == "fists_uppercut" then
-				self:GetOwner():AddVCDSequenceToGestureSlot(GESTURE_SLOT_ATTACK_AND_RELOAD,self:GetOwner():LookupSequence((anim == "fists_right" or anim == "fists_uppercut") and "range_fists_r" or "range_fists_l"),0,true)
-			end
+		self:DoBFSAnimation(anim,net.ReadFloat())
+		if anim == "Attack_Quick2" or anim == "Attack_Quick" or anim == "Attack_Charge_Begin" or anim == "Attack_Charge_End" or anim == "Shove" then
+			self:GetOwner():AddVCDSequenceToGestureSlot(GESTURE_SLOT_ATTACK_AND_RELOAD,self:GetOwner():LookupSequence((anim == "Attack_Quick" or anim == "Attack_Charge_Begin" or anim == "Attack_Charge_End" or anim == "Shove") and "range_fists_r" or "range_fists_l"),0,true)
+		end
 		end
 	end)
 else
@@ -1648,8 +1953,43 @@ hook.Add("ShouldCollide","CustomCollisions",function(ent1,ent2)
 		if (IsValid(ent2:GetNetVar("carryent")) and ent2:GetNetVar("carryent") == ent1) or (IsValid(ent2:GetNetVar("carryent2")) and ent2:GetNetVar("carryent2") == ent1) then
 			return false
 		end
-	end
+    end
 end)
+
+-- Progressive stamina system for blocking
+function SWEP:HandleBlockStamina(attacker, damage)
+	if not SERVER then return end
+	local owner = self:GetOwner()
+	if not IsValid(owner) or not owner.organism then return end
+	
+	local currentTime = CurTime()
+	local lastBlockTime = self:GetLastBlockTime()
+	local blockCounter = self:GetBlockCounter()
+	
+	-- Reset counter if more than 3 seconds since last block
+	if currentTime - lastBlockTime > 3 then
+		blockCounter = 0
+	end
+	
+	-- Increment block counter
+	blockCounter = blockCounter + 1
+	self:SetBlockCounter(blockCounter)
+	self:SetLastBlockTime(currentTime)
+	
+	-- Calculate progressive stamina cost
+	local baseStaminaCost = self.ParryStaminaCost or 6
+	local progressiveMultiplier = 1 + (blockCounter - 1) * 0.4  -- 40% increase per consecutive block
+	local finalStaminaCost = baseStaminaCost * progressiveMultiplier
+	
+	-- Apply stamina cost
+	owner.organism.stamina.subadd = owner.organism.stamina.subadd + finalStaminaCost
+	
+	-- Optional: Add feedback for high block counts
+	if blockCounter >= 3 then
+		-- Heavy breathing effect or screen shake could be added here
+		owner:EmitSound("player/pl_pain" .. math.random(5,7) .. ".wav", 50, math.random(90, 110))
+	end
+end
 
 function SWEP:Animation()
 	local owner = self:GetOwner()
@@ -1675,4 +2015,252 @@ function SWEP:Holster( wep )
 
 	if owner:GetNetVar("handcuffed",false) then return false end
 	return true
+end
+
+-- Advanced Directional Hitbox Blocking System Functions for Hands
+function SWEP:CalculateBlockingHitbox(player)
+    if not IsValid(player) then return nil end
+    
+    local eyePos = player:EyePos()
+    local eyeAngles = player:EyeAngles()
+    local forward = eyeAngles:Forward()
+    local right = eyeAngles:Right()
+    local up = eyeAngles:Up()
+    
+    -- Calculate hitbox center position with weapon-specific offset
+    local hitboxCenter = eyePos + forward * self.BlockHitboxOffset.x + right * self.BlockHitboxOffset.y + up * self.BlockHitboxOffset.z
+    
+    -- Account for blocking stance - adjust position based on weapon blocking position
+    if self:GetBlocking() and self.lerpedBlockPos then
+        local blockProgress = math.Clamp(1 - (self.lerpedBlockPos:Length() / ((self.BlockHoldPos or Vector()) - self.HoldPos):Length()), 0, 1)
+        local stanceOffset = forward * (5 * blockProgress) + up * (-3 * blockProgress)
+        hitboxCenter = hitboxCenter + stanceOffset
+    end
+    
+    return {
+        center = hitboxCenter,
+        forward = forward,
+        right = right,
+        up = up,
+        angles = eyeAngles
+    }
+end
+
+function SWEP:IsAttackWithinBlockingHitbox(attackerPos, targetPlayer, weapon)
+    if not IsValid(targetPlayer) or not IsValid(weapon) then return false end
+    
+    local hitbox = weapon:CalculateBlockingHitbox(targetPlayer)
+    if not hitbox then return false end
+    
+    local attackVector = attackerPos - hitbox.center
+    local attackDistance = attackVector:Length()
+    
+    -- Check distance bounds
+    if attackDistance < weapon.BlockMinDistance or attackDistance > weapon.BlockMaxDistance then
+        return false, "distance_out_of_range", attackDistance
+    end
+    
+    attackVector:Normalize()
+    
+    -- Calculate horizontal angle (yaw) from forward direction
+    local attackDirection2D = Vector(attackVector.x, attackVector.y, 0):GetNormalized()
+    local forward2D = Vector(hitbox.forward.x, hitbox.forward.y, 0):GetNormalized()
+    local horizontalDot = forward2D:Dot(attackDirection2D)
+    local horizontalAngle = math.deg(math.acos(math.Clamp(horizontalDot, -1, 1)))
+    
+    -- Check if attack is within horizontal blocking arc
+    local maxHorizontalAngle = weapon.BlockArcAngle / 2
+    if horizontalAngle > maxHorizontalAngle then
+        return false, "outside_horizontal_arc", horizontalAngle
+    end
+    
+    -- Calculate vertical angle from eye level
+    local verticalAngle = math.deg(math.asin(math.Clamp(attackVector.z, -1, 1)))
+    local absVerticalAngle = math.abs(verticalAngle)
+    
+    -- Check if attack is within vertical blocking range
+    if absVerticalAngle > weapon.BlockVerticalRange then
+        return false, "outside_vertical_range", absVerticalAngle
+    end
+    
+    -- Simplified precision check using multiple sample points (more forgiving)
+    local precisionSamples = weapon.BlockPrecisionSamples or 8
+    local validSamples = 0
+    
+    for i = 1, precisionSamples do
+        local angle = (i - 1) * (360 / precisionSamples)
+        local sampleOffset = Vector(
+            math.cos(math.rad(angle)) * weapon.BlockHitboxWidth * 0.3,
+            math.sin(math.rad(angle)) * weapon.BlockHitboxHeight * 0.3,
+            math.sin(math.rad(angle * 2)) * weapon.BlockHitboxHeight * 0.2
+        )
+        
+        local samplePos = hitbox.center + hitbox.right * sampleOffset.x + hitbox.up * sampleOffset.y + hitbox.forward * sampleOffset.z
+        local sampleVector = (attackerPos - samplePos):GetNormalized()
+        local sampleDot = hitbox.forward:Dot(sampleVector)
+        
+        if sampleDot > -0.1 then -- Much more forgiving sample point validation (was 0.2)
+            validSamples = validSamples + 1
+        end
+    end
+    
+    local precisionRatio = validSamples / precisionSamples
+    
+    -- Require only 20% of sample points to be valid for blocking (was 40% - much more forgiving)
+    if precisionRatio < 0.2 then
+        return false, "insufficient_precision_coverage", precisionRatio
+    end
+    
+    -- Calculate blocking effectiveness based on angle and distance (more forgiving)
+    local horizontalEffectiveness = math.max(0.3, 1 - (horizontalAngle / maxHorizontalAngle)) -- Minimum 30% effectiveness
+    local verticalEffectiveness = math.max(0.3, 1 - (absVerticalAngle / weapon.BlockVerticalRange)) -- Minimum 30% effectiveness
+    local distanceEffectiveness = math.max(0.4, 1 - math.abs(attackDistance - weapon.BlockMinDistance) / (weapon.BlockMaxDistance - weapon.BlockMinDistance))
+    local precisionEffectiveness = math.max(0.3, precisionRatio)
+    
+    local overallEffectiveness = (horizontalEffectiveness + verticalEffectiveness + distanceEffectiveness + precisionEffectiveness) / 4
+    
+    return true, "success", {
+        horizontalAngle = horizontalAngle,
+        verticalAngle = absVerticalAngle,
+        distance = attackDistance,
+        effectiveness = overallEffectiveness,
+        precisionRatio = precisionRatio
+    }
+end
+
+function SWEP:GetBlockingDebugInfo(attackerPos, targetPlayer)
+    if not IsValid(targetPlayer) then return "Invalid target player" end
+    
+    local hitbox = self:CalculateBlockingHitbox(targetPlayer)
+    if not hitbox then return "Failed to calculate hitbox" end
+    
+    local success, reason, data = self:IsAttackWithinBlockingHitbox(attackerPos, targetPlayer, self)
+    
+    local debugInfo = string.format(
+        "Hitbox Center: %s | Attack Distance: %.1f | Reason: %s",
+        tostring(hitbox.center),
+        (attackerPos - hitbox.center):Length(),
+        reason
+    )
+    
+    if type(data) == "table" then
+        debugInfo = debugInfo .. string.format(
+            " | H-Angle: %.1f° | V-Angle: %.1f° | Effectiveness: %.2f | Precision: %.2f",
+            data.horizontalAngle or 0,
+            data.verticalAngle or 0,
+            data.effectiveness or 0,
+            data.precisionRatio or 0
+        )
+    elseif type(data) == "number" then
+        debugInfo = debugInfo .. string.format(" | Value: %.2f", data)
+    end
+    
+    return debugInfo
+end
+
+-- Hook for progressive stamina loss during blocking
+if SERVER then
+	hook.Add("EntityTakeDamage", "HandsProgressiveBlockStamina", function(target, dmginfo)
+		if not IsValid(target) or not target:IsPlayer() then return end
+		
+		local activeWeapon = target:GetActiveWeapon()
+		if not IsValid(activeWeapon) or activeWeapon:GetClass() ~= "weapon_hands_sh" then return end
+		
+		-- Check if blocking
+		if not activeWeapon:GetBlocking() then return end
+		
+		-- Check if attack is from front (blocking only works from front)
+		local attacker = dmginfo:GetAttacker()
+		if not IsValid(attacker) or not attacker:IsPlayer() then return end
+		
+		local targetForward = target:GetAngles():Forward()
+		local attackDirection = (attacker:GetPos() - target:GetPos()):GetNormalized()
+		local dot = targetForward:Dot(attackDirection)
+		
+		if dot < 0.3 then return end -- Same threshold as blocking
+		
+		-- Apply progressive stamina cost
+		activeWeapon:HandleBlockStamina(attacker, dmginfo:GetDamage())
+	end)
+	
+	-- Ragdoll impact damage system
+	hook.Add("PhysicsCollide", "RagdollImpactDamage", function(data, phys)
+		local ent = data.HitEntity
+		
+		-- Check if this is a thrown ragdoll
+		if not IsValid(ent) or ent:GetClass() ~= "prop_ragdoll" or not ent.IsThrownRagdoll then return end
+		
+		-- Check if enough time has passed since throwing (prevent immediate damage)
+		if not ent.ThrownTime or CurTime() - ent.ThrownTime < 0.2 then return end
+		
+		-- Get the ragdoll owner
+		local ragdollOwner = RagdollOwner(ent)
+		if not ragdollOwner or not ragdollOwner:IsValid() or not ragdollOwner:IsPlayer() then return end
+		
+		-- Check cooldown to prevent spam damage
+		local ragdollID = ent:EntIndex()
+		if RagdollImpactCooldowns[ragdollID] and CurTime() - RagdollImpactCooldowns[ragdollID] < 1.0 then return end
+		
+		-- Check what we hit
+		local hitEnt = data.HitObject:GetEntity()
+		local isValidTarget = false
+		
+		-- Check if we hit a prop or world geometry
+		if IsValid(hitEnt) then
+			local hitClass = hitEnt:GetClass()
+			if hitClass == "prop_physics" or hitClass == "prop_physics_multiplayer" or hitClass == "worldspawn" then
+				isValidTarget = true
+			end
+		else
+			-- Hit world geometry
+			isValidTarget = true
+		end
+		
+		if not isValidTarget then return end
+		
+		-- Calculate damage based on impact speed
+		local speed = data.OurOldVelocity:Length()
+		if speed < 100 then return end -- Minimum speed threshold
+		
+		local damage = math.min(speed * 0.08, 45) -- Max 45 damage, scales with speed
+		
+		-- Apply damage to the ragdoll owner
+		if ragdollOwner.organism then
+			local dmginfo = DamageInfo()
+			dmginfo:SetDamageType(DMG_CLUB)
+			dmginfo:SetDamage(damage)
+			dmginfo:SetInflictor(ent)
+			dmginfo:SetAttacker(ent) -- The ragdoll itself is the attacker
+			
+			-- Apply damage to random body part (simulating impact trauma)
+			local bodyParts = {"head", "chest", "stomach", "larm", "rarm", "lleg", "rleg"}
+			local randomPart = bodyParts[math.random(#bodyParts)]
+			
+			if hg.organism.input_list[randomPart] then
+				hg.organism.input_list[randomPart](ragdollOwner.organism, 1, damage, dmginfo)
+			end
+			
+			-- Play impact sound based on damage
+			local soundFiles = {
+				"physics/body/body_medium_impact_hard1.wav",
+				"physics/body/body_medium_impact_hard2.wav",
+				"physics/body/body_medium_impact_hard3.wav",
+				"physics/body/body_medium_impact_hard4.wav",
+				"physics/body/body_medium_impact_hard5.wav",
+				"physics/body/body_medium_impact_hard6.wav"
+			}
+			local randomSound = soundFiles[math.random(1, #soundFiles)]
+			local volume = math.Clamp(damage / 45, 0.3, 1.0) -- Scale volume based on damage
+			sound.Play(randomSound, ent:GetPos(), 75, math.random(90, 110), volume)
+			
+			-- Set cooldown
+			RagdollImpactCooldowns[ragdollID] = CurTime()
+			
+			-- Clear the thrown flag to prevent further damage from this throw
+			ent.IsThrownRagdoll = false
+			
+			-- Optional: Print damage for debugging (remove in production)
+			-- print(string.format("Ragdoll impact: %s took %.1f damage from hitting at %.1f speed", ragdollOwner:Name(), damage, speed))
+		end
+	end)
 end

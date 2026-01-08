@@ -24,6 +24,11 @@ SWEP.HoldType = "melee"
 SWEP.HoldPos = Vector(-15,2,-4)
 SWEP.HoldAng = Angle(-15,0,0)
 
+-- Blocking configuration
+SWEP.BlockHoldPos = Vector(-15, 7, -6)
+SWEP.BlockHoldAng = Angle(-5, 0, -45)
+SWEP.BlockSound = "physics/metal/metal_solid_impact_bullet2.wav"
+
 SWEP.AttackTime = 0.3
 SWEP.AnimTime1 = 1.2
 SWEP.WaitTime1 = 0.9
@@ -60,6 +65,12 @@ SWEP.AttackHitFlesh = "Flesh.ImpactHard"
 SWEP.Attack2HitFlesh = "Flesh.ImpactHard"
 SWEP.DeploySnd = "physics/metal/metal_solid_impact_soft1.wav"
 
+SWEP.holsteredBone = "ValveBiped.Bip01_Pelvis" -- Different attachment point
+SWEP.holsteredPos = Vector(-6, -1.5, -0.1) -- Adjust position
+SWEP.holsteredAng = Angle(110, 0, 0) -- Adjust rotation
+SWEP.Concealed = false -- wont show up on the body
+SWEP.HolsterIgnored = false -- the holster system will ignore
+
 
 SWEP.AttackTimeLength = 0.15
 SWEP.Attack2TimeLength = 0.1
@@ -88,13 +99,13 @@ function SWEP:CanPrimaryAttack()
 end
 
 SWEP.DamageType = DMG_CLUB
-SWEP.DamagePrimary = 10
+SWEP.DamagePrimary = 13
 
 function SWEP:ThinkAdd()
     local ply = self:GetOwner()
 	
     if self:GetNetVar("AttackMode",1) == 1 then
-        self.DamagePrimary = 9
+        self.DamagePrimary = 18
         self.DamageType = DMG_CLUB
         self.weaponPos = Vector(0,4,-3)
         self.weaponAng = Angle(-5,-90,0)
@@ -105,7 +116,7 @@ function SWEP:ThinkAdd()
 		self.PenetrationSizePrimary = 1
 		self.StaminaPrimary = 17
     else
-        self.DamagePrimary = 8
+        self.DamagePrimary = 15
         self.DamageType = DMG_SLASH
         self.weaponPos = Vector(-0.5,-3,-6.5)
         self.weaponAng = Angle(-55,90,0)

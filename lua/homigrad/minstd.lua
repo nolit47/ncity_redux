@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\minstd.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 local floor = math.floor
 local sqrt = math.sqrt
 local log = math.log

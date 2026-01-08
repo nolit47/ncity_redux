@@ -44,18 +44,6 @@ local hg_bulletholes = GetConVar("hg_bulletholes") or CreateClientConVar("hg_bul
 local function callbackBullet(self, tr, dmg, force, bullet)
 	if CLIENT then return end
 
-	local effectdata1 = EffectData()
-	effectdata1:SetNormal(tr.HitNormal)
-	effectdata1:SetStart(tr.HitPos)
-	effectdata1:SetMagnitude((dmg/50))
-
-	if effect[tr.MatType] then
-		effectdata1:SetMagnitude((dmg/80)*effect[tr.MatType][2])
-		if tr.MatType == MAT_FLESH or (dmg/80)*effect[tr.MatType][2] > 1 then
-			util.Effect("zippy_impact_"..effect[tr.MatType][1],effectdata1)
-		end
-	end
-
 	bullet.limit_ricochet = bullet.limit_ricochet or 0
 	bullet.penetrated = bullet.penetrated or 0
 	if bullet.penetrated > 6 then return end
@@ -65,7 +53,8 @@ local function callbackBullet(self, tr, dmg, force, bullet)
 	local dir, hitNormal, hitPos = tr.Normal, tr.HitNormal, tr.HitPos
 	local hardness = surface_hardness[tr.MatType] or 0.5
 	local ApproachAngle = -math.deg(math.asin(hitNormal:DotProduct(dir)))
-	local MaxRicAngle = 60 * hardness
+	local MaxRicAngle = 60 * hardness * (bullet.noricochet and 0 or 1)
+	
 	-- all the way through
 	--print(ApproachAngle > MaxRicAngle * 0.7  )
 	if ApproachAngle > MaxRicAngle * 1 then--or tr.Entity:IsVehicle() then
@@ -129,7 +118,7 @@ local function callbackBullet(self, tr, dmg, force, bullet)
 					local effectdata2 = EffectData()
 					effectdata2:SetNormal(dir)
 					effectdata2:SetStart(hitPos + dir * 15)
-					effectdata2:SetMagnitude((dmg/80) * effect[tr.MatType][2])
+					effectdata2:SetMagnitude(1 * effect[tr.MatType][2])
 					util.Effect("zippy_impact_"..effect[tr.MatType][1],effectdata2)
 				end
 			end)
@@ -152,6 +141,7 @@ local function callbackBullet(self, tr, dmg, force, bullet)
 				dmgtype = bullet.dmgtype or DMG_BULLET,
 				NpcShoot = bullet.NpcShoot,
 				limit_ricochet = bullet.limit_ricochet + 1,
+				noricochet = bullet.noricochet,
 			}
 
 			self.bullet = tBullet
@@ -196,7 +186,8 @@ local function callbackBullet(self, tr, dmg, force, bullet)
 			Diameter = bullet.Diameter,
 			penetrated = bullet.penetrated + 1,
 			dmgtype = bullet.dmgtype or DMG_BULLET,
-			limit_ricochet = bullet.limit_ricochet + 1
+			limit_ricochet = bullet.limit_ricochet + 1,
+			noricochet = bullet.noricochet,
 		}
 		
 		self.bullet = tBullet
@@ -481,7 +472,7 @@ function SWEP:FireBullet()
     
 	if SERVER and !timer.Exists("ShootWeaponAfterDeath"..self:EntIndex()) then
 		timer.Create("ShootWeaponAfterDeath"..self:EntIndex(), 0.1, 1, function()
-			if (!IsValid(owner) or !owner:Alive()) and self.Primary.Automatic then
+			if (!IsValid(owner) or !owner:Alive()) and self.Primary and self.Primary.Automatic then
 				self:PrimaryAttack()
 			end
 		end)
@@ -495,14 +486,14 @@ function SWEP:FireBullet()
 
     local primary = self.Primary
 
-	if isply then
+	if isply and !owner.suiciding then
 		owner:LagCompensation(true)
 	end
 
 	self:WorldModel_Transform()
 	local tr, pos, ang = self:GetTrace(true)
 
-	if isply then
+	if isply and !owner.suiciding then
 		owner:LagCompensation(false)
 	end
 
@@ -559,8 +550,8 @@ function SWEP:FireBullet()
 	end
 	
     local bullet = {}
-    bullet.Src = (owner.suiciding and headpos and (headpos - headang:Forward() * 1 + headang:Right() * 1) or (trace and (trace.HitPos - trace.Normal) or pos))
-	bullet.Dir = (owner.suiciding and headpos and (headpos + headang:Forward() * 1 - headang:Right() * 1 - bullet.Src) or dir)
+    bullet.Src = (owner.suiciding and headpos and (headpos - dir * 5) or (trace and (trace.HitPos - trace.Normal) or pos))
+	bullet.Dir = dir
 	bullet.Attacker = owner
 
 	if owner:IsNPC() and CLIENT then
@@ -584,6 +575,8 @@ function SWEP:FireBullet()
     bullet.Speed = ammotype.Speed
 	bullet.Distance = ammotype.Distance or 56756
 	bullet.Filter = {self.worldModel}
+
+	bullet.noricochet = ammotype.noricochet
 	
 	local f1 = not owner.suiciding and owner or nil
 	local f2 = owner:IsPlayer() and owner:InVehicle() and owner:GetVehicle() or nil
@@ -610,6 +603,7 @@ function SWEP:FireBullet()
 				hg.PhysBullet.CreateBullet(bullet)
 			end
 		else
+			if owner.suiciding then bullet.DisableLagComp = true end
 			self:FireLuaBullets(bullet)
 
 			if CLIENT and !GetGlobalBool("PhysBullets_ReplaceDefault") then					
@@ -670,7 +664,7 @@ if CLIENT then
 
 	function SWEP:RejectShell(shell)
 		if not shell then return end
-		local gun = self:GetWeaponEntity()
+		local gun = self:GetWM()
 		if not IsValid(gun) then return end
 		local attmuzle = self:GetMuzzleAtt(gun, true)
 		local att = gun:GetAttachment(gun:LookupAttachment(self.FakeEjectBrassATT or "ejectbrass")) or gun:GetAttachment(gun:LookupAttachment("shell"))

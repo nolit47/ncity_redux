@@ -12,7 +12,7 @@ RMB - Low ready
 While low ready:
 LMB to remove spoon.
 ]]--"тильда двуеточее три"
-SWEP.Category = "ZCity Anims items"
+SWEP.Category = "Weapons - Explosive"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
 SWEP.Primary.ClipSize = -1
@@ -55,7 +55,6 @@ SWEP.AnimList = {
 		if CLIENT then return end
 		--local tr = self:GetEyeTrace()
 		--self:Tie(tr)
-		
 		self:Throw(1200, self.SpoonTime or CurTime(),nil,Vector(2,4,0),Angle(-40,0,0))
 		self.InThrowing = false
 		self.ReadyToThrow = false
@@ -114,6 +113,7 @@ SWEP.AnimList = {
 }
 
 SWEP.HoldPos = Vector(2,0.2,-1.5)
+SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.ViewBobCamBase = "ValveBiped.Bip01_R_UpperArm"
 SWEP.ViewBobCamBone = "ValveBiped.Bip01_R_Hand"
@@ -130,6 +130,10 @@ SWEP.ItemsBones = {
 }
 
 
-SWEP.spoon = "models/codww2/equipment/mk,ii hand grenade spoon.mdl"
+SWEP.spoon = "models/weapons/arc9/darsu_eft/skobas/rgd5_skoba.mdl"
 
 SWEP.CoolDown = 0
+SWEP.SpoonSounds = {
+	[1] = {"snd_jack_spoonfling.ogg",65}
+}
+--self:EmitSound("snds_jack_gmod/flamethrower_ignite_try.wav",65)

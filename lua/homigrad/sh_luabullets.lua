@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_luabullets.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 gs = {
 	random = include("minstd.lua") -- from https://github.com/Kefta/Lua-MINSTD
 }
@@ -489,8 +487,6 @@ local tDefaultAmmoTable = {
 
 local numbullets = 0
 
-hg.vehicles = hg.vehicles or {}
-
 function ENTITY:FireLuaBullets(tInfo)
     if (hook.Run("EntityFireBullets", self, tInfo) == false) then
 		return
@@ -523,9 +519,6 @@ function ENTITY:FireLuaBullets(tInfo)
 	local vDir = tInfo.Dir and tInfo.Dir:GetNormal() or owner:GetAimVector()
 	local flDistance = tInfo.Distance or MAX_TRACE_LENGTH
 	local Filter = tInfo.Filter or owner
-	
-	table.Add(Filter, hg.vehicles)
-
 	local iFlags = tInfo.Flags or 0
 	local flForce = tInfo.Force or 1
 	local bHullTrace = tInfo.HullTrace

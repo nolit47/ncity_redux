@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\cl_bulletholes.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 
 local drawing = false
 

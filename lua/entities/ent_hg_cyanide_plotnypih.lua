@@ -4,6 +4,7 @@ ENT.Base = "base_gmodentity"
 ENT.PrintName = "Chlorine Canister"
 ENT.Category = "ZCity Other"
 ENT.Spawnable = true
+ENT.AdminOnly = true
 ENT.totalparticles = 60
 ENT.Model = "models/props_junk/propanecanister001as.mdl"
 ENT.IconOverride = "vgui/wep_jack_hmcd_chlorine"

@@ -12,7 +12,7 @@ RMB - Low ready
 While low ready:
 LMB to remove spoon.
 ]]--"тильда двуеточее три"
-SWEP.Category = "ZCity Anims items"
+SWEP.Category = "Weapons - Explosive"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
 SWEP.Primary.ClipSize = -1
@@ -143,10 +143,11 @@ SWEP.AnimList = {
 }
 
 SWEP.HoldPos = Vector(2,0.2,-1.5)
+SWEP.HoldAng = Angle(0,0,0)
 
-SWEP.ViewBobCamBase = "ValveBiped.Bip01_R_UpperArm"
+SWEP.ViewBobCamBase = "ValveBiped.Bip01_L_UpperArm"
 SWEP.ViewBobCamBone = "ValveBiped.Bip01_R_Hand"
-SWEP.ViewPunchDiv = 50
+SWEP.ViewPunchDiv = 120
 
 SWEP.CallbackTimeAdjust = 0.1
 
@@ -231,11 +232,41 @@ function SWEP:Throw(mul, time, nosound, throwPosAdjust, throwAngAdjust)
 		entOwner:EmitSound(self.throwsound or "weapons/m67/m67_throw_01.wav", 90, math.random(95, 105))
 	end
 
-	if IsValid(owner) then
-		owner:ViewPunch(Angle(7,5,-5))
-		owner:AnimRestartGesture(GESTURE_SLOT_GRENADE, ACT_HL2MP_GESTURE_RANGE_ATTACK_GRENADE, true)
+	if SERVER and IsValid(owner) and owner:IsPlayer() then
+		local playerClass = owner.PlayerClassName
+		if playerClass == "terrorist" or playerClass == "nationalguard" or 
+		   playerClass == "commanderforces" or playerClass == "swat" then
+			timer.Simple(0.1, function()
+				if IsValid(owner) and hg and hg.GetPlayerClassPhrases then
+					local classPhrases = hg.GetPlayerClassPhrases(owner, "grenade_throw")
+					if classPhrases and #classPhrases > 0 then
+						local randomPhrase = classPhrases[math.random(#classPhrases)]
+						local ent_char = hg.GetCurrentCharacter(owner)
+						local muffed = owner.armors and owner.armors["face"] == "mask2"
+						
+						if IsValid(ent_char) then
+							ent_char:EmitSound(randomPhrase, muffed and 75 or 85, owner.VoicePitch or 100, 1, CHAN_AUTO, 0, muffed and 14 or 0)
+						else
+							owner:EmitSound(randomPhrase, muffed and 75 or 85, owner.VoicePitch or 100, 1, CHAN_AUTO, 0, muffed and 14 or 0)
+						end
+						
+						owner.lastPhr = randomPhrase
+					end
+				end
+			end)
+		end
 	end
 
+	if IsValid(owner) then
+		owner:ViewPunch(Angle(3,0,0))
+		owner:AnimRestartGesture(GESTURE_SLOT_GRENADE, ACT_HL2MP_GESTURE_RANGE_ATTACK_GRENADE, true)
+	end
+	ent:SetCollisionGroup( COLLISION_GROUP_WEAPON )
+	timer.Simple(0.15,function()
+		if IsValid(ent) then
+			ent:SetCollisionGroup( COLLISION_GROUP_INTERACTIVE )
+		end
+	end)
 	ent:Spawn()
 	ent:SetPos(hand + (IsValid(owner) and self:GetAngles():Forward() * 5 or vector_origin))
 	local angThrow = IsValid(owner) and owner:EyeAngles() or self:GetAngles()
@@ -244,10 +275,17 @@ function SWEP:Throw(mul, time, nosound, throwPosAdjust, throwAngAdjust)
 	angThrow:RotateAroundAxis(angThrow:Up(),throwAngAdjust[3])
 	ent:SetAngles(angThrow)
 	local phys = ent:GetPhysicsObject()
-	if phys then phys:SetVelocity(IsValid(owner) and (owner:GetAimVector() * mul) + owner:GetVelocity() +self:GetVelocity() or Vector(0,0,0)) end
+	if phys then 
+		real_ent = hg.GetCurrentCharacter(owner)
+		phys:SetVelocity(IsValid(real_ent) and (owner:GetAimVector() * mul/1.5) + real_ent:GetVelocity() or Vector(0,0,0)) 
+	end
+	if owner:IsOnGround() then
+		owner:SetVelocity(owner:GetVelocity() - owner:GetVelocity()/2)
+	end
 	ent.timer = time
 	ent.owner = self.lastOwner
-	
+	ent.owner2 = self.lastOwner
+
 	--self.removed = true
 	if IsValid(owner) then
 		self:ThrowAdd()
@@ -373,7 +411,7 @@ function SWEP:ThinkAdd()
 	end
 end
 
-SWEP.spoon = "models/weapons/arc9/darsu_eft/skobas/m18_skoba.mdl"
+SWEP.spoon = "models/weapons/arc9/darsu_eft/skobas/m67_skoba.mdl"
 
 function SWEP:CreateSpoon(entownr)
 	local entasd
@@ -382,23 +420,38 @@ function SWEP:CreateSpoon(entownr)
 		local hand = entownr:GetBoneMatrix(entownr:LookupBone("ValveBiped.Bip01_R_Hand"))
 
 		entasd = ents.Create("prop_physics")
-		entasd:SetModel("models/weapons/arc9/darsu_eft/skobas/m18_skoba.mdl")
+		entasd:SetModel(self.spoon)
 		entasd:SetPos(hand:GetTranslation())
 		entasd:SetAngles(hand:GetAngles())
-		entasd:Spawn()
 		entasd:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+		entasd:Spawn()
+		
 
 		entownr:EmitSound("weapons/m67/m67_spooneject.wav",65)
+
+		if self.SpoonSounds then
+			for k,v in ipairs(self.SpoonSounds) do
+				self:GetOwner():EmitSound(v[1],v[2])
+			end
+		end
+
 		hg.EmitAISound(hand:GetTranslation(), 96, 5, 8)
 	else
 		entasd = ents.Create("prop_physics")
-		entasd:SetModel("models/weapons/arc9/darsu_eft/skobas/m18_skoba.mdl")
+		entasd:SetModel(self.spoon)
 		entasd:SetPos(self:GetPos())
 		entasd:SetAngles(self:GetAngles())
-		entasd:Spawn()
 		entasd:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+		entasd:Spawn()
 
 		entasd:EmitSound("weapons/m67/m67_spooneject.wav",65)
+
+		if self.SpoonSounds then
+			for k,v in ipairs(self.SpoonSounds) do
+				self:GetOwner():EmitSound(v[1],v[2])
+			end
+		end
+
 		hg.EmitAISound(self:GetPos(), 96, 5, 8)
 	end
 

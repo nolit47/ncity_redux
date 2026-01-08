@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Woodcutting axe"
-SWEP.Instructions = "An axe is an implement that has been used for millennia to shape, split, and cut wood. Can break down doors."
+SWEP.Instructions = "An axe is an implement that has been used for millennia to shape, split, and cut wood. Can break down doors.\n\nLMB to attack.\nRMB to block."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -15,7 +15,7 @@ SWEP.Weight = 0
 SWEP.HoldType = "pistol"
 
 SWEP.HoldPos = Vector(-9,0,0)
-SWEP.HoldAng = Angle(0,0,-10)
+SWEP.HoldAng = Angle(0,0,-20)
 
 SWEP.AttackTime = 0.5
 SWEP.AnimTime1 = 2
@@ -43,15 +43,15 @@ SWEP.AnimList = {
 }
 
 SWEP.DamageType = DMG_SLASH
-SWEP.DamagePrimary = 35
+SWEP.DamagePrimary = 42
 SWEP.DamageSecondary = 14
 
 SWEP.PenetrationPrimary = 10
 SWEP.PenetrationSecondary = 3
 
-SWEP.MaxPenLen = 6
+SWEP.MaxPenLen = 10
 
-SWEP.PenetrationSizePrimary = 2
+SWEP.PenetrationSizePrimary = 5.5
 SWEP.PenetrationSizeSecondary = 1.5
 
 SWEP.StaminaPrimary = 40
@@ -86,7 +86,7 @@ SWEP.Attack2TimeLength = 0.01
 SWEP.AttackRads = 75
 SWEP.AttackRads2 = 0
 
-SWEP.SwingAng = -10
+SWEP.SwingAng = -20
 SWEP.SwingAng2 = 0
 
 function SWEP:CanPrimaryAttack()

@@ -128,7 +128,7 @@ function SWEP:PrimaryAttack()
 
             ent:SetModel("models/weapons/gleb/matchhead.mdl")
 			
-			local owner = self:GetOwner() -- салат ты реально Hurrep какой self.Owner
+			local owner = self:GetOwner() -- салат ты реально furry какой self.Owner
             
             local boneIndex = owner:LookupBone("ValveBiped.Bip01_R_Hand")
             if not boneIndex then return end

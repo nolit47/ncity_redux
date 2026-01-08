@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\organism\\tier_1\\cl_main.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 
 hook.Add("HG_OnPlayerChat", "TextModificationBasedOnStuff", function(ply, text, bTeam, bDead, plyColor, plyName, bWhisper)
 	local txt = text[1]
@@ -205,22 +203,22 @@ local function MegaDSP(ply)
 		--print(avgDist)
 		if avgDist > 50000000 then
 			RunConsoleCommand("dsp_player", 0)
-			RunConsoleCommand("room_type", 21)
+			RunConsoleCommand("room_type", 1)
 		elseif avgDist > 5000000 then
 			RunConsoleCommand("dsp_player", 105)
-			RunConsoleCommand("room_type", 50)
+			RunConsoleCommand("room_type", 1)
 		elseif avgDist > 500000 then
 			RunConsoleCommand("dsp_player", 3)
-			RunConsoleCommand("room_type", 50)
+			RunConsoleCommand("room_type", 1)
 		elseif avgDist > 50000 then
 			RunConsoleCommand("dsp_player", 2)
-			RunConsoleCommand("room_type", 50)
+			RunConsoleCommand("room_type", 1)
 		elseif avgDist > 5000 then
 			RunConsoleCommand("dsp_player", 104)
-			RunConsoleCommand("room_type", 50)
+			RunConsoleCommand("room_type", 1)
 		elseif avgDist <= 5000 then
 			RunConsoleCommand("dsp_player", 102)
-			RunConsoleCommand("room_type", 50)
+			RunConsoleCommand("room_type", 1)
 		end
 end
 
@@ -413,7 +411,7 @@ hook.Add("radialOptions", "DislocatedJaw", function()
 					lply.tried_fixing_limb = CurTime() + 0.5
 					RunConsoleCommand("hg_fixdislocation", 3, 1)
 				end,
-				"Fix "..ent:GetPlayerName().."'s dislocation (arm)"
+				"Fix "..ent:GetPlayerName().."'s dislocation (jaw)"
 			}
 			hg.radialOptions[#hg.radialOptions + 1] = tbl
 		end
@@ -554,9 +552,6 @@ hook.Add("RenderScreenspaceEffects", "organism-effects", function()
 		lply:SetDSP(130)
 		olddspchange = true
 	else
-		--if auto_dsp_convar:GetBool() then
-			--MegaDSP(lply)
-		--else
 		if olddspchange then
 			lply:SetDSP(0)
 			olddspchange = false
@@ -588,7 +583,11 @@ hook.Add("RenderScreenspaceEffects", "organism-effects", function()
 		if ((disorientation and disorientation > 3) or (brain and brain > 0.2)) and lply:Alive() then
 			lply:SetDSP(130)
 		end
-		lply:SetDSP(0)
+		if auto_dsp_convar:GetBool() then
+			MegaDSP(lply)
+		else
+			lply:SetDSP(0)
+		end
 	end
 
 	if not alive then
@@ -599,7 +598,7 @@ hook.Add("RenderScreenspaceEffects", "organism-effects", function()
 	k2 = (30 - (o2 or 30)) / 30 + (1 - org.consciousness) * 1-- + brain * 2
 	k3 = ((5000 / math.max(blood, 1000)) - 1) * 1.5
 
-	DrawSharpen(k1 * 0, k1 * 1)
+	-- DrawSharpen(k1 * 1.5, k1 * 1)
 	local lowpulse = math.max((70 - pulse) / 70, 0) + math.max(3000 * ((math.cos(CurTime()/2) + 1) / 2 * 0.1 + 1) - (blood * adrenK - 300),0) / 400
 
 	local amount = 1 - math.Clamp(lowpulse + disorientation / 4 + k2 * 2,0,1)
@@ -932,7 +931,9 @@ hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, en
 				if (owner:IsPlayer() and owner:Alive()) or not owner:IsPlayer() then
 					if seen then
 						local bone = wound[4]
-						local bonePos, boneAng = ent:GetBonePosition(bone)
+						local mat = ent:GetBoneMatrix(bone)
+						if not mat then return end
+						local bonePos, boneAng = mat:GetTranslation(), mat:GetAngles()
 						if not wound[2] or not wound[3] or not bonePos or not boneAng then return end
 						local pos = LocalToWorld(vector_origin--[[wound[2]], wound[3], bonePos, boneAng)
 
@@ -965,7 +966,9 @@ hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, en
 					local size = math.random(1, 2) * math.max(math.min(wound[1], 1), 0.5)
 					if seen then
 						local bone = wound[4]
-						local bonePos, boneAng = ent:GetBonePosition(bone)
+						local mat = ent:GetBoneMatrix(bone)
+						if not mat then return end
+						local bonePos, boneAng = mat:GetTranslation(), mat:GetAngles()
 						if not wound[2] or not wound[3] or not bonePos or not boneAng then return end
 						local pos = LocalToWorld(vector_origin--[[wound[2]], wound[3], bonePos, boneAng)
 
@@ -995,7 +998,7 @@ end)
 
 local red = Color(255, 0, 0)
 
-local AdminAbuse = CreateClientConVar("zb_adminabuse", "0", false)
+local AdminAbuse = CreateClientConVar("hg_adminabuse", "0", false)
 
 
 hook.Add("SetupOutlines", "ZB_AdminAbuse_Outlines", function(Add)

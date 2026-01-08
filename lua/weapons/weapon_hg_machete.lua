@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Machete"
-SWEP.Instructions = "A machete is a broad blade used either as an agricultural implement similar to an axe, or in combat like a long-bladed knife."
+SWEP.Instructions = "A machete is a broad blade used either as an agricultural implement similar to an axe, or in combat like a long-bladed knife.\n\nLMB to attack.\nRMB to block."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -18,6 +18,7 @@ SWEP.HoldType = "slam"
 SWEP.DamageType = DMG_SLASH
 
 SWEP.HoldPos = Vector(-11,0,0)
+SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.AttackTime = 0.25
 SWEP.AnimTime1 = 1.1

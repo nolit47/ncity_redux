@@ -1,12 +1,29 @@
--- yea
 local PANEL = {}
-
+if not hg.ColorSettings then include("homigrad/cl_color_settings.lua") end
+local colorSettings = hg.ColorSettings
 local colors = {}
-colors.secondary = Color(25,25,25,195)
-colors.mainText = Color(255,255,255,255)
-colors.secondaryText = Color(45,45,45,125)
-colors.selectionBG = Color(45,45,45,225)
-colors.highlightText = Color(120,35,35)
+local function refreshAppearanceColors()
+    colors.secondary = colorSettings:GetColor("appearance_secondary")
+    colors.mainText = colorSettings:GetColor("appearance_text")
+    colors.secondaryText = colorSettings:GetColor("appearance_text_secondary")
+    colors.selectionBG = colorSettings:GetColor("appearance_selection")
+    colors.highlightText = colorSettings:GetColor("appearance_highlight")
+end
+refreshAppearanceColors()
+
+local appearanceColorIds = {
+    appearance_secondary = true,
+    appearance_text = true,
+    appearance_text_secondary = true,
+    appearance_selection = true,
+    appearance_highlight = true
+}
+
+hook.Add("HGColorsUpdated", "HG_LegacyAppearanceColorSync", function(id)
+    if appearanceColorIds[id] then
+        refreshAppearanceColors()
+    end
+end)
 
 function PANEL:SetAppearance( tAppearacne )
     self.Appearance = tAppearacne

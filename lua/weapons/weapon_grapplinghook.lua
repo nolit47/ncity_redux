@@ -72,6 +72,7 @@ function SWEP:OnDrop()
 		local Ent = ents.Create(self.ENT)
 		Ent:SetPos(self:GetPos())
 		Ent:SetAngles(self:GetAngles())
+		Ent:SetOwner(self:GetOwner())
 		Ent:Spawn()
 		Ent:Activate()
 		Ent:GetPhysicsObject():SetVelocity(self:GetVelocity() / 2)
@@ -98,9 +99,7 @@ function SWEP:PrimaryAttack()
 				if Tr.Hit then owner:SetVelocity(-owner:GetAimVector() * 300) end
 			end
 
-			--HMCD_StaminaPenalize(owner,4)
 			if owner.organism then owner.organism.stamina.subadd = 1.5 end
-			-- sound.Play("snds_jack_clothmove/"..math.random(1,9)..".wav",owner:GetPos(),70,math.random(90,110))
 			owner:DoAnimationEvent(ACT_GMOD_GESTURE_MELEE_SHOVE_1HAND)
 			owner:ViewPunch(Angle(-1, math.random(-1, 1), math.random(-1, 1)))
 		end
@@ -125,9 +124,7 @@ function SWEP:SecondaryAttack()
 	if self:GetCurrentState() == "Nothing" then
 		if IsValid(self.GrapplinHook) then
 			self.DesiredDist = math.Clamp(self.DesiredDist + 50, 10, 4000)
-			--HMCD_StaminaPenalize(owner,2)
 			if owner.organism then owner.organism.stamina.subadd = 1 end
-			-- sound.Play("snds_jack_clothmove/"..math.random(1,9)..".wav",owner:GetPos(),70,math.random(90,110))
 			owner:ViewPunch(Angle(-1, 0, 0))
 		end
 
@@ -165,12 +162,6 @@ function SWEP:Think()
 			local BackAmt = self:GetBack()
 			if State == "Idling" then
 				if owner:KeyDown(IN_ATTACK) then self:Windup() end
-			elseif State == "Hidden" then
-				if math.random(1, 19) == 18 then
-					owner:ViewPunch(Angle(1, 0, 0))
-					-- local Nam,Vol,Pit="snds_jack_clothmove/"..math.random(1,9)..".wav",65,math.random(90,110)
-					-- self.Weapon:EmitSound(Nam,Vol,Pit)
-				end
 			elseif State == "Drawing" then
 				self:SetHidden(math.Clamp(HiddenAmt - 10 / self.DrawTime, 0, 100))
 				if HiddenAmt <= 0 then self:SetCurrentState("Idling") end
@@ -227,9 +218,10 @@ function SWEP:Throw()
 	sound.Play("weapons/slam/throw.wav", self:GetPos(), 75, 80)
 	sound.Play("weapons/slam/throw.wav", self:GetPos(), 70, 80)
 	sound.Play("weapons/slam/throw.wav", self:GetPos(), 65, 80)
-	local Gr = ents.Create("ent_grapplinghook")
+	local Gr = ents.Create(self.ENT)
 	Gr:SetPos(ThrowPos)
 	Gr.Owner = owner
+	Gr:SetOwner(self:GetOwner())
 	Gr:SetAngles(VectorRand():Angle())
 	Gr:Spawn()
 	Gr:Activate()
@@ -295,27 +287,10 @@ end
 function SWEP:Deploy()
 	local owner = self:GetOwner()
 	if not IsValid(owner) or not owner:IsPlayer() then return end
-	self:HideThenDraw(self.DrawTime)
+	self:SetHidden(100)
 	self:SetNextPrimaryFire(CurTime() + 0.5)
 	self:SetNextSecondaryFire(CurTime() + 0.5)
 	self:SetShouldHideWorldModel(false)
-end
-
-function SWEP:HideThenDraw(num)
-	self:SetHidden(100)
-	--self:SetCurrentState("Hidden")
-	-- self.Weapon:EmitSound("snds_jack_equipmentfumble/"..math.random(1,10)..".wav",70,math.random(80,120))
-	timer.Simple(num, function()
-		if IsValid(self) then
-			-- self.Weapon:EmitSound("snds_jack_clothmove/"..math.random(1,9)..".wav",70,math.random(90,110))
-			--self:SetCurrentState("Drawing")
-			--self:CustomFinishedDrawing()
-		end
-	end)
-end
-
-function SWEP:CustomFinishedDrawing()
-	-- wat
 end
 
 function SWEP:Fail()

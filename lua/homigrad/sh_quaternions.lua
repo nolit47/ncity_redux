@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_quaternions.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 --; https://github.com/JWalkerMailly/glua-quaternion/tree/master
 
 ---

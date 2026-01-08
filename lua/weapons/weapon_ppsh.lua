@@ -1,4 +1,3 @@
-if true then return end
 SWEP.Base = "homigrad_base"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -30,7 +29,7 @@ SWEP.UseCustomWorldModel = true
 SWEP.Primary.ClipSize = 71
 SWEP.Primary.DefaultClip = 71
 SWEP.Primary.Automatic = true
-SWEP.Primary.Ammo = fuck_you_ok--"7.62x39 mm"
+SWEP.Primary.Ammo = "7.62x39 mm"
 SWEP.Primary.Cone = 0
 SWEP.Primary.Damage = 26
 SWEP.Primary.Spread = 0
@@ -39,24 +38,24 @@ SWEP.Primary.Sound = {"weapons/tfa_ins2/ump45/ump45_fp.wav", 75, 120, 130}
 SWEP.Primary.SoundEmpty = {"zcitysnd/sound/weapons/aks74u/handling/aks_empty.wav", 75, 100, 105, CHAN_WEAPON, 2}
 SWEP.Primary.Wait = 0.066
 SWEP.availableAttachments = { -- всем вязать
-	--[[sight = {
-		["mountType"] = "picatinny",
-		["mount"] = Vector(-11, 2.8, -0.28),
-		["empty"] = {
-			"empty",
-			{
-				[8] = "pwb2/models/weapons/w_vectorsmg/sight"
-			},
-		},
-		["removehuy"] = {
-			[8] = "null"
-		},
-	},
+	//sight = {
+		//["mountType"] = "picatinny",
+		//["mount"] = Vector(-11, 2.8, -0.28),
+		//["empty"] = {
+			//"empty",
+			//{
+				//[8] = "pwb2/models/weapons/w_vectorsmg/sight"
+			//},
+	//	},
+		//["removehuy"] = {
+		//	[8] = "null"
+		//},
+	//},
 	barrel = {
 		[1] = {"supressor4", Vector(0,0,0), {}},
 		[2] = {"supressor6", Vector(0,0,0), {}},
 		["mount"] = Vector(-3.5 + 2,0.4 +0.65,1.3-1.45),
-	}]]
+	}
 }
 
 SWEP.ReloadTime = 5.8
@@ -78,7 +77,7 @@ SWEP.ReloadSoundes = {
 }
 SWEP.ReloadSound = "weapons/ar2/ar2_reload.wav"
 SWEP.HoldType = "rpg"
-SWEP.ZoomPos = Vector(-1.6, 0.11, 22)
+SWEP.ZoomPos = Vector(-1.6, 5, -0.15)
 SWEP.RHandPos = Vector(-2, -2, 0)
 SWEP.LHandPos = Vector(7, -2, -2)
 SWEP.Spray = {}

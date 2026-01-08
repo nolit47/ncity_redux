@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_hg_attachments.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 hg.attachments = {}
 hg.attachments.sight = {
 	["empty"] = {"sight", "", Angle(0, 0, 0), {}},

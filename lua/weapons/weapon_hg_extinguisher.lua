@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Fire Extinguisher"
-SWEP.Instructions = "This is a hand-held cylindrical pressure vessel containing an agent that can be discharged to extinguish a fire."
+SWEP.Instructions = "This is a hand-held cylindrical pressure vessel containing an agent that can be discharged to extinguish a fire.\n\nLMB to attack.\nR to change mode.\nRMB to block."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -12,11 +12,12 @@ SWEP.WorldModelReal = "models/weapons/tfa_nmrih/v_tool_extinguisher.mdl"
 SWEP.DontChangeDropped = false
 SWEP.ViewModel = ""
 
-SWEP.HoldType = "camera"
+SWEP.HoldType = "revolver"
 
 SWEP.DamageType = DMG_SLASH
 
 SWEP.HoldPos = Vector(-15,1,2)
+SWEP.HoldAng = Angle()
 
 SWEP.AttackTime = 0.45
 SWEP.AnimTime1 = 1.9
@@ -48,7 +49,7 @@ SWEP.MaxPenLen = 5
 SWEP.PenetrationSizePrimary = 3
 SWEP.PenetrationSizeSecondary = 1.25
 
-SWEP.StaminaPrimary = 40
+SWEP.StaminaPrimary = 45
 SWEP.StaminaSecondary = 15
 
 SWEP.AttackLen1 = 65
@@ -206,10 +207,20 @@ function SWEP:CanPrimaryAttack()
         return true
     else
         self.allowsec = true
-        self:SecondaryAttack()
+        self:SecondaryAttack(true)
         self.allowsec = nil
         return false
     end
+end
+
+function SWEP:CustomBlockAnim(addPosLerp, addAngLerp)
+    addPosLerp.z = addPosLerp.z + (self:GetBlocking() and -5 or 0)
+    addPosLerp.x = addPosLerp.x + (self:GetBlocking() and 0 or 0)
+    addPosLerp.y = addPosLerp.y + (self:GetBlocking() and -5 or 0)
+    addAngLerp.y = addAngLerp.y + (self:GetBlocking() and 30 or 0)
+    addAngLerp.r = addAngLerp.r + (self:GetBlocking() and -60 or 0)
+
+    return true
 end
 
 SWEP.NoHolster = true

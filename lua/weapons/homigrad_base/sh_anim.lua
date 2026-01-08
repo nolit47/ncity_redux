@@ -214,13 +214,28 @@ function SWEP:AnimHold()
 	if not self.attachments then return end
 	//self.holdtype = self.attachments.grip and #self.attachments.grip ~= 0 and hg.attachments.grip[self.attachments.grip[1]].holdtype or self.HoldType
 	self.holdtype = self.HoldType
-	self.holdtype = self.holster and (self.holster - CurTime()) / (self.CooldownHolster / self.Ergonomics) < 0.7 and "normal" or self.holdtype
-	self.holdtype = ((self.deploy and (self.deploy - CurTime()) / (self.CooldownDeploy / self.Ergonomics) > 0.3)) and "normal" or self.holdtype
-	self.holdtype = (self:IsPistolHoldType() and ((ply.posture == 7 or ply.posture == 8) and not self.reload)) and "slam" or self.holdtype
+	self.holdtype = self.holster and (self.holster - CurTime()) / (self.CooldownHolster / self.Ergonomics) < 0.5 and "normal" or self.holdtype
+	self.holdtype = ((self.deploy and (self.deploy - CurTime()) / (self.CooldownDeploy / self.Ergonomics) > 0.5)) and "normal" or self.holdtype
+	self.holdtype = ((self:IsPistolHoldType() or self.CanEpicRun) and ((ply.posture == 7 or ply.posture == 8 or self:IsSprinting()) and not self.reload)) and "slam" or self.holdtype
 	self.holdtype = (self:KeyDown(IN_DUCK) and self.holdtype == "rpg") and "smg" or self.holdtype
-	self.holdtype =  (self.holdtype == "rpg" and self:GetOwner():IsNPC() and "smg") or self.holdtype
+	self.holdtype = (self:IsPistolHoldType() and (self:GetButtstockAttack() - CurTime() > -0.5)) and "melee" or self.holdtype
 	--self.holdtype = self:ReadyStance() and not self:IsPistolHoldType() and "pistol" or self.holdtype
 	self:SetHold(self.holdtype)
+
+	local stam = (ply.organism ~= nil and ply.organism.stamina and ply.organism.stamina[1]) or 180
+	local timea = 0.4 * ((math.max(0, (self.weight - 3)) * 0.2) + 1) * (math.Clamp((180 - stam) / 90, 1, 1.5))
+	local progress = (1 - math.Clamp(self:GetButtstockAttack() - CurTime() + timea * 2, 0, timea * 2) / timea)
+	
+	if progress > 0 then
+		progress = 1 - progress
+		progress = math.ease.InOutSine(progress)
+	else
+		progress = 1 + progress
+		progress = math.ease.OutBack(progress)
+	end
+
+	self:BoneSet("spine1", vecZero, Angle(0, 0, progress * 25), "buttstockattack", 0.0001)
+	self:BoneSet("head", vecZero, Angle(0, 0, -progress * 25), "buttstockattack", 0.0001)
 
 	local func = hg.postureFunctions[ply.posture] or funcNil
 

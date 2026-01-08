@@ -33,7 +33,7 @@ function SWEP:Holster(wep)
 		self.deploy = nil
 	end
 	self.reload = nil
-	if self.WorldModelFake then self:PlayAnim("idle", 1, true) end
+	if self.WorldModelFake then self:PlayAnim("idle", 1, not self.NoIdleLoop) end
 	do return true end
 	local time = CurTime()
 	if self.holster then return true end
@@ -72,7 +72,7 @@ function SWEP:Deploy()
 		self:GetWM():ManipulateBoneScale(self.MagIndex, vector_origin)
 	end
 
-	if self.WorldModelFake then self:PlayAnim("idle", 1, true) end
+	if self.WorldModelFake then self:PlayAnim("idle", 1, not self.NoIdleLoop) end
 
 	self.holster = nil
 	self:SetHolster(0)

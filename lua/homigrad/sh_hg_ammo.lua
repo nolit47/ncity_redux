@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_hg_ammo.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 --\\Silk
 HGAmmo_MaxKeyBits = 13
 
@@ -1936,8 +1934,9 @@ hg.ammotypes = {
 			TracerSpeed = 25000
 		},
 	},
-	["metallicball"] = {
+	["musketball"] = {
 		name = "Metallic Ball",
+		allowed = false,
 		dmgtype = DMG_BULLET,
 		tracer = TRACER_LINE,
 		plydmg = 0,
@@ -1965,11 +1964,12 @@ hg.ammotypes = {
 			Speed = 450,
 			Diameter = 19,
 			Mass = 28,
-			Icon = matShotgunAmmo
+			Icon = matRfileAmmo
 		}
 	},
-	["tranquilizerdarts"] = {
+	["tranqdart"] = {
 		name = "Tranquilizer Darts",
+		allowed = false,
 		dmgtype = DMG_CLUB,
 		tracer = TRACER_LINE,
 		plydmg = 0,
@@ -2276,13 +2276,13 @@ local ammoents = {
 	[".40sw"] = {
 		Model = "models/zcity/ammo/ammo_1143x23_hydro.mdl"
 	},
-	["metallicball"] = {
+	["musketball"] = {
 		Model = "models/hunter/misc/sphere025x025.mdl",
 		Material = "models/mat_jack_dullscratchedmetal",
 		Scale = 0.25,
 		Count = 1
 	},
-	["tranquilizerdarts"] = {
+	["tranqdart"] = {
 		Material = "models/hmcd_ammobox_9",
 		Scale = 0.8,
 	},
@@ -2455,16 +2455,13 @@ if SERVER then
 			--print(game.GetAmmoName(ammotype))
 		
         local AmmoEnt = ents.Create( "ent_ammo_"..string.lower( string.Replace(game.GetAmmoName(ammotype)," ", "") ) )
-		if not IsValid(AmmoEnt) then
-			ply:ChatPrint("Invalid entitytype...")
-		else
-			AmmoEnt:SetPos( pos )
-			AmmoEnt:Spawn()
-			AmmoEnt.AmmoCount = count
-			local phys = AmmoEnt:GetPhysicsObject()
-			if IsValid(phys) then
-				phys:SetMass((game.GetAmmoForce(ammotype) * count) / 1500)
-			end
+		if not IsValid(AmmoEnt) then return ply:ChatPrint("Invalid entitytype...") end
+        AmmoEnt:SetPos( pos )
+        AmmoEnt:Spawn()
+        AmmoEnt.AmmoCount = count
+		local phys = AmmoEnt:GetPhysicsObject()
+		if IsValid(phys) then
+			phys:SetMass((game.GetAmmoForce(ammotype) * count) / 1500)
 		end
         ply:SetAmmo(ply:GetAmmoCount(ammotype)-count,ammotype)
         ply:EmitSound("snd_jack_hmcd_ammobox.wav", 75, math.random(80,90), 1, CHAN_ITEM )

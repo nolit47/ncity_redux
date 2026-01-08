@@ -208,7 +208,7 @@ if SERVER then
 			if dtape then
 				for i,tbl in pairs(dtape) do
 					if tbl[2] > 0 then
-						tbl[2] = tbl[2] - 1
+						tbl[2] = tbl[2] - 0.2
 						ply.FakeRagdoll:EmitSound("tape_friction"..math.random(3)..".mp3",65)
 						if tbl[2] <= 0 then
 							if IsValid(tbl[1]) then

@@ -16,36 +16,6 @@ BulletSettings = {
 		}
 */
 
--- Локализация
-local lang = {
-	["en"] = {
-		["unload_ammo"] = "Unload Ammo",
-		["change_ammo_type"] = "Change Ammo Type",
-		["changed_ammotype"] = "Changed ammotype to: "
-	},
-	["ru"] = {
-		["unload_ammo"] = "Разрядить оружие",
-		["change_ammo_type"] = "Сменить тип патронов",
-		["changed_ammotype"] = "Тип патронов изменён на: "
-	}
-}
-
--- Функция получения локализованного текста
-local function GetText(key, ply)
-	local playerLang = "en"
-	
-	if CLIENT then
-		playerLang = GetConVar("gmod_language"):GetString()
-		if playerLang ~= "en" and playerLang ~= "ru" then
-			playerLang = "en"
-		end
-	elseif SERVER and IsValid(ply) then
-		playerLang = ply:GetInfoNum("gmod_language", 0) == 0 and "en" or "ru"
-	end
-	
-	return lang[playerLang] and lang[playerLang][key] or lang["en"][key]
-end
-
 function SWEP:ApplyAmmoChanges(type_)
 	if not self.AmmoTypes or not istable(self.AmmoTypes) then
 		print("ЭРРАР: Таблица не валдинайа")
@@ -118,7 +88,7 @@ if CLIENT then
 		local type_ = math.Round(args[1])
 		if wep and ishgweapon(wep) and wep:Clip1() == 0 or wep.AllwaysChangeAmmo and wep:CanUse() and wep.AmmoTypes and wep.AmmoTypes[type_] then
 			--wep:ApplyAmmoChanges(type_)
-			ply:ChatPrint(GetText("changed_ammotype", ply) .. wep.AmmoTypes[type_][1])
+			ply:ChatPrint("Changed ammotype to: " .. wep.AmmoTypes[type_][1])
 			net.Start("changeAmmoType")
 			net.WriteEntity(wep)
 			net.WriteInt(type_, 4)
@@ -149,14 +119,14 @@ if CLIENT then
 				end 
 				local tbl = {
 					changeAmmoType,
-					GetText("change_ammo_type"),
+					"Change Ammo Type",
 					true,
 					ammotypes
 				}
 
 				hg.radialOptions[#hg.radialOptions + 1] = tbl
 			elseif wep:Clip1() > 0 then
-				local tbl = {unloadAmmo, GetText("unload_ammo")}
+				local tbl = {unloadAmmo, "Unload Ammo"}
 				hg.radialOptions[#hg.radialOptions + 1] = tbl
 			end
 		end

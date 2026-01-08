@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_animation.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 function hg.InstallAnimationMethods(meta)
 	local function TweenAnimationThink(object)
 		for k, v in pairs(object.tweenAnimations) do

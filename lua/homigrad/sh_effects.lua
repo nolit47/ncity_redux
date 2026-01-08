@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_effects.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 -- PewPaws!!!
 game.AddParticles("particles/muzzleflashes_test.pcf")
 game.AddParticles("particles/muzzleflashes_test_b.pcf")
@@ -75,15 +73,15 @@ PrecacheParticleSystem("pcf_jack_airsplode_large")
 
 -- Impacts
 
-game.AddParticles("particles/impact_fx.pcf")
-game.AddParticles("particles/water_impact.pcf")
+--game.AddParticles("particles/impact_fx.pcf")
+--game.AddParticles("particles/water_impact.pcf")
+--
+--PrecacheParticleSystem("impact_concrete")
+--PrecacheParticleSystem("impact_metal")
+--PrecacheParticleSystem("impact_computer")
+--PrecacheParticleSystem("impact_grass")
+--PrecacheParticleSystem("impact_dirt")
+--PrecacheParticleSystem("impact_wood")
+--PrecacheParticleSystem("impact_glass")
 
-PrecacheParticleSystem("impact_concrete")
-PrecacheParticleSystem("impact_metal")
-PrecacheParticleSystem("impact_computer")
-PrecacheParticleSystem("impact_grass")
-PrecacheParticleSystem("impact_dirt")
-PrecacheParticleSystem("impact_wood")
-PrecacheParticleSystem("impact_glass")
-
-if CLIENT then RunConsoleCommand("cl_new_impact_effects", "1") end
+if CLIENT then RunConsoleCommand("cl_new_impact_effects", "0") end

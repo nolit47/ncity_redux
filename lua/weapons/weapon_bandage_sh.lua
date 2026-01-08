@@ -2,7 +2,7 @@ if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_base"
 SWEP.PrintName = "Bandage"
 SWEP.Instructions = "A wad of gauze bandage, can help stop light bleeding. Since the bandage is not in its packaging, there is little chance that it is sterilized. RMB to use on someone else."
-SWEP.Category = "Medicine"
+SWEP.Category = "ZCity Medicine"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
 SWEP.Primary.ClipSize = -1
@@ -74,6 +74,11 @@ function SWEP:DrawWorldModel2(nodraw)
 	end
 
 	WorldModel:SetupBones()
+
+	if self.AfterDrawModel then
+		self:AfterDrawModel(WorldModel,nodraw)
+	end
+	
 	if not nodraw then WorldModel:DrawModel() end
 end
 
@@ -89,12 +94,15 @@ end
 
 function SWEP:SetupDataTables()
     self:NetworkVar("Float",0,"Holding")
+	if self.SetupDataTablesAdd then
+		self:SetupDataTablesAdd()
+	end
 end
 
 local bone, name
 function SWEP:BoneSet(lookup_name, vec, ang)
     if IsValid(self:GetOwner()) and !self:GetOwner():IsPlayer() then return end
-	hg.bone.Set(self:GetOwner(), lookup_name, vec, ang, "bandage", 0.1)
+	hg.bone.Set(self:GetOwner(), lookup_name, vec, ang, "bandage", 0.01)
 end
 
 local lang1, lang2 = Angle(0, -10, 0), Angle(0, 10, 0)
@@ -106,10 +114,14 @@ function SWEP:Animation()
 end
 
 SWEP.usetime = 2
+local math = math
 function SWEP:Think()
 	self:SetHold(self.HoldType)
-	self:SetHolding(math.max(self:GetHolding() - 4,0))
-	
+
+	if self:GetClass() == "weapon_bandage_sh" then
+		self.ModelScale = math.Clamp(self.modeValues[1] / (self.modeValuesdef[1][1] * 0.8), 0.5, 1)
+	end
+
 	--[[if self.modeValuesdef[self.mode][2] then
 		local time = CurTime()
 		local ply = self:GetOwner()
@@ -147,7 +159,7 @@ function SWEP:Think()
 		end
 	end--]]
 end
-
+SWEP.net_cooldown2 = 0
 function SWEP:PrimaryAttack()
 	//self:SetHolding(math.min(self:GetHolding() + 9, 100))
 	if SERVER then--and not self.modeValuesdef[self.mode][2] then
@@ -159,8 +171,11 @@ function SWEP:PrimaryAttack()
 		if(done and self.PostHeal)then
 			self:PostHeal(self.healbuddy, self.mode)
 		end
-		
-		self:SetNetVar("modeValues",self.modeValues)
+
+		if self.net_cooldown2 < CurTime() then
+			self:SetNetVar("modeValues",self.modeValues)
+			self.net_cooldown2 = CurTime() + 0.1
+		end
 	end
 end
 
@@ -226,7 +241,7 @@ if CLIENT then
 				m:Scale( vector_one * 0.5 )
 
 				cam.PushModelMatrix( m, true )
-					for i, val in pairs(self.modeValues) do
+					for i, val in ipairs(self.modeValues) do
 						if not isnumber(i) or not val or not self.modeValuesdef or not self.modeValuesdef[i][1] then continue end
 						local val = math.Round(val / self.modeValuesdef[i][1] * 100)
 						local x,y = 0, i * ScrH() / 20
@@ -271,11 +286,21 @@ SWEP.DeploySnd = "physics/body/body_medium_impact_soft5.wav"
 SWEP.HolsterSnd = ""
 SWEP.FallSnd = "physics/body/body_medium_impact_soft5.wav"
 
+function SWEP:HintShow(lply,fraction,trace)
+	hg.BasicHudHint(self,lply,fraction,trace)
+end
+if CLIENT then
+	SWEP.HowToUseInstructions = "<font=ZCity_Tiny>"..string.upper( input.LookupBinding("+use") ).." to pickup</font>"
+end
 function SWEP:Initialize()
 	self:SetHold(self.HoldType)
 	self.modeValues = {
 		[1] = 40,
 	}
+
+	if CLIENT then
+		self.HudHintMarkup = markup.Parse("<font=ZCity_Tiny>".. self.PrintName .."</font>\n<font=ZCity_SuperTiny><colour=125,125,125>".. self.HowToUseInstructions .."</colour></font>",450)
+	end
 
 	util.PrecacheSound(self.DeploySnd)
 	util.PrecacheSound(self.HolsterSnd)
@@ -323,7 +348,10 @@ function SWEP:SecondaryAttack()
 			self:PostHeal(self.healbuddy, self.mode)
 		end		
 
-		self:SetNetVar("modeValues",self.modeValues)
+		if self.net_cooldown2 < CurTime() then
+			self:SetNetVar("modeValues",self.modeValues)
+			self.net_cooldown2 = CurTime() + 0.1
+		end
 	end
 end
 
@@ -375,7 +403,7 @@ if SERVER then
 				if self.modeValues[1] > 0 and #org.wounds > 0 then
 					local biggestWound = org.wounds[1][1]
 					local healedWound = math.max(biggestWound - self.modeValues[1], 0)
-					local woundHeal = self.modeValues[1] - (biggestWound - healedWound) * ((owner.Profession == "doctor") and 0.5 or 1)
+					local woundHeal = self.modeValues[1] - (biggestWound - healedWound) * ((owner.Profession == "doctor") and 0.33 or 1)
 					org.bleed = math.max(org.bleed - (biggestWound - healedWound), 0)
 					org.wounds[1][1] = healedWound
 					self.modeValues[1] = woundHeal
@@ -627,6 +655,39 @@ hg.TourniquetGuys = hg.TourniquetGuys or {}
 
 if SERVER then
 	util.AddNetworkString("send_tourniquets")
+	local tourniqet_bones = {
+		["ValveBiped.Bip01_L_UpperArm"] = {
+			["ValveBiped.Bip01_L_Forearm"] = true,
+			["ValveBiped.Bip01_L_Hand"] = true
+		},
+		["ValveBiped.Bip01_L_Forearm"] = {
+			["ValveBiped.Bip01_L_Hand"] = true
+		},
+
+		["ValveBiped.Bip01_R_UpperArm"] = {
+			["ValveBiped.Bip01_R_Forearm"] = true,
+			["ValveBiped.Bip01_R_Hand"] = true
+		},
+		["ValveBiped.Bip01_R_Forearm"] = {
+			["ValveBiped.Bip01_R_Hand"] = true
+		},
+
+		["ValveBiped.Bip01_L_Thigh"] = {
+			["ValveBiped.Bip01_L_Calf"] = true,
+			["ValveBiped.Bip01_L_Foot"] = true
+		},
+		["ValveBiped.Bip01_L_Calf"] = {
+			["ValveBiped.Bip01_L_Foot"] = true
+		},
+
+		["ValveBiped.Bip01_R_Thigh"] = {
+			["ValveBiped.Bip01_R_Calf"] = true,
+			["ValveBiped.Bip01_R_Foot"] = true
+		},
+		["ValveBiped.Bip01_R_Calf"] = {
+			["ValveBiped.Bip01_R_Foot"] = true
+		},
+	}
 	function SWEP:Tourniquet(ent, bone)
 		local org = ent.organism
 		if not org then return end
@@ -635,17 +696,35 @@ if SERVER then
 			ent.tourniquets = ent.tourniquets or {}
 
 			local pw
-			
+			local bonewounds = {}
 			if not bone then
 				for i,wound in pairs(org.arterialwounds) do
-					if wound[7] != "arteria" then pw = i break end
+					if wound[7] != "arteria" then 
+						pw = i 
+						for i1,tbl in pairs(org.wounds) do
+							local bonename = ent:GetBoneName(tbl[4])
+							local sec_bonename = ent:GetBoneName(wound[4])
+							--print(1,bonename,sec_bonename)
+							if bonename == sec_bonename or (tourniqet_bones[sec_bonename] and tourniqet_bones[sec_bonename][bonename]) then
+								--print(2,bonename,sec_bonename)
+								table.insert(bonewounds,i1)
+							end
+						end
+						--PrintTable(bonewounds)
+					break end
 				end
+				
 			else
 				for i,wound in pairs(org.arterialwounds) do
 					if ent:GetBoneName(wound[4]) == bone then pw = i break end
 				end
-			end
-			
+				for i,tbl in pairs(org.wounds) do
+					local bonename = ent:GetBoneName(tbl[4])
+					if bonename == bone or (tourniqet_bones[bone] and tourniqet_bones[bone][bonename]) then
+						table.insert(bonewounds,i)
+					end
+				end
+			end		
 			pw = pw or math.random(#org.arterialwounds)
 
 			local wound = org.arterialwounds[pw]
@@ -659,6 +738,20 @@ if SERVER then
 			table.remove(org.arterialwounds,pw)
 
 			org.owner:SetNetVar("arterialwounds",org.arterialwounds)
+
+			for i = 1, #bonewounds do
+				if org.wounds[bonewounds[i]] then
+					--print(org.wounds[bonewounds[i]], bonewounds[i])
+					org.wounds[bonewounds[i]][1] = 0
+				end
+			end
+			for i = 1, #bonewounds do
+				if org.wounds[bonewounds[i]] then
+					table.remove(org.wounds, bonewounds[i])
+				end
+			end
+
+			org.owner:SetNetVar("wounds",org.wounds)
 
 			ent:SetNetVar("Tourniquets",ent.tourniquets)
 			if IsValid(ent.FakeRagdoll) then
@@ -792,9 +885,7 @@ else
 
 	--hook.Add("PostDrawPlayerRagdoll", "draw_tourniquets", function(ent,ply)
 	function hg.RenderTourniquets(ent, ply)
-		if not ply.tourniquets then return end
-		if table.IsEmpty(ply.tourniquets) then return end
-
+		if !ply.tourniquets or !next(ply.tourniquets) then return end
 		for i, wound in ipairs(ply.tourniquets) do
 			ply.tourniquetsM = ply.tourniquetsM or {}
 			ply.tourniquetsM[i] = IsValid(ply.tourniquetsM[i]) and ply.tourniquetsM[i] or ClientsideModel("models/tourniquet/tourniquet_put.mdl")
@@ -896,7 +987,7 @@ else
 	function hg.RenderBandages(ent, ply)
 		--PrintTable(ent.bandaged_limbs)
 		if not ent.bandaged_limbs then return end
-		if table.IsEmpty(ent.bandaged_limbs) then return end
+		if !next(ent.bandaged_limbs) then return end
 		if not IsValid( ent.bandagesModel ) then
 			ent.bandagesModel = (ThatPlyIsFemale(ent) and ClientsideModel(BadagesModelFemale) or ClientsideModel(BadagesModelMale))
 			local model = ent.bandagesModel
@@ -939,10 +1030,9 @@ function SWEP:Holster(wep)
 end
 
 function SWEP:Deploy()
-	
 	if SERVER or CLIENT and self:IsLocal() then
-		self:EmitSound(self.DeploySnd,50,math.random(90,110))
+		self:EmitSound(self.DeploySnd, 50, math.random(90, 110))
 	end
-	
+
 	return true
 end

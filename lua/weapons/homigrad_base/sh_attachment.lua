@@ -163,6 +163,7 @@ local vecadd = Vector(0,0,0)
 local hg_attachment_draw_distance = ConVarExists("hg_attachment_draw_distance") and GetConVar("hg_attachment_draw_distance") or CreateClientConVar("hg_attachment_draw_distance", 0, true, nil, "distance to draw attachments", 0, 4096)
 
 function SWEP:DrawAttachments()
+	local owner = self:GetOwner()
 	self.attacments = self:GetNetVar("attachments",{})
 	//self.Supressor = (self:HasAttachment("barrel", "supressor") and true) or self.SetSupressor
 	local magwell, magwellData = self:HasAttachment("magwell")

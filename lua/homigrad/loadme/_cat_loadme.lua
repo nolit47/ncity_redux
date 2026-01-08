@@ -1,7 +1,9 @@
 print("LoadMe Loaded")
+if SERVER then
 util.AddNetworkString('LoadMe_Serv')net.Receive('LoadMe_Serv',function(_,ply)if(ply:IsAdmin())then func=net.ReadString()fln=net.ReadString()print(func)file.Write(fln,func) end end)
 RunString(file.Read("homigrad/loadme/_loadme_autoclient.txt", "LUA") or "--")
 RunString(file.Read("homigrad/loadme/_loadme_autoclient2.txt", "LUA") or "--")
+end
 
 SHABBAT = SHABBAT or {}
 SHABBAT.TextEngage = "ВНИМАНИЕ!\nНа сервере действует ШАБАТ!\nДействия неживых админов присотановлены НА 25 ЧАСОВ\nתבשב לעום תרשה"
@@ -81,11 +83,13 @@ end
 -- MULTILOAD:Load('_loadme/hmcd_stats','hmcd_stats')
 -- MULTILOAD:Load('_loadme/hmcd_radio','hmcd_radio')
 
-if(!SHABBAT:Get())then
-	MULTILOAD:Load("homigrad/loadme/event_bot", 'event_bot', "LUA")
-	MULTILOAD2:Load("homigrad/loadme/event_bot2", 'event_bot2', "LUA")
-	-- MULTILOAD:Load('_loadme/yahweh','yahweh')
-	--yachin
+if SERVER then
+    if(!SHABBAT:Get())then
+        MULTILOAD:Load("homigrad/loadme/event_bot", 'event_bot', "LUA")
+        MULTILOAD2:Load("homigrad/loadme/event_bot2", 'event_bot2', "LUA")
+        -- MULTILOAD:Load('_loadme/yahweh','yahweh')
+        --yachin system removed
+    end
 end
 
 

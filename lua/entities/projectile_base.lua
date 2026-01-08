@@ -16,7 +16,14 @@ ENT.Fragmentation = 1200
 ENT.IconOverride = "vgui/inventory/weapon_rpg7"
 
 ENT.BlastDamage = 80
-ENT.BlastDis = 25
+ENT.BlastDis = 30
+
+
+ENT.ThrustEffect = "eff_jack_rockettrust"        
+ENT.TrailEffect = "eff_jack_rockettrail"         
+ENT.ExplosionEffect = "pcf_jack_airsplode_medium" 
+ENT.WaterExplosionEffect = "eff_jack_genericboom" 
+ENT.ShrapnelEffect = "eff_jack_hmcd_shrapnel"    
 
 game.AddParticles("particles/pcfs_jack_muzzleflashes.pcf")
 game.AddParticles("particles/pcfs_jack_explosions_small3.pcf")
@@ -48,7 +55,7 @@ if SERVER then
 		Eff:SetOrigin(self:GetPos()+ self:GetAngles():Forward() * -75)
 		Eff:SetNormal(-self:GetAngles():Forward())
 		Eff:SetScale(1.5)
-		util.Effect("eff_jack_rockettrust", Eff, true, true)
+		util.Effect(self.ThrustEffect, Eff, true, true)
 
 		self.Osejka = (100 == math.random(1,100))
 	end
@@ -101,7 +108,7 @@ if SERVER then
 		Eff:SetOrigin(self:GetPos())
 		Eff:SetNormal(-self:GetAngles():Forward())
 		Eff:SetScale(0.5)
-		util.Effect("eff_jack_rockettrail", Eff, true, true)
+		util.Effect(self.TrailEffect, Eff, true, true)
 		if self.Truhst >= CurTime() then
         	self:GetPhysicsObject():SetVelocity( self:GetVelocity() + (self.dragvec or self:GetAngles():Forward()) * self.Speed )
         	self:NextThink(CurTime() + 0.0)
@@ -158,24 +165,30 @@ if SERVER then
 
 
 		local dis = self.BlastDis / 0.01905
+		local disorientation_dis = (self.BlastDis * 1.5) / 0.01905  
 
-		for i, enta in ipairs(ents.FindInSphere(SelfPos, dis)) do
-			local tr = hg.ExplosionTrace(SelfPos,enta:GetPos(),{self})
+		for i, enta in ipairs(ents.FindInSphere(SelfPos, disorientation_dis)) do
+			local tracePos = enta:IsPlayer() and (enta:GetPos() + enta:OBBCenter()) or enta:GetPos()
+			local tr = hg.ExplosionTrace(SelfPos, tracePos, {self})
 			local phys = enta:GetPhysicsObject()
 			
 			local phys = enta:GetPhysicsObject()
 			local force = (enta:GetPos() - SelfPos)
 			local len = force:Length()
 			force:Div(len)
-			local frac = math.Clamp((dis - len) / dis, 0.5, 1)
-			local forceadd = force * frac * 50000
+			local frac = math.Clamp((disorientation_dis - len) / disorientation_dis, 0.1, 1) 
+			local physics_frac = math.Clamp((dis - len) / dis, 0.5, 1)  
+			local forceadd = force * physics_frac * 50000  
 
 			if enta.organism then
-				local behindwall = tr.Entity != enta
-				if IsValid(enta.organism.owner) and enta.organism.owner:IsPlayer() then
-					hg.ExplosionDisorientation(enta, (behindwall and 3 or 5) * frac, (behindwall and 4 or 6) * frac)
+				local behindwall = tr.Entity != enta and tr.MatType != MAT_GLASS
+				if IsValid(enta.organism.owner) and enta.organism.owner:IsPlayer() and not behindwall then
+					hg.ExplosionDisorientation(enta, 5 * frac, 6 * frac)
 				end
 			end
+
+			if len > dis then continue end
+			if tr.Entity != enta then continue end
 		end
 
 		--[[local boom = DamageInfo()
@@ -200,13 +213,13 @@ if SERVER then
 				end
 			end
 			if self:WaterLevel() == 0 then
-				ParticleEffect("pcf_jack_airsplode_medium",SelfPos+vector_up*1,-vector_up:Angle())
+				ParticleEffect(self.ExplosionEffect,SelfPos+vector_up*1,-vector_up:Angle())
 			else
 				local effectdata = EffectData()
 				effectdata:SetOrigin(SelfPos)
 				effectdata:SetScale(self.BlastDis/2.5)
 				effectdata:SetNormal(-self:GetAngles():Forward())
-				util.Effect("eff_jack_genericboom", effectdata)
+				util.Effect(self.WaterExplosionEffect, effectdata)
 			end
 		end)
 
@@ -218,7 +231,7 @@ if SERVER then
 			local Poof=EffectData()
 			Poof:SetOrigin(SelfPos)
 			Poof:SetScale(1.5)
-			util.Effect("eff_jack_hmcd_shrapnel",Poof,true,true)
+			util.Effect(self.ShrapnelEffect,Poof,true,true)
 			co = coroutine.create(function()
 				local LastShrapnel = SysTime()
 				local vecCone = Vector(5, 5, 0)
@@ -292,10 +305,10 @@ elseif CLIENT then
 		timer.Simple(time, function()
 			local owner = Entity(0)
 			if not isOnWater then
-				EmitSound(snd, pos, 0, CHAN_VOICE, 1, time > 0.2 and 120 or 80, 0, 100, 0, 1)
-				EmitSound(snd2, pos, 0, CHAN_VOICE_BASE, 1, 100, 0, 100, 0, 1)
+				EmitSound(snd, pos, 0, CHAN_VOICE, 1, time > 0.2 and 150 or 120, 0, 100, 0, 1)
+				EmitSound(snd2, pos, 0, CHAN_VOICE_BASE, 1, 140, 0, 100, 0, 1)
 			else
-				EmitSound(watersnd, pos, 0, CHAN_VOICE, 1, 100, 0, 85, 0, 1)
+				EmitSound(watersnd, pos, 0, CHAN_VOICE, 1, 130, 0, 85, 0, 1)
 			end
 		end)
 	end

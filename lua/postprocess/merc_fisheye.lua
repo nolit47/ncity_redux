@@ -31,6 +31,8 @@ list.Set( "PostProcess", "Fisheye", {
 		CPanel:Help( "Distorts the screen to mimic a fisheye effect." )
 		CPanel:CheckBox( "Enable", "pp_mercfisheye" )
 
+        CPanel:ToolPresets( "pp_mercfisheye", {pp_mercfisheye_strength = "0.2"} )
+
 		CPanel:NumSlider( "Strength", "pp_mercfisheye_strength", -10, 10, 3 )
 
 	end

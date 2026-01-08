@@ -29,28 +29,28 @@ SWEP.Secondary.Automatic = true
 SWEP.Secondary.Ammo = "none"
 
 SWEP.Offset = {
-    Pos = Vector(2, 7.5, 0),
-    Ang = Angle(60, -40, 90),
+	Pos = Vector(2, 7.5, 0),
+	Ang = Angle(60, -40, 90),
 	Size = 0.42
 }
 
 function SWEP:SetupDataTables()
-    self:NetworkVar("Float",0,"Holding")
+	self:NetworkVar("Float",0,"Holding")
 end
 
 local bone, name
 function SWEP:BoneSet(lookup_name, vec, ang)
-    if IsValid(self:GetOwner()) and !self:GetOwner():IsPlayer() then return end
+	if IsValid(self:GetOwner()) and !self:GetOwner():IsPlayer() then return end
 	hg.bone.Set(self:GetOwner(), lookup_name, vec, ang)
 end
 
 function SWEP:Animation()
 	local hold = self:GetHolding()
-    self:BoneSet("r_upperarm", vector_origin, Angle(hold/6,-hold/1.2,0))
-    self:BoneSet("r_forearm", vector_origin, Angle(0,hold/2,0))
-    self.Offset.Ang[3] = 90 + hold / 100 * -110
+	self:BoneSet("r_upperarm", vector_origin, Angle(hold/6,-hold/1.2,0))
+	self:BoneSet("r_forearm", vector_origin, Angle(0,hold/2,0))
+	self.Offset.Ang[3] = 90 + hold / 100 * -110
 	self.Offset.Ang[1] = 60 + hold / 100 * 75
-    self.Offset.Pos[1] = 2 + hold / 100 * 4
+	self.Offset.Pos[1] = 2 + hold / 100 * 4
 end
 
 function SWEP:Initialize()
@@ -59,11 +59,13 @@ function SWEP:Initialize()
 end
 
 function SWEP:Think()
-    self:SetHolding(math.max(self:GetHolding() - 3, 0))
+	if not self:GetOwner():KeyDown(IN_ATTACK) then
+		self:SetHolding(math.max(self:GetHolding() - 3, 0))
+	end
 end
 
 local function InPlacementRadius(ply, tr)
-    return tr.HitPos:DistToSqr(ply:GetPos()) <= 65 * 65
+	return tr.HitPos:DistToSqr(ply:GetPos()) <= 65 * 65
 end
 
 local allowed = {
@@ -80,12 +82,12 @@ function SWEP:PrimaryAttack()
 	if not IsValid(Tr.Entity) or not InPlacementRadius(owner, Tr) then return end
 	if not table.HasValue(allowed,Tr.Entity:GetClass()) then return end
 
-    self:SetHolding(math.min(self:GetHolding() + 6, 100))
+	self:SetHolding(math.min(self:GetHolding() + 4, 100))
 
-    if self:GetHolding() < 100 then return end
-    if CLIENT then return end
-        
-    self:SetCharge(Tr)
+	if self:GetHolding() < 100 then return end
+	if CLIENT then return end
+		
+	self:SetCharge(Tr)
 end
 
 function SWEP:Deploy()
@@ -132,72 +134,51 @@ function SWEP:FireAnimationEvent(pos, ang, event, name)
 end
 
 if CLIENT then
-    local csent = ClientsideModel(SWEP.WorldModel)
-    csent:SetNoDraw(true)
-    
-    function SWEP:DrawHUD()
-        local ply = self:GetOwner()
-        local tr = ply:GetEyeTrace()
+	local csent = ClientsideModel(SWEP.WorldModel)
+	csent:SetNoDraw(true)
+	
+	function SWEP:DrawHUD()
+		local ply = self:GetOwner()
+		local tr = ply:GetEyeTrace()
 
-        if not tr.Hit or tr.HitSky or not InPlacementRadius(ply, tr) then return end
+		if not tr.Hit or tr.HitSky or not InPlacementRadius(ply, tr) then return end
+		if not IsValid(tr.Entity) then return end 
 		if tr.Entity and tr.Entity:IsPlayer() then return end
 		if not ((tr.Entity:GetClass() == "func_door_rotating") or (tr.Entity:GetClass() == "prop_door_rotating") or (tr.Entity:GetClass() == "func_door") or (tr.Entity:GetClass() == "func_physbox")) then return end
-        local pos, ang = tr.HitPos, tr.HitNormal:Angle()
-        ang:RotateAroundAxis(ang:Right(), -90)
-        ang:RotateAroundAxis(ang:Up(), 180)
+		local pos, ang = tr.HitPos, tr.HitNormal:Angle()
+		ang:RotateAroundAxis(ang:Right(), -90)
+		ang:RotateAroundAxis(ang:Up(), 180)
 
-        cam.Start3D()
-            csent:SetPos(pos)
-            csent:SetAngles(ang)
-            csent:SetMaterial("models/wireframe")
+		cam.Start3D()
+			csent:SetPos(pos)
+			csent:SetAngles(ang)
+			csent:SetMaterial("models/wireframe")
 			csent:SetModelScale(0.42, 0)
-            csent:DrawModel()
-        cam.End3D()
-    end
+			csent:DrawModel()
+		cam.End3D()
+	end
 end
 
 function SWEP:DrawWorldModel()
-    local owner = self:GetOwner()
-    if IsValid(owner) then
-        local boneIndex = owner:LookupBone("ValveBiped.Bip01_R_Hand")
-        if boneIndex then
-            local pos, ang = owner:GetBonePosition(boneIndex)
-            if pos and ang then
-                pos = pos + self.Offset.Pos.x * ang:Right() + self.Offset.Pos.y * ang:Forward() + self.Offset.Pos.z * ang:Up()
-                ang:RotateAroundAxis(ang:Right(), self.Offset.Ang.p)
-                ang:RotateAroundAxis(ang:Up(), self.Offset.Ang.y)
-                ang:RotateAroundAxis(ang:Forward(), self.Offset.Ang.r)
+	local owner = self:GetOwner()
+	if IsValid(owner) then
+		local boneIndex = owner:LookupBone("ValveBiped.Bip01_R_Hand")
+		if boneIndex then
+			local pos, ang = owner:GetBonePosition(boneIndex)
+			if pos and ang then
+				pos = pos + self.Offset.Pos.x * ang:Right() + self.Offset.Pos.y * ang:Forward() + self.Offset.Pos.z * ang:Up()
+				ang:RotateAroundAxis(ang:Right(), self.Offset.Ang.p)
+				ang:RotateAroundAxis(ang:Up(), self.Offset.Ang.y)
+				ang:RotateAroundAxis(ang:Forward(), self.Offset.Ang.r)
 
-                self:SetPos(pos)
-                self:SetAngles(ang)
-                self:SetupBones()
+				self:SetPos(pos)
+				self:SetAngles(ang)
+				self:SetupBones()
 				self:SetModelScale(self.Offset.Size, 0)
-                self:DrawModel()
-                return
-            end
-        end
-    end
-    self:DrawModel()
-end
-
---[[if CLIENT then
-	function SWEP:DrawWorldModel()
-			if not self.WModel then
-				self.WModel = ClientsideModel(self.WorldModel)
-				self.WModel:SetPos(self:GetOwner():GetPos())
-				self.WModel:SetParent(self:GetOwner())
-				self.WModel:SetNoDraw(true)
-				self.WModel:SetModelScale(.42, 0)
-			else
-				local pos, ang = self:GetOwner():GetBonePosition(self:GetOwner():LookupBone("ValveBiped.Bip01_R_Hand"))
-
-				if pos and ang then
-					self.WModel:SetRenderOrigin(pos + ang:Right() + ang:Up() * 1 + ang:Forward() * 7 + ang:Right() * 3)
-					ang:RotateAroundAxis(ang:Forward(), 150)
-					ang:RotateAroundAxis(ang:Right(), 10)
-					self.WModel:SetRenderAngles(ang)
-					self.WModel:DrawModel()
-				end
+				self:DrawModel()
+				return
 			end
 		end
-end]]
+	end
+	self:DrawModel()
+end

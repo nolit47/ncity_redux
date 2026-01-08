@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_inventory.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 hg.TraitorLoot = {
 	["weapon_sogknife"] = 10,
 	["weapon_buck200knife"] = 10,
@@ -154,7 +152,7 @@ if CLIENT then
 			plyMenu = nil
 		end
 		
-		cooldown = CurTime() + 0
+		cooldown = CurTime() + 0.5
 
 		if not IsValid(ent) then return end
 
@@ -266,7 +264,7 @@ if CLIENT then
 			table.sort(keys,function(a,b)
 				local atbl = weapons.Get(a)
 				local wep = atbl and atbl.holsteredBone and not atbl.shouldntDrawHolstered
-				return (ent.foundloot[a] and 1 or 0) > (ent.foundloot[b] and 1 or 0)//(hg.TraitorLoot[a] or 0) < (hg.TraitorLoot[b] or (wep and 1 or 0) or 0)
+				return (hg.TraitorLoot[a] or 0) < (hg.TraitorLoot[b] or (wep and 1 or 0) or 0)
 			end)
 			
 			for k, i in ipairs(keys) do
@@ -277,16 +275,15 @@ if CLIENT then
 
 				--ent.foundloot = {}
 				ent.foundloot = ent.foundloot or {}
-
+				count2 = count2 + ((ent:IsPlayer() or ent:IsRagdoll()) and ((hg.TraitorLoot[i] and ent:IsPlayer()) and 2 or 0.5) or 1) * (not ent.foundloot[i] and 1 or 0)
 				if ent:IsPlayer() and IsValid(ent:GetActiveWeapon()) and ent:GetActiveWeapon():GetClass() == i then continue end
-				count2 = count2 + (!ent.foundloot[i] and 1 or 0)//((ent:IsPlayer() or ent:IsRagdoll()) and ((hg.TraitorLoot[i] and ent:IsPlayer()) and 2 or 0.5) or 1) * (not ent.foundloot[i] and 1 or 0)
 
 				local button = vgui.Create("DButton", plyMenu)
 				button:SetText("")
 				button:DockMargin(5, 0, 2, 0)
 				button:SetSize(0,0)
 				--button:SetSize(sizeX / 5.8, sizeY / 5.8)
-				button.Created = CurTime() + (!ent.foundloot[i] and 2 or 0) + count2
+				button.Created = CurTime() + count2
 				button.Think = function(self)
 					if self.Created and (self.Created < CurTime()) then
 						self:SetSize(sizeX / 5.8, sizeY / 5.8)

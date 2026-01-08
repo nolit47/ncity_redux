@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\sh_equipment.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 function hg.GetCurrentArmor(ply)
 	return ply:GetNetVar("Armor",{})
 end
@@ -265,8 +263,6 @@ if CLIENT then
 	local brainhemorrhage = Material( "overlays/brainhemorrhageoverlay.png" )
 
 	hook.Add("Post Pre Post Processing", "renderHelmetThingy", function()
-		cam.IgnoreZ(true)
-		//cam.Start2D()
 		local armors = lply.armors -- предавать всю таблицу это же бред?
 		--предатель...
 		if lply.soundhuy and not (armors["face"] and hg.armor.face[armors["face"]].loopsound) then
@@ -304,7 +300,7 @@ if CLIENT then
 
 			if hg.armor.face[armors["face"]].viewmaterial then
 				local custommat = hg.armor.face[armors["face"]].viewmaterial
-
+				
 				surface.SetDrawColor(255,255,255,255)
 				surface.SetMaterial(custommat or mat)
 				surface.DrawTexturedRect(-1, -1, ScrW()+1, ScrH()+1)
@@ -336,12 +332,9 @@ if CLIENT then
 
 		if armors and armors["head"] then
 			local custommat = hg.armor.head[armors["head"]].viewmaterial
-			
-			if custommat != false then
-				surface.SetDrawColor(255,255,255,255)
-				surface.SetMaterial(custommat or mat)
-				surface.DrawTexturedRect(-1, -1, ScrW()+1, ScrH()+1)
-			end
+			surface.SetDrawColor(255,255,255,255)
+			surface.SetMaterial(custommat or mat)
+			surface.DrawTexturedRect(-1, -1, ScrW()+1, ScrH()+1)
 		end
 
 		if IsValid(lply.EZNVGlamp) and armors and ((not armors["face"]) or (armors["face"] and !NVGEnabled)) then
@@ -363,8 +356,7 @@ if CLIENT then
 				end
 			end)
 		end
-		cam.IgnoreZ(false)
-		//cam.End2D()
+
 	end)
 
 	hook.Add("Player Death", "stopgasmasksound", function(ply)
@@ -484,7 +476,7 @@ if CLIENT then
 		frame:AlphaTo( 255, 0.2, 0.1, nil )
 
 		function frame:First()
-		end
+		end 
 
 		local lbl = vgui.Create("DLabel", frame)
 		lbl:SetText( "" )

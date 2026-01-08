@@ -1,5 +1,7 @@
 // Appearance Code -- Надо было вообще давно так сделать
 util.AddNetworkString("GetAppearance")
+util.AddNetworkString("Get_Appearance")
+util.AddNetworkString("OnlyGet_Appearance")
 
 local allowed = {
     ' ',
@@ -83,35 +85,35 @@ function ApplyAppearance(ply, appearance)
 
 
     if istable(Appearance.Attachmets) then
-        local has_notbuyed_att = false
-
         for i=1, #Appearance.Attachmets do
             local uid = Appearance.Attachmets[i]
-            if PLUGIN.Items[uid] and not ply:PS_HasItem(uid) then
-                Appearance.Attachmets[i] = ""
-                has_notbuyed_att = true
-            end
-            if hg.Accessories[uid] and hg.Accessories[uid].disallowinapperance then
-                Appearance.Attachmets[i] = ""
-                if ply.ChatPrint then ply:ChatPrint("You can't use balaclava, you are not a terrorist.") end
-            end
-        end
-
-        if has_notbuyed_att then
-            if ply.ChatPrint then ply:ChatPrint("Your character had items that weren't bought in the pointshop. Removed.") end
         end
     else
-        if PLUGIN.Items[Appearance.Attachmets] and not (!ply:IsPlayer() or ply:IsBot()) and not ply:PS_HasItem(Appearance.Attachmets) then 
-            Appearance.Attachmets = ""
-            if ply.ChatPrint then ply:ChatPrint("Your character had items that weren't bought in the pointshop. Removed.") end
-        end
-        if hg.Accessories[Appearance.Attachmets] and hg.Accessories[Appearance.Attachmets].disallowinapperance then
-            Appearance.Attachmets = ""
-            if ply.ChatPrint then ply:ChatPrint("You can't use balaclava, you are not a terrorist.") end
-        end
+        local uid = Appearance.Attachmets
     end
 
     ply:SetNetVar("Accessories", Appearance.Attachmets)
+
+    local gender = Appearance.Gender or 1
+    if Appearance.ABGroups and hg.Apperance and hg.Apperance.ZCityTops then
+        local preset = hg.Apperance.ZCityTops[Appearance.ABGroups.Top or "Normal"]
+        if preset then
+            for _, pair in ipairs(preset) do
+                local p = pair[gender]
+                if p then ply:SetBodygroup(p[1], p[2]) end
+            end
+        end
+    end
+    if Appearance.ABGroups and hg.Apperance and hg.Apperance.ZCityPants then
+        local preset = hg.Apperance.ZCityPants[Appearance.ABGroups.Pants or "Normal"]
+        if preset then
+            for _, pair in ipairs(preset) do
+                local p = pair[gender]
+                if p then ply:SetBodygroup(p[1], p[2]) end
+            end
+        end
+    end
+    -- не применяем ASubMats, чтобы не затирать материал кожи/одежды
 
     ply.CurAppearance = {}
     table.CopyFromTo(Appearance, ply.CurAppearance)
@@ -154,9 +156,104 @@ function ApplyForceAppearance(ply, appearance)
     ply:SetNWString("PlayerName",Appearance.Name)
     ply:SetNetVar("Accessories", Appearance.Attachmets)
 
+    local gender = Appearance.Gender or 1
+    if Appearance.ABGroups and hg.Apperance and hg.Apperance.ZCityTops then
+        local preset = hg.Apperance.ZCityTops[Appearance.ABGroups.Top or "Normal"]
+        if preset then
+            for _, pair in ipairs(preset) do
+                local p = pair[gender]
+                if p then ply:SetBodygroup(p[1], p[2]) end
+            end
+        end
+    end
+    if Appearance.ABGroups and hg.Apperance and hg.Apperance.ZCityPants then
+        local preset = hg.Apperance.ZCityPants[Appearance.ABGroups.Pants or "Normal"]
+        if preset then
+            for _, pair in ipairs(preset) do
+                local p = pair[gender]
+                if p then ply:SetBodygroup(p[1], p[2]) end
+            end
+        end
+    end
+    -- не применяем ASubMats, чтобы не затирать материал кожи/одежды
+
     ply.CurAppearance = {}
     table.CopyFromTo(Appearance, ply.CurAppearance)
 end
+
+local function ConvertNewAppearanceToOld(tbl)
+    if not istable(tbl) then return nil end
+    local modelName = tbl.AModel
+    local pm = hg.Appearance and hg.Appearance.PlayerModels or {}
+    local meta = (pm[1] and pm[1][modelName]) or (pm[2] and pm[2][modelName])
+    local model = meta and meta.mdl or modelName
+    local gender = meta and (meta.sex and 2 or 1) or 1
+    local clothesKey = tbl.AClothes and tbl.AClothes.main or nil
+    local clothesPath
+    if clothesKey and hg.Appearance and hg.Appearance.Clothes and hg.Appearance.Clothes[gender] then
+        clothesPath = hg.Appearance.Clothes[gender][clothesKey]
+    end
+    local name = tbl.AName or ""
+    local color = tbl.AColor or Color(255,255,255)
+    local attaches = tbl.AAttachments or {}
+    local abgroups = tbl.ABGroups or {}
+    local asubmats = tbl.ASubMats or {}
+    local out = {
+        Gender = gender,
+        Name = name,
+        Model = model,
+        Color = color,
+        ClothesStyle = clothesPath,
+        Attachmets = attaches,
+        ABGroups = abgroups,
+        ASubMats = asubmats,
+        AAccessorySkins = tbl.AAccessorySkins or {},
+        AAccessoryBodygroups = tbl.AAccessoryBodygroups or {}
+    }
+    return out
+end
+
+net.Receive("OnlyGet_Appearance", function(len, ply)
+    local tbl = net.ReadTable() or {}
+    local converted = ConvertNewAppearanceToOld(tbl)
+    if converted then
+        if engine.ActiveGamemode() ~= "sandbox" then
+            ply.Appearance = converted
+            return
+        end
+        ApplyForceAppearance(ply, converted)
+        -- propagate accessory overrides for clientside rendering
+        if converted.AAccessorySkins then
+            ply:SetNetVar("AccessorySkins", converted.AAccessorySkins)
+        end
+        if converted.AAccessoryBodygroups then
+            ply:SetNetVar("AccessoryBodygroups", converted.AAccessoryBodygroups)
+        end
+    end
+end)
+
+net.Receive("Get_Appearance", function(len, ply)
+    local tbl = net.ReadTable() or {}
+    local isRandom = net.ReadBool() or false
+    local toUse = tbl
+    if isRandom then
+        toUse = hg.Appearance and hg.Appearance.GetRandomAppearance and hg.Appearance.GetRandomAppearance() or {}
+    end
+    local converted = ConvertNewAppearanceToOld(toUse)
+    if converted then
+        if engine.ActiveGamemode() ~= "sandbox" then
+            ply.Appearance = converted
+            return
+        end
+        ApplyAppearance(ply, converted)
+        if converted.AAccessorySkins then
+            ply:SetNetVar("AccessorySkins", converted.AAccessorySkins)
+        end
+        if converted.AAccessoryBodygroups then
+            ply:SetNetVar("AccessoryBodygroups", converted.AAccessoryBodygroups)
+        end
+    end
+end)
 
 
 
@@ -215,6 +312,9 @@ function ApplyAppearanceRagdoll(ent, ply)
         --ent:SetSubMaterial(SubMaterials[Appearance.Model],Appearance.ClothesStyle)
         ent:SetNWString("PlayerName",ply:GetNWString("PlayerName", "unknown"))
         ent:SetNetVar("Accessories", ply:GetNetVar("Accessories", "none"))
+        -- sync accessory overrides to ragdoll as well
+        ent:SetNetVar("AccessorySkins", ply:GetNetVar("AccessorySkins", {}))
+        ent:SetNetVar("AccessoryBodygroups", ply:GetNetVar("AccessoryBodygroups", {}))
     end
 end
 
@@ -222,34 +322,51 @@ hook.Add("PlayerDeath","setaccessories",function(ply)
     if IsValid(ply.FakeRagdoll) then
         local Appearance = ply.CurAppearance or hg.Apperance.DefaultApperanceTable
         ply.FakeRagdoll:SetNetVar("Accessories", ply:GetNetVar("Accessories"))
-        ply:SetNetVar("Accessories","none")
-     end
+        ply.FakeRagdoll:SetNetVar("AccessorySkins", ply:GetNetVar("AccessorySkins", {}))
+        ply.FakeRagdoll:SetNetVar("AccessoryBodygroups", ply:GetNetVar("AccessoryBodygroups", {}))
+    end
 end)
 
 if engine.ActiveGamemode() == "sandbox" then
-    hook.Add("PlayerInitialSpawn","SetAppearance",function(ply)
-        timer.Simple(0,function()
-            ApplyAppearance(ply)
-        end)
-    end)
-    hook.Add("PlayerSpawn","SetAppearance",function(ply)
-        if OverrideSpawn then return end
-        timer.Simple(0,function()
-            ApplyAppearance(ply)
-        end)
-    end)
+	hook.Add("PlayerInitialSpawn","SetAppearance",function(ply)
+		timer.Simple(0,function()
+			ApplyAppearance(ply)
+		end)
+	end)
+	hook.Add("PlayerSetModel","KeepAppearancePreset",function(ply)
+		ply._nextAppearanceApply = ply._nextAppearanceApply or 0
+		if ply._nextAppearanceApply > CurTime() then return end
+		ply._nextAppearanceApply = CurTime() + 0.25
+		local app = ply.CurAppearance or ply.Appearance
+		if app then
+			timer.Simple(0,function()
+				if not IsValid(ply) then return end
+				ApplyForceAppearance(ply, app)
+			end)
+		else
+			GetAppearance(ply)
+			timer.Simple(0.1,function()
+				if not IsValid(ply) then return end
+				if ply.Appearance then
+					ApplyForceAppearance(ply, ply.Appearance)
+				end
+			end)
+		end
+	end)
 end
 
 
 function GetAppearance(ply) -- Returns appearance table
-    if !ply:IsPlayer() or (ply:IsPlayer() and ply:IsBot()) then
-        local randApperance = GetRandomAppearance(ply) 
-        ply.Appearance = randApperance
-       -- ply.CurAppearance = randApperance
-    end
+	if !ply:IsPlayer() or (ply:IsPlayer() and ply:IsBot()) then
+		local randApperance = GetRandomAppearance(ply) 
+		ply.Appearance = randApperance
+	end
 
-    if ply:IsPlayer() and not ply:IsBot() then
-        net.Start("GetAppearance")
-        net.Send(ply)
-    end
+	if ply:IsPlayer() and not ply:IsBot() then
+		ply._nextAppearanceRequest = ply._nextAppearanceRequest or 0
+		if ply._nextAppearanceRequest > CurTime() then return end
+		ply._nextAppearanceRequest = CurTime() + 1.5
+		net.Start("GetAppearance")
+		net.Send(ply)
+	end
 end

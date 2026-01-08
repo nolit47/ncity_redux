@@ -1,7 +1,7 @@
 if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
-SWEP.PrintName = "Сoffee Mug"
-SWEP.Instructions = "Probably someone's favorite mug that you decided to use for something other than coffee."
+SWEP.PrintName = "Mug"
+SWEP.Instructions = "A small mug typically used to hold liquids.\n\nLMB to attack.\nRMB to block.\nRMB + LMB to throw."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -10,7 +10,7 @@ SWEP.WorldModel = "models/props_junk/garbage_coffeemug001a.mdl"
 SWEP.WorldModelReal = "models/weapons/combatknife/tactical_knife_iw7_vm.mdl"
 SWEP.WorldModelExchange = "models/props_junk/garbage_coffeemug001a.mdl"
 
-SWEP.weaponPos = Vector(0,0.4,-3.8)
+SWEP.weaponPos = Vector(0,0.4,-3.5)
 SWEP.weaponAng = Angle(0,-90,90)
 
 SWEP.BreakBoneMul = 0.25
@@ -55,6 +55,7 @@ SWEP.StaminaSecondary = 3
 SWEP.AttackLen1 = 45
 SWEP.AttackLen2 = 30
 
+SWEP.HoldPos = Vector(-6, 2, -2)
 
 SWEP.AttackHit = "GlassBottle.ImpactHard"
 SWEP.Attack2Hit = "GlassBottle.ImpactHard"
@@ -71,17 +72,51 @@ function SWEP:PrimaryAttackAdd(ent,trace)
     end
 end
 
-function SWEP:CanSecondaryAttack()
-    return false
-end
+function SWEP:CustomAttack2()
+    local ent = ents.Create("ent_throwable")
+    ent.WorldModel = self.WorldModelExchange or self.WorldModel
 
-function SWEP:SecondaryAttackAdd(ent,trace)
-    if SERVER and ent and math.random(1,2) == 2 then
-        self:PrecacheGibs()
-        self:GibBreakServer(trace.HitNormal * -100)
-        self:GetOwner():EmitSound("physics/glass/glass_pottery_break"..math.random(1,4)..".wav")
-        self:Remove()
+    local ply = self:GetOwner()
+
+    ent:SetPos(select(1, hg.eye(ply,60,hg.GetCurrentCharacter(ply))) - ply:GetAimVector() * 2)
+    ent:SetAngles(ply:EyeAngles())
+    ent:SetOwner(self:GetOwner())
+    ent:Spawn()
+
+    ent.localshit = Vector(0,0,0)
+    ent.wep = self:GetClass()
+    ent.owner = ply
+    ent.damage = self.DamagePrimary * 0.7
+    ent.MaxSpeed = 1100
+    ent.DamageType = self.DamageType
+    ent.AttackHit = "GlassBottle.ImpactHard"
+    ent.AttackHitFlesh = "Flesh.ImpactHard"
+    ent:PrecacheGibs()
+
+    ent.func = function(data)
+        if ent.removed then return end
+        ent.removed = true
+        timer.Simple(0, function()
+            ent:GibBreakServer(vector_origin)
+            ent:EmitSound("physics/glass/glass_pottery_break"..math.random(1,4)..".wav")
+            ent:Remove()
+        end)
     end
+
+    local phys = ent:GetPhysicsObject()
+
+    if IsValid(phys) then
+        phys:SetVelocity(ply:GetAimVector() * ent.MaxSpeed)
+        phys:AddAngleVelocity(VectorRand() * 500)
+    end
+
+    //ply:EmitSound("weapons/slam/throw.wav",50,math.random(95,105))
+    ply:ViewPunch(self.ViewPunch1 * 0.6)
+    ply:SelectWeapon("weapon_hands_sh")
+
+    self:Remove()
+
+    return true
 end
 
 SWEP.AttackTimeLength = 0.15

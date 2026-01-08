@@ -2,7 +2,7 @@ if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_bandage_sh"
 SWEP.PrintName = "Decompression needle"
 SWEP.Instructions = "Needle decompression is used to treat tension pneumothorax. LMB to use on yourself; RMB to use on someone else."
-SWEP.Category = "Medicine"
+SWEP.Category = "ZCity Medicine"
 SWEP.Spawnable = true
 SWEP.Primary.Wait = 1
 SWEP.Primary.Next = 0
@@ -51,15 +51,26 @@ if SERVER then
 	function SWEP:Heal(ent, mode)
 		local org = ent.organism
 		if not org then return end
-		self:SetBodygroup(1, 1)
-		if ((org.lungsL[2] + org.lungsR[2]) / 2 < 0.5) or org.needle then return end
-		self:SetBodygroup(1, 1)
 		local owner = self:GetOwner()
+		self:SetBodygroup(1, 1)
+		//if ((org.lungsL[2] + org.lungsR[2]) / 2 < 0.5) or org.needle then return end
+		
+		//if ent != owner and !org.otrub then return end -- meh??
+		self:SetBodygroup(1, 1)
 		local entOwner = IsValid(owner.FakeRagdoll) and owner.FakeRagdoll or owner
 		entOwner:EmitSound("snd_jack_hmcd_needleprick.wav", 60, math.random(95, 105))
 		//org.lungsR[2] = 0
 		//org.lungsL[2] = 0
-		org.needle = true
+		org.needle = 1
+
+		if !(org.lungsR[2] == 1 or org.lungsL[2] == 1) then
+			if math.random(2) == 1 then 
+				org.lungsR[2] = 1
+			else
+				org.lungsL[2] = 1
+			end
+		end
+		
 		self.modeValues[1] = 0
 
 		if self.poisoned2 then

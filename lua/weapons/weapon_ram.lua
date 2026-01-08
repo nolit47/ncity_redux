@@ -1,7 +1,7 @@
 if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Battering Ram"
-SWEP.Instructions = "A powerful and heavy weapon that can crush doors. Use it to break down barricades and get through tight spaces."
+SWEP.Instructions = "A powerful and heavy weapon that can crush doors. Use it to break down barricades and get through tight spaces.\n\nLMB to attack.\nRMB to block."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -13,21 +13,21 @@ SWEP.WorldModelExchange = "models/weapons/custom/w_batram.mdl"
 SWEP.DontChangeDropped = false
 SWEP.ViewModel = ""
 
-SWEP.HoldType = "camera"
+SWEP.HoldType = "revolver"
 
-SWEP.HoldPos = Vector(-12,0,0)
+SWEP.HoldPos = Vector(-19,0,0)
 SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.DamageType = DMG_CLUB
-SWEP.DamagePrimary = 35
+SWEP.DamagePrimary = 48
 
-SWEP.PenetrationPrimary = 4
+SWEP.PenetrationPrimary = 7
 
-SWEP.MaxPenLen = 4
+SWEP.MaxPenLen = 9
 
-SWEP.PenetrationSizePrimary = 3
+SWEP.PenetrationSizePrimary = 4
 
-SWEP.StaminaPrimary = 40
+SWEP.StaminaPrimary = 55
 
 SWEP.AttackTime = 0.5
 SWEP.AnimTime1 = 1.4

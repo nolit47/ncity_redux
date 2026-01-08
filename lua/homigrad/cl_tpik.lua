@@ -1,6 +1,4 @@
--- "addons\\homigrad\\lua\\homigrad\\cl_tpik.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
-
+-- uzelezz smart UwU
 local TPIKBones = {
     "ValveBiped.Bip01_L_Wrist",
     "ValveBiped.Bip01_L_Ulna",
@@ -383,10 +381,15 @@ function hg._DeprecatedDoTPIK(ply, ent, rhmat, lhmat)
 
     if rhik then
         hg.bone_apply_matrix(ent, ply_r_upperarm_index, ply_r_upperarm_matrix, ply_r_forearm_index)
-        //ply_r_forearm_matrix:SetTranslation(ent:GetBoneMatrix(ply_r_forearm_index):GetTranslation())
         hg.bone_apply_matrix(ent, ply_r_forearm_index, ply_r_forearm_matrix, ply_r_hand_index)
         ply_r_hand_matrix:SetTranslation(ply_r_forearm_pos - offset)
         hg.bone_apply_matrix(ent, ply_r_hand_index, ply_r_hand_matrix)
+
+        if IsValid(ply.OldRagdoll) then
+            hg.bone_apply_matrix(ply, ply_r_upperarm_index, ply_r_upperarm_matrix, ply_r_forearm_index)
+            hg.bone_apply_matrix(ply, ply_r_forearm_index, ply_r_forearm_matrix, ply_r_hand_index)
+            hg.bone_apply_matrix(ply, ply_r_hand_index, ply_r_hand_matrix)
+        end
     end
 
     local ply_l_upperarm_pos, ply_l_forearm_pos, ply_l_upperarm_angle, ply_l_forearm_angle
@@ -461,13 +464,13 @@ function hg._DeprecatedDoTPIK(ply, ent, rhmat, lhmat)
         end
     end
 
-    if IsValid(self.niggamodel) and developer:GetBool() and LocalPlayer():IsSuperAdmin() and self.lmagpos3 then
+    if IsValid(self.OwOmodel) and developer:GetBool() and LocalPlayer():IsSuperAdmin() and self.lmagpos3 then
         local hand = ply_l_hand_matrix
         local pos, ang = LocalToWorld(self.lmagpos3, self.lmagang3, hand:GetTranslation(), hand:GetAngles())
-        self.niggamodel:SetPos(pos)
-        self.niggamodel:SetAngles(ang)
-        self.niggamodel:SetupBones()
-        self.niggamodel:DrawModel()
+        self.OwOmodel:SetPos(pos)
+        self.OwOmodel:SetAngles(ang)
+        self.OwOmodel:SetupBones()
+        self.OwOmodel:DrawModel()
     end
 
     local l_arm_startingpos = ply_l_upperarm_matrix:GetTranslation()
@@ -497,17 +500,23 @@ function hg._DeprecatedDoTPIK(ply, ent, rhmat, lhmat)
     ply_l_upperarm_matrix:SetAngles(ply_l_upperarm_angle)
     ply_l_forearm_matrix:SetAngles(ply_l_forearm_angle)
     ply_l_forearm_matrix:SetTranslation(ply_l_upperarm_pos)
+
     //debugoverlay.Line(l_arm_startingpos, ply_l_upperarm_pos, 1, color_white)
     //debugoverlay.Line(ply_l_upperarm_pos, ply_l_forearm_pos, 1, color_white)
+
     if lhik then
         hg.bone_apply_matrix(ent, ply_l_upperarm_index, ply_l_upperarm_matrix, ply_l_forearm_index)
-        
-        //ply_l_forearm_matrix:SetTranslation(ent:GetBoneMatrix(ply_l_forearm_index):GetTranslation())
         hg.bone_apply_matrix(ent, ply_l_forearm_index, ply_l_forearm_matrix, ply_l_hand_index)
         ply_l_hand_matrix:SetTranslation(ply_l_forearm_pos - offset)
         hg.bone_apply_matrix(ent, ply_l_hand_index, ply_l_hand_matrix)
+
+        if IsValid(ply.OldRagdoll) then
+            hg.bone_apply_matrix(ply, ply_l_upperarm_index, ply_l_upperarm_matrix, ply_l_forearm_index)
+            hg.bone_apply_matrix(ply, ply_l_forearm_index, ply_l_forearm_matrix, ply_l_hand_index)
+            hg.bone_apply_matrix(ply, ply_l_hand_index, ply_l_hand_matrix)
+        end
     end
-    
+
     self.lhandik = false
     self.rhandik = false
 end
@@ -515,7 +524,7 @@ end
 local cached_huy = {}
 
 local hg_coolgloves = ConVarExists("hg_coolgloves") and GetConVar("hg_coolgloves") or CreateClientConVar("hg_coolgloves", 0, true, false, "Enable cool gloves (only firstperson) (laggy)", 0, 1)
-local hg_change_gloves = ConVarExists("hg_change_gloves") and GetConVar("hg_change_gloves") or CreateClientConVar("hg_change_gloves", 1, true, false, "Change cool gloves model (only with hg_coolgloves enabled)", 0, 3)
+local hg_change_gloves = ConVarExists("hg_change_gloves") and GetConVar("hg_change_gloves") or CreateClientConVar("hg_change_gloves", 1, true, false, "Change cool gloves model (only with hg_coolgloves enabled)", 0, 5)
 
 local vector_small = Vector(0,0,0)
 local vector_small2 = Vector(0.001,0.001,0.001)
@@ -525,13 +534,31 @@ local gloves = {
 	[1] = Model("models/weapons/c_arms_combine.mdl"),
 	[2] = Model("models/epangelmatikes/e3_elite_suit.mdl"),
 	[3] = Model("models/pms/quantum_break/characters/operators/monarchoperator01playermodel.mdl"),
+	[4] = Model("models/kuma96/gta5_splintercell/gta5_splintercell_pm.mdl"),
+	[5] = Model("models/blacklist/spy1.mdl"),
 }
 
-for i = 0, 3 do
-	util.PrecacheModel(gloves[i])
+for k, v in ipairs(gloves) do
+	util.PrecacheModel(v)
 end
 
+local hg, LocalToWorld = hg, LocalToWorld
+local durachok = "models/epangelmatikes/e3_elite_suit.mdl"
+local blackmans = {
+	["models/player/corpse1.mdl"] = true,
+	["models/player/group01/female_03.mdl"] = true,
+	["models/player/group01/male_01.mdl"] = true,
+	["models/player/group01/male_03.mdl"] = true,
+	["models/player/group03/male_01.mdl"] = true,
+	["models/player/group03/male_03.mdl"] = true,
+	["models/player/group03m/male_01.mdl"] = true,
+	["models/player/group03m/male_03.mdl"] = true,
+	["models/monolithservers/mpd/male_01.mdl"] = true,
+	["models/monolithservers/mpd/male_03.mdl"] = true,
+	["models/monolithservers/mpd/female_03.mdl"] = true,
+}
 --hook.Add("PostDrawPlayerRagdoll", "!!!!!!!zcity_PostDrawPlayerRagdollmain", function(ent, ply)
+local ang_head1, ang_head2 = Angle(-90, 0, 220), Angle(-90, 0, -30)
 function hg.MainTPIKFunction(ent, ply, wpn)
     if not IsValid(ply) then return end
     if not ply:IsPlayer() then return end
@@ -550,32 +577,12 @@ function hg.MainTPIKFunction(ent, ply, wpn)
         if wpn.SetHandPos then
             wpn:SetHandPos()
         end
-        
-        //local wpn2 = ply.wpn2
-        //if IsValid(wpn2) and wpn2.SetHandPos then
-        //    wpn2:SetHandPos()
-        //end
 
         //print("sethandpos: ", SysTime() - systime)
         
         if ply:InVehicle() then
             --print(ply:IsDrivingSimfphys())
-            local Car = nil
-            if ply:IsDrivingSimfphys() and IsValid(ply:GetSimfphys()) then
-                Car = ply:GetSimfphys()
-            else
-                local glideVeh = nil
-                if ply.GlideGetVehicle and ply.GlideGetSeatIndex then
-                    glideVeh = ply:GlideGetVehicle()
-                    if IsValid(glideVeh) and ply:GlideGetSeatIndex() == 1 then
-                        Car = glideVeh
-                    end
-                end
-
-                if not IsValid(Car) then
-                    Car = ply:GetVehicle()
-                end
-            end
+            local Car = ply:IsDrivingSimfphys() and IsValid(ply:GetSimfphys()) and ply:GetSimfphys() or (IsValid(ply:GlideGetVehicle()) and ply:GlideGetSeatIndex() == 1 and ply:GlideGetVehicle() ) or ply:GetVehicle()
             if(IsValid(Car))then
                 Car:SetupBones()
                 local bone,adjust = hg.GetCarSteering(Car)
@@ -610,6 +617,12 @@ function hg.MainTPIKFunction(ent, ply, wpn)
         if IsValid(wpn) and (wpn:GetClass() ~= "weapon_hands_sh") and IsValid(ply:GetNetVar("carryent2")) then
             hg.DragHands(ply,wpn)
         end
+		
+		if IsValid(wpn) and wpn:GetClass() == "weapon_hands_sh" and ply:GetNetVar("headcrab") then
+			local bone_matrix = ent:GetBoneMatrix(ply:LookupBone("ValveBiped.Bip01_Head1"))
+			local pos, ang = bone_matrix:GetTranslation(), bone_matrix:GetAngles()
+			hg.DragHandsToPos(ply, ply:GetActiveWeapon(), pos + ang:Right() * 7 - ang:Forward() * 5, true, 5.5, ang:Right(), ang_head1, ang_head2)
+		end
 
         //print("DragHands: ", SysTime() - systime)
 
@@ -620,7 +633,8 @@ function hg.MainTPIKFunction(ent, ply, wpn)
     end
 
     if not hg_coolgloves:GetBool() then return end
-    local huy = (GetViewEntity() == ply) or (not LocalPlayer():Alive() and LocalPlayer():GetNWEntity("spect") == ply and LocalPlayer():GetNWInt("viewmode",0) == 1)
+	local lply = LocalPlayer()
+    local huy = (GetViewEntity() == ply) or (not lply:Alive() and lply:GetNWEntity("spect") == ply and lply:GetNWInt("viewmode",0) == 1)
     
     if ply.GetPlayerClass and ply:GetPlayerClass() and ply:GetPlayerClass().NoGloves then return end
 
@@ -640,18 +654,19 @@ function hg.MainTPIKFunction(ent, ply, wpn)
     mdl:SetSequence(2)
     mdl:SetCycle(1)--TRI TOPORA
     mdl:SetModel(gloves[hg_change_gloves:GetInt()])
-	if (mdl:GetModel() == "models/epangelmatikes/e3_elite_suit.mdl" and mdl:GetBodygroup(1) ~= 1) then
+	if (mdl:GetModel() == durachok and mdl:GetBodygroup(1) ~= 1) then
 		mdl:SetBodygroup(1, 1)
 		mdl:SetBodygroup(2, 1)
-	elseif mdl:GetModel() ~= "models/epangelmatikes/e3_elite_suit.mdl" then
+	elseif mdl:GetModel() ~= durachok then
 		mdl:SetBodygroup(1, 0)
 		mdl:SetBodygroup(2, 0)
+		mdl:SetSkin(blackmans[lply:GetModel()] and 1 or 0)
 	end
     mdl:SetPos(ent:GetPos())
     mdl:SetAngles(ent:GetAngles())
     mdl:SetupBones()
 
-    local ent2 = wpn.GetWM and IsValid(wpn:GetWM()) and (!wpn.GetFists or wpn:GetFists()) and wpn:GetWM() or ent
+    --local ent2 = wpn.GetWM and IsValid(wpn:GetWM()) and (!wpn.GetFists or wpn:GetFists()) and wpn:GetWM() or ent
     --ply.c_hands:SetParent(ent2)
     
     local mdlmodel = mdl:GetModel()

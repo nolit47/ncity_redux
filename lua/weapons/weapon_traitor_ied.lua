@@ -29,7 +29,7 @@ SWEP.DrawAmmo = false
 SWEP.DrawCrosshair = false
 SWEP.Slot = 4
 SWEP.SlotPos = 1
-SWEP.WorkWithFake = false
+SWEP.WorkWithFake = true
 SWEP.offsetVec = Vector(3, -3, 0)
 SWEP.offsetAng = Angle(0, 0, 0)
 SWEP.ModelScale = 0.4
@@ -48,19 +48,28 @@ if SERVER then
 	function SWEP:OnRemove() end
 end
 
+SWEP.ViewModel = ""
+
 function SWEP:DrawWorldModel()
+	if not IsValid(self:GetOwner()) then
+		self:DrawWorldModel2()
+	end
+end
+
+function SWEP:DrawWorldModel2()
 	self.model = IsValid(self.model) and self.model or ClientsideModel(self.WorldModel)
 	local WorldModel = self.model
 	local owner = self:GetOwner()
 	WorldModel:SetNoDraw(true)
 	WorldModel:SetModelScale(self.ModelScale or 1)
+	local renderGuy = hg.GetCurrentCharacter(owner)
 	if IsValid(owner) then
 		local offsetVec = self.offsetVec
 		local offsetAng = self.offsetAng
 
-		local boneid = owner:LookupBone("ValveBiped.Bip01_R_Hand")
+		local boneid = renderGuy:LookupBone("ValveBiped.Bip01_R_Hand")
 		if not boneid then return end
-		local matrix = owner:GetBoneMatrix(boneid)
+		local matrix = renderGuy:GetBoneMatrix(boneid)
 		if not matrix then return end
 		local newPos, newAng = LocalToWorld(offsetVec, offsetAng, matrix:GetTranslation(), matrix:GetAngles())
 
@@ -89,7 +98,7 @@ function SWEP:GetEyeTrace()
 	return hg.eyeTrace(self:GetOwner())
 end
 
-SWEP.BlastDis = 8
+SWEP.BlastDis = 12
 SWEP.BlastDamage = 350
 SWEP.KABOOM = false
 
@@ -156,6 +165,8 @@ function hg.ExplosionDisorientation(enta, tinnitus, disorientation)
 	net.Send(enta.organism.owner)
 end
 
+function SWEP:CreateFake() end
+
 local function ExplodeTheItem(self,ent)
 	if not IsValid(ent) then self:Remove() end
 
@@ -204,23 +215,27 @@ local function ExplodeTheItem(self,ent)
 			util.BlastDamage(self, self:GetOwner(), EntPos, BlastDis / 0.01905, BlastDamage * 0.1) -- эта функция полное говно кстати. бьет сковзь любые пропы...
 			
 			local dis = BlastDis / 0.01905
-			for _, enta in ipairs(ents.FindInSphere(EntPos, dis)) do
-				local tr = hg.ExplosionTrace(EntPos,enta:GetPos(),{ent})
+			local disorientation_dis = 10 / 0.01905  
+			for _, enta in ipairs(ents.FindInSphere(EntPos, disorientation_dis)) do
+				local tracePos = enta:IsPlayer() and (enta:GetPos() + enta:OBBCenter()) or enta:GetPos()
+				local tr = hg.ExplosionTrace(EntPos, tracePos, {ent})
 
 				local phys = enta:GetPhysicsObject()
 				local force = (enta:GetPos() - EntPos)
 				local len = force:Length()
 				force:Div(len)
-				local frac = math.Clamp((dis - len) / dis, 0.5, 1)
-				local forceadd = force * frac * 50000
+				local frac = math.Clamp((disorientation_dis - len) / disorientation_dis, 0.1, 1)  
+				local physics_frac = math.Clamp((dis - len) / dis, 0.5, 1)  
+				local forceadd = force * physics_frac * 50000  
 
 				if enta.organism then
-					local behindwall = tr.Entity != enta
-					if IsValid(enta.organism.owner) and enta.organism.owner:IsPlayer() then
-						hg.ExplosionDisorientation(enta, (behindwall and 3 or 5) * frac * 1.5, (behindwall and 4 or 6) * frac * 1.5)
+					local behindwall = tr.Entity != enta and tr.MatType != MAT_GLASS
+					if IsValid(enta.organism.owner) and enta.organism.owner:IsPlayer() and not behindwall then
+						hg.ExplosionDisorientation(enta, 5 * frac * 1.5, 6 * frac * 1.5)
 					end
 				end
-				
+
+				if len > dis then continue end
 				if tr.Entity != enta then 					
 					if IsValid(phys) then
 						phys:ApplyForceCenter((forceadd/20) + vector_up * math.random(500,550))
@@ -320,8 +335,17 @@ local function ExplodeTheItem(self,ent)
 	end)
 end
 
-function SWEP:SecondaryAttack()
+function SWEP:CanSecondaryAttack()
+	return IsValid(self:GetOwner()) and not hg.GetCurrentCharacter(self:GetOwner()):IsRagdoll()
+end
+
+function SWEP:SecondaryAttack(calledFrom)
 	if SERVER then
+		if not calledFrom then
+			if not self:CanSecondaryAttack() then
+				return
+			end
+		end
 		if not self.Planted then
 			local Owner = self:GetOwner()
 			local Tr = self:GetEyeTrace()
@@ -411,6 +435,9 @@ if SERVER then
 				self:SetNextPrimaryFire(CurTime()+2)
 				self.nextattackhuy = CurTime() + 2
 				self:SetPlanted(true)
+				return
+			elseif hg.GetCurrentCharacter(Owner):IsRagdoll() then
+				self:SecondaryAttack(true)
 				return
 			end
 		end

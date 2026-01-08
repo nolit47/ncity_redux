@@ -9,15 +9,23 @@ ENT.WorldModel = "models/hoff/weapons/seal6_claymore/w_claymore.mdl"
 ENT.SoundFar = {"iedins/ied_detonate_dist_01.wav", "ied/ied_detonate_dist_02.wav", "ied/ied_detonate_dist_03.wav"}
 ENT.Sound = {"ied/ied_detonate_01.wav", "ied/ied_detonate_02.wav", "ied/ied_detonate_03.wav"}
 ENT.SoundWater = "iedins/water/ied_water_detonate_01.wav"
-ENT.BlastDis = 680 
-ENT.BlastDamage = 100 
-ENT.ShrapnelDis = 500 
-ENT.ShrapnelDamage = 65 
-ENT.ConcussionDis = 1365 
-ENT.ConcussionDamage = 30 
+ENT.BlastDis = 680
+ENT.BlastDamage = 100
+ENT.ShrapnelDis = 500
+ENT.ShrapnelDamage = 65
+ENT.ConcussionDis = 1365
+ENT.ConcussionDamage = 30
 ENT.DetectionAngle = 60
 ENT.DetectionDistance = 700
 ENT.DetectionRays = 5
+
+if CLIENT then
+    function ENT:HintShow(lply,fraction,trace)
+		if not self.HudHintMarkup then self.HudHintMarkup = markup.Parse("<font=ZCity_Tiny>Claymore\n<colour=150,150,150>E - Enable motion trigger</colour></font>",450) end
+		hg.BasicHudHint(self,lply,fraction,trace)
+	end
+end
+
 
 if SERVER then
     function ENT:Initialize()
@@ -28,13 +36,14 @@ if SERVER then
         self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
         self:SetUseType(ONOFF_USE)
         self:DrawShadow(true)
+        self.MotionTriggerIsActivated = false
         local phys = self:GetPhysicsObject()
         if IsValid(phys) then
             phys:Wake()
             phys:EnableMotion(false) 
         end
     end
-    
+
     function ENT:PhysicsCollide(data, phys)
         if self.CanBeKnockedOver and data.Speed > 80 then
             phys:EnableMotion(true)
@@ -42,6 +51,16 @@ if SERVER then
 
             local force = data.Speed * 0.2
             phys:ApplyForceOffset(data.HitNormal * force * 10, data.HitPos)
+        end
+    end
+
+    function ENT:Use(activator)
+        if not self.MotionTriggerIsActivated then
+            self.MotionTriggerIsActivated = true
+            self:EmitSound("snds_jack_gmod/toolbox" .. math.random(1,7) .. ".wav",55,100,1)
+            if IsValid(activator) and activator:IsPlayer() then
+                activator:ViewPunch(Angle(2,0,0))
+            end
         end
     end
 end
@@ -52,15 +71,15 @@ local offsetPos, offsetAng = Vector(0, 2, 11.5), Angle(1, 90, 0)
 function ENT:Think()
     local pos, ang = self:GetPos(), self:GetAngles()
     local pos, ang = LocalToWorld(offsetPos, offsetAng, pos, ang)
-    
+ 
     local halfAngle = self.DetectionAngle / 2
     local angleStep = self.DetectionAngle / (self.DetectionRays - 1)
     local triggered = false
-    
+
     for i = 0, self.DetectionRays - 1 do
         local rayAngle = Angle(ang.p, ang.y, ang.r)
         rayAngle:RotateAroundAxis(rayAngle:Up(), -halfAngle + i * angleStep)
-        
+
         local tr = {}
         tr.start = pos
         tr.endpos = tr.start + rayAngle:Forward() * self.DetectionDistance
@@ -68,10 +87,10 @@ function ENT:Think()
         tr.mask = MASK_SHOT
         local trace = util.TraceLine(tr)
 
-        if developer:GetBool() and CLIENT and LocalPlayer():IsAdmin() then
-            local color = trace.Hit and Color(255, 0, 0) or Color(255, 255, 255)
-            debugoverlay.Line(pos, trace.HitPos, 1, color, true)
-        end
+        --if developer:GetBool() and CLIENT and LocalPlayer():IsAdmin() then
+        --    local color = trace.Hit and Color(255, 0, 0) or Color(255, 255, 255)
+        --    debugoverlay.Line(pos, trace.HitPos, 1, color, true)
+        --end
 
         if SERVER and trace.Hit and (trace.Entity:IsPlayer() or trace.Entity:IsNPC() or (trace.Entity:IsRagdoll() and trace.Entity:GetVelocity():LengthSqr() > 1)) then
             triggered = true
@@ -79,7 +98,7 @@ function ENT:Think()
         end
     end
     
-    if SERVER and triggered then
+    if SERVER and triggered and self.MotionTriggerIsActivated then
         self:ActivateExplosive()
     end
 

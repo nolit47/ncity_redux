@@ -1,9 +1,21 @@
 --\\
 hg.VGUI = hg.VGUI or {}
-hg.VGUI.MainColor = Color(150, 0 ,0)
-hg.VGUI.SecondaryColor = Color(155,0,0,240)
-hg.VGUI.BackgroundColor = Color(25,25,35,220)
+if not hg.ColorSettings then include("homigrad/cl_color_settings.lua") end
+local colorSettings = hg.ColorSettings
+hg.VGUI.MainColor = colorSettings:GetColor("ui_accent")
+hg.VGUI.SecondaryColor = colorSettings:GetColor("ui_border")
+hg.VGUI.BackgroundColor = colorSettings:GetColor("ui_background")
 hg.VGUI.MainSkin = "ZCity"
+
+hook.Add("HGColorsUpdated", "HG_VGUIColorsSync", function(id)
+	if id == "ui_accent" then
+		hg.VGUI.MainColor = colorSettings:GetColor("ui_accent")
+	elseif id == "ui_border" then
+		hg.VGUI.SecondaryColor = colorSettings:GetColor("ui_border")
+	elseif id == "ui_background" then
+		hg.VGUI.BackgroundColor = colorSettings:GetColor("ui_background")
+	end
+end)
 
 function hg.GetMainSkin()
 	return hg.VGUI.MainSkin
@@ -131,8 +143,7 @@ SKIN.Colours.Error = Color(255, 100, 100)
 SKIN.Colours.Warning = Color(230, 180, 0)
 SKIN.Colours.MenuLabel = color_white
 SKIN.Colours.DarkerBackground = Color(0, 0, 0, 77)
-
-SKIN.Colours.Outline = Color(155, 0, 0, 255)
+SKIN.Colours.Outline = hg.VGUI.MainColor
 SKIN.Colours.Background = Color(0, 0, 0, 205)
 
 SKIN.Colours.SegmentedProgress = {}
@@ -518,7 +529,7 @@ function SKIN:PaintPropertySheet( panel, width, height )
 	surface.SetDrawColor(30, 30, 30, 150)
 	surface.DrawRect(0, 0, width, height)
 
-	surface.SetDrawColor(255, 0, 0, 150)
+	surface.SetDrawColor(hg.VGUI.MainColor)
 	surface.DrawOutlinedRect(0, 0, width, height)
 end
 
@@ -535,7 +546,7 @@ function SKIN:PaintActiveTab( panel, w, h )
 
 	surface.SetDrawColor(30, 30, 30, 150)
 	surface.DrawRect(0, 0, w, h*0.8)
-	surface.SetDrawColor(255, 0, 0, 150)
+	surface.SetDrawColor(hg.VGUI.MainColor)
 	surface.DrawOutlinedRect(0, 0, w, h*0.8,1)
 
 end

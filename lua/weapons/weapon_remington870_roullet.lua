@@ -18,7 +18,6 @@ SWEP.WorldModelFake = "models/weapons/arccw/c_ud_870.mdl" -- ОЧЕНЬ стра
 SWEP.FakePos = Vector(-7, 3.6, 8.2)
 SWEP.FakeAng = Angle(0, 0.1, 2)
 //SWEP.MagIndex = 41
-SWEP.MagIndex = nil
 SWEP.FakeAttachment = "1"
 SWEP.AttachmentPos = Vector(-8.5,0,0)
 SWEP.AttachmentAng = Angle(0,0,0)
@@ -75,7 +74,7 @@ SWEP.CockSound = "pwb2/weapons/ithaca37stakeout/pump.wav"
 SWEP.weight = 4
 SWEP.ScrappersSlot = "Primary"
 SWEP.weaponInvCategory = 1
-SWEP.ShellEject = nil
+SWEP.ShellEject = "ShotgunShellEject"
 SWEP.AutomaticDraw = false
 SWEP.UseCustomWorldModel = false
 SWEP.Primary.ClipSize = 6
@@ -344,13 +343,13 @@ end
 local function reloadFunc(self)
 	if not SERVER then return end
 	if SERVER then self:SetNetVar("shootgunReload",CurTime() + 1.1) end
-	if self.MagIndex and isnumber(self.MagIndex) then
+	if self.MagIndex then
 		self:GetWM():ManipulateBoneScale(self.MagIndex, vector_full)
 	end
 	
 	self:PlayAnim(self.AnimList["insert"] or "sgreload_insert", 1, false, function() 
 		self:InsertAmmo(1)
-		if self.MagIndex and isnumber(self.MagIndex) then
+		if self.MagIndex then
 			self:GetWM():ManipulateBoneScale(self.MagIndex, vector_origin)
 		end
 		
@@ -365,19 +364,9 @@ local function reloadFunc(self)
 		--self:PlaySnd(self.CockSound or "weapons/shotgun/shotgun_cock.wav",true,CHAN_AUTO)
 		if self:GetChamber() == "Nothing" then
 			cock(self,1)
-			self:PlayAnim(self.AnimList["finish_empty"] or "sgreload_finish_empty", 1,false,function(self) 
-				self:SetNetVar("shootgunReload",0) 
-				if self.MagIndex and isnumber(self.MagIndex) then
-					self:GetWM():ManipulateBoneScale(self.MagIndex, vector_origin) 
-				end
-			end,false,true) 
+			self:PlayAnim(self.AnimList["finish_empty"] or "sgreload_finish_empty", 1,false,function(self) self:SetNetVar("shootgunReload",0) self:GetWM():ManipulateBoneScale(self.MagIndex, vector_origin) end,false,true) 
 		else
-			self:PlayAnim(self.AnimList["finish"] or "sgreload_finish", 1,false,function(self) 
-				self:SetNetVar("shootgunReload",0) 
-				if self.MagIndex and isnumber(self.MagIndex) then
-					self:GetWM():ManipulateBoneScale(self.MagIndex, vector_origin) 
-				end
-			end,false,true) 
+			self:PlayAnim(self.AnimList["finish"] or "sgreload_finish", 1,false,function(self) self:SetNetVar("shootgunReload",0) self:GetWM():ManipulateBoneScale(self.MagIndex, vector_origin) end,false,true) 
 		end
 	end, false, true)
 end
@@ -431,9 +420,8 @@ function SWEP:CanPrimaryAttack()
 	return not (self:GetNetVar("shootgunReload",0) > CurTime())
 end
 
-function SWEP:DoEject()
-	return
-end
+
+-- Inspect Assault
 
 SWEP.InspectAnimLH = {
 	Vector(0,0,0)

@@ -1,6 +1,8 @@
 --
 //if util.IsBinaryModuleInstalled( "serversecure" ) then require("serversecure") end
 
+
+
 local getBloodColor = FindMetaTable( "Entity" ).GetBloodColor
 local isBulletDamage = FindMetaTable( "CTakeDamageInfo" ).IsBulletDamage
 
@@ -105,6 +107,98 @@ net.Receive("LookAway",function(len,ply)
         net.WriteFloat(net.ReadFloat())
         net.WriteFloat(net.ReadFloat())
     net.Send(rf)
+end)
+
+util.AddNetworkString("hg_exit_vehicle")
+net.Receive("hg_exit_vehicle", function(len, ply)
+	if not IsValid(ply) or not ply:IsPlayer() then return end
+	if not ply:InVehicle() then return end
+	local veh = ply:GetVehicle()
+	if not IsValid(veh) then return end
+
+	local function findSafeExitPos(vehicle, fromLeft)
+		local ang = vehicle:GetAngles()
+		local base = vehicle:GetPos()
+		local right = ang:Right()
+		local forward = ang:Forward()
+		local up = ang:Up()
+		local offsets = {}
+		local side = (fromLeft and -1 or 1)
+		table.insert(offsets, base + right * (side * 48) + up * 8)
+		table.insert(offsets, base + right * (side * 64) + up * 8)
+		table.insert(offsets, base + right * (side * 56) + forward * 24 + up * 8)
+		table.insert(offsets, base + right * (side * 56) - forward * 24 + up * 8)
+		table.insert(offsets, base + right * (-side * 48) + up * 8)
+
+		local mins, maxs = Vector(-16,-16,0), Vector(16,16,72)
+		local filter = {vehicle, ply, hg and hg.GetCurrentCharacter and hg.GetCurrentCharacter(ply)}
+		for _, pos in ipairs(offsets) do
+			local tr = util.TraceHull({
+				start = pos,
+				endpos = pos,
+				mins = mins,
+				maxs = maxs,
+				filter = filter,
+				mask = MASK_PLAYERSOLID
+			})
+			if not tr.Hit then
+				return pos, ang
+			end
+		end
+		-- Новый поиск по кругу вокруг машины
+		for i = 1, 16 do
+			local angle = (i / 16) * math.pi * 2
+			local tryPos = base + right * math.cos(angle) * 80 + forward * math.sin(angle) * 80 + up * 8
+			local tr = util.TraceHull({
+				start = tryPos,
+				endpos = tryPos,
+				mins = mins,
+				maxs = maxs,
+				filter = filter,
+				mask = MASK_PLAYERSOLID
+			})
+			if not tr.Hit then
+				return tryPos, ang
+			end
+		end
+		-- Если вообще нет места
+		return nil, ang
+	end
+
+	local exitPos, exitAng = findSafeExitPos(veh, true)
+
+	if not exitPos then
+		ply:ChatPrint("Нет места для выхода из транспорта! Освободите пространство рядом с машиной.")
+		return
+	end
+
+    local tr = util.TraceLine({
+        start = exitPos,
+        endpos = exitPos - Vector(0,0,200),
+        filter = ply
+    })
+    if tr.Hit then
+        ply.exit_vehicle_pos = tr.HitPos + Vector(0,0,1)
+    else
+        ply.exit_vehicle_pos = exitPos
+    end
+
+	if IsValid(ply.FakeRagdoll) and hg and isfunction(hg.FakeUp) then
+		local rag = ply.FakeRagdoll
+		if IsValid(rag) then
+			rag:SetPos(exitPos)
+			rag:SetAngles(exitAng)
+		end
+		if ply:InVehicle() then ply:ExitVehicle() end
+		hg.FakeUp(ply, true)
+		return
+	end
+
+	ply:ExitVehicle()
+	-- Сразу телепортируем, без timer.Simple
+	if not IsValid(ply) then return end
+	ply:SetPos(exitPos)
+	ply:SetEyeAngles(exitAng)
 end)
 
 local hg = hg or {}
@@ -569,8 +663,10 @@ end
 hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
     if ent:IsVehicle() and ent.IsValidVehicle and ent:IsValidVehicle() then
         timer.Simple(0.1,function()
-            if ent:IsVehicle() and ent.IsValidVehicle and ent:IsValidVehicle() then
-                ent:SetVehicleEntryAnim(false)
+            if IsValid(ent) and ent:IsVehicle() and ent.IsValidVehicle and ent:IsValidVehicle() then
+                if ent.SetVehicleEntryAnim then
+                    ent:SetVehicleEntryAnim(false)
+                end
             end
         end)
     end
@@ -605,7 +701,9 @@ hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
                 chair:SetRenderMode(RENDERGROUP_TRANSLUCENT)
                 chair:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
                 chair:Spawn()
-                chair:SetVehicleEntryAnim(false)
+                if IsValid(chair) and chair.SetVehicleEntryAnim then
+                    chair:SetVehicleEntryAnim(false)
+                end
 
                 --[[chair:AddCallback( "OnAngleChange", function( entity, newangle )
                     if newangle[1] > 170 or newangle[1] < -170 then
@@ -635,7 +733,9 @@ hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
                 chair:SetRenderMode(RENDERGROUP_TRANSLUCENT)
                 chair:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
                 chair:Spawn()
-                chair:SetVehicleEntryAnim(false)
+                if chair.SetVehicleEntryAnim then
+                    chair:SetVehicleEntryAnim(false)
+                end
 
                 --[[chair:AddCallback( "OnAngleChange", function( entity, newangle )
                     if newangle[1] > 170 or newangle[1] < -170 then
@@ -669,7 +769,9 @@ hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
             chair:SetRenderMode(RENDERGROUP_TRANSLUCENT)
             chair:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
             chair:Spawn()
-            chair:SetVehicleEntryAnim(false)
+            if chair.SetVehicleEntryAnim then
+                chair:SetVehicleEntryAnim(false)
+            end
 
             --[[chair:AddCallback( "OnAngleChange", function( entity, newangle )
                 if newangle[1] > 170 or newangle[1] < -170 then
@@ -697,7 +799,9 @@ hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
             chair:SetRenderMode(RENDERGROUP_TRANSLUCENT)
             chair:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
             chair:Spawn()
-            chair:SetVehicleEntryAnim(false)
+            if chair.SetVehicleEntryAnim then
+                chair:SetVehicleEntryAnim(false)
+            end
 
             --[[chair:AddCallback( "OnAngleChange", function( entity, newangle )
                 if newangle[1] > 170 or newangle[1] < -170 then
@@ -725,7 +829,9 @@ hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
             chair:SetRenderMode(RENDERGROUP_TRANSLUCENT)
             chair:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
             chair:Spawn()
-            chair:SetVehicleEntryAnim(false)
+            if chair.SetVehicleEntryAnim then
+                chair:SetVehicleEntryAnim(false)
+            end
 
             --[[chair:AddCallback( "OnAngleChange", function( entity, newangle )
                 if newangle[1] > 170 or newangle[1] < -170 then

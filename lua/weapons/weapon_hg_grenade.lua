@@ -2,7 +2,7 @@
 SWEP.PrintName = "F1"
 SWEP.Category = "Weapons - Explosive"
 SWEP.Instructions = "A famous soviet WWII offensive grenade. It's still widely exported and used to this day. It has a pyrotechnic delay of 3.2-4.2 seconds."
-SWEP.Spawnable = true
+SWEP.Spawnable = false
 SWEP.AdminOnly = false
 SWEP.Primary.ClipSize = -1
 SWEP.Primary.DefaultClip = -1
@@ -369,7 +369,8 @@ function SWEP:SecondaryAttack()
 		ent:SetAngles(ang)
 		ent:Spawn()
 		ent.owner = self.lastowner
-
+		ent.owner2 = self.lastowner
+		
 		ent.cons2 = constraint.Weld(ent,tr.Entity,0,tr.PhysicsBone or 0,200,true,false)
 		
 		self.lovushka = ent
@@ -470,7 +471,8 @@ function SWEP:Throw(mul, time, nosound)
 	if phys then phys:SetVelocity(IsValid(owner) and (owner:GetAimVector() * mul) + owner:GetVelocity() or Vector(0,0,0)) end
 	ent.timer = time
 	ent.owner = self.lastowner
-	
+	ent.owner2 = self.lastowner
+
 	--self.removed = true
 	self.count = self.count - 1
 	if self.count < 1 then

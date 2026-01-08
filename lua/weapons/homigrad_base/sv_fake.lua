@@ -14,8 +14,8 @@ hook.Add("PlayerSwitchWeapon", "homigrad-weapons", function(ply, oldWep, newWep)
 		ply.FakeRagdoll.weldHuy = nil
 	end
 
-	if IsValid(oldWep) and isfunction(oldWep.RemoveFake) then oldWep:RemoveFake() end
-	if IsValid(newWep) and newWep.WorkWithFake and ply.organism.canmove and isfunction(newWep.CreateFake) then
+	if IsValid(oldWep) and oldWep.RemoveFake then oldWep:RemoveFake() end
+	if IsValid(newWep) and newWep.WorkWithFake and ply.organism.canmove then
 		newWep:CreateFake(ply.FakeRagdoll)
 		local ragdoll = ply.FakeRagdoll
 		if ragdoll:LookupBone("ValveBiped.Bip01_R_Finger21") then
@@ -44,7 +44,7 @@ end)
 
 hook.Add("Fake", "weapons", function(ply, ragdoll)
 	local wep = ply:GetActiveWeapon()
-	if IsValid(wep) and wep.WorkWithFake and isfunction(wep.CreateFake) then
+	if IsValid(wep) and wep.WorkWithFake then
 		ply:SetActiveWeapon(ply.ActiveWeapon)
 		wep:CreateFake(ragdoll)
 	else
@@ -145,7 +145,5 @@ function SWEP:RemoveFake()
 	self.fakeGun:Remove()
 	self:SetFakeGun()
 end
-
-
 
 hook.Add("AllowPlayerPickup", "homigrad-weapons-pickup-e", function(ply, ent) if ply.FakeRagdoll or ent.dontPickup then return false end end)

@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Shovel"
-SWEP.Instructions = "A shovel may be big and slow but it can pack a punch."
+SWEP.Instructions = "A shovel may be big and slow but it can pack a punch.\n\nLMB to attack.\nRMB to block."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -14,13 +14,14 @@ SWEP.ViewModel = ""
 SWEP.NoHolster = true
 
 
-SWEP.HoldType = "camera"
+SWEP.HoldType = "revolver"
 
 SWEP.HoldPos = Vector(-11,0,0)
+SWEP.HoldAng = Angle(0,0,0)
 
-SWEP.AttackTime = 0.8
-SWEP.AnimTime1 = 2.2
-SWEP.WaitTime1 = 1.4
+SWEP.AttackTime = 0.4
+SWEP.AnimTime1 = 1.5
+SWEP.WaitTime1 = 1.2
 SWEP.ViewPunch1 = Angle(1,2,0)
 
 SWEP.Attack2Time = 0.3
@@ -33,10 +34,10 @@ SWEP.sprint_ang = Angle(15,0,0)
 
 SWEP.basebone = 94
 
-SWEP.weaponPos = Vector(0,2,-15)
-SWEP.weaponAng = Angle(180,90,0)
+SWEP.weaponPos = Vector(1.5,0,-15)
+SWEP.weaponAng = Angle(180,0,0)
 
-SWEP.DamageType = DMG_CLUB
+SWEP.DamageType = DMG_SLASH
 SWEP.DamagePrimary = 25
 SWEP.DamageSecondary = 10
 
@@ -48,8 +49,8 @@ SWEP.MaxPenLen = 6
 SWEP.PenetrationSizePrimary = 3
 SWEP.PenetrationSizeSecondary = 1.25
 
-SWEP.StaminaPrimary = 20
-SWEP.StaminaSecondary = 1
+SWEP.StaminaPrimary = 30
+SWEP.StaminaSecondary = 35
 
 SWEP.AttackLen1 = 75
 SWEP.AttackLen2 = 45
@@ -85,7 +86,7 @@ function SWEP:CanSecondaryAttack()
 end
 
 function SWEP:CanPrimaryAttack()
-    self.DamageType = DMG_CLUB
+    self.DamageType = DMG_SLASH
     return true
 end
 

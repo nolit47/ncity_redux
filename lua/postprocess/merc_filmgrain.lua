@@ -48,6 +48,10 @@ list.Set( "PostProcess", "Film Grain", {
 		CPanel:Help( "Adds a film grain effect." )
 		CPanel:CheckBox( "Enable", "pp_mercfilmgrain" )
 
+        CPanel:ToolPresets( "pp_mercfilgrain", {pp_mercfilmgrain_blendmode = "0", pp_mercfilmgrain_speed = "2",
+            pp_mercfilmgrain_intensity = "0.075", pp_mercfilmgrain_mean = "0", pp_mercfilmgrain_variance = "0.5"
+        } )
+
         CPanel:Help( "0: Addition, 1: Screen, 2: Overlay, 3: Soft Light, 4: Lighten-Only" )
         CPanel:NumSlider( "Blend Mode", "pp_mercfilmgrain_blendmode", 0, 4, 0 )
         CPanel:NumSlider( "Speed", "pp_mercfilmgrain_speed", 0, 10, 4 )

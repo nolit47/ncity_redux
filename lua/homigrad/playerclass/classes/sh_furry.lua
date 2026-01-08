@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\playerclass\\classes\\sh_furry.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 local CLASS = player.RegClass("furry")
 
 function CLASS.Off(self)
@@ -13,9 +11,13 @@ function CLASS.Off(self)
 	-- end
 
 	if SERVER then
-		self.organism.bloodtype = self.oldbloodtype or "o-"
+		//self.organism.bloodtype = self.oldbloodtype or "o-"
 		
 		hg.ClearArmorRestrictions(self)
+	end
+
+	if eightbit and eightbit.EnableEffect and self.UserID then
+		eightbit.EnableEffect(self:UserID(), 0)
 	end
 
 	self.JumpPowerMul = nil
@@ -31,7 +33,7 @@ local oneofus = {
 	"A new meaning to life itself!",
 	"Assimilation complete!",
 	"Turning into tigers, turning into wolves...",
-	"A new life is born."
+	"A new purpose in life!"
 }
 
 local function Randomize(self)
@@ -65,7 +67,6 @@ local function Randomize(self)
 			plycolor = plycolor:ToVector()
 		end
 
-
 		self:SetNetVar("Accessories", "")
 
 		self.CurAppearance = Appearance
@@ -74,13 +75,25 @@ local function Randomize(self)
 	end
 end
 
+CLASS.NoGloves = true
 local col1 = Color(121, 97, 217)
 function CLASS.On(self, data)
 	if SERVER then
+		if eightbit and eightbit.EnableEffect and self.UserID then
+            eightbit.EnableEffect(self:UserID(), eightbit.EFF_PROOT)
+		end
+
 		if self.organism then
 			self.oldbloodtype = self.organism.bloodtype
 			self.organism.bloodtype = "c-"
 		end
+
+		local Appearance = self.CurAppearance or hg.Appearance.GetRandomAppearance()
+
+		local name = "Specimen #" .. math.random(1, 999)
+
+		self:SetNWString("PlayerName", name)
+		Appearance.AName = name
 
 		hg.SetArmorRestrictions(self, {all = true})
 	end
@@ -120,6 +133,7 @@ function CLASS.On(self, data)
 		return
 	end
 
+	hook.Run("HG_OnAssimilation", self)
 	-- Randomize(self)
 
 	if CLIENT then
@@ -193,6 +207,11 @@ function CLASS.On(self, data)
 			hg.ApplyPoses(self)
 
 			hg.organism.Clear( self.organism )
+
+			if self.organism then
+				self.oldbloodtype = self.organism.bloodtype
+				self.organism.bloodtype = "c-"
+			end
 		end
 	end)
 end
@@ -870,3 +889,114 @@ else
 	end)
 end
 
+// stripped from combine playerclass
+if CLIENT then
+    local pnv_enabled = false
+    local next_toggle_time = 0
+    local toggle_cooldown = 1
+    local transition_time = 1
+    local transition_start = 0
+    local transitioning = false
+    local pnv_light = nil
+
+    local pnv_color_1 = {
+        ["$pp_colour_addr"] = 0,
+        ["$pp_colour_addg"] = 0.07,
+        ["$pp_colour_addb"] = 0.1,
+        ["$pp_colour_brightness"] = 0.01,
+        ["$pp_colour_contrast"] = 1.5,
+        ["$pp_colour_colour"] = 0.3,
+        ["$pp_colour_mulr"] = 0,
+        ["$pp_colour_mulg"] = 0.1,
+        ["$pp_colour_mulb"] = 0.5
+    }
+
+    local function togglePNV()
+        local ply = LocalPlayer()
+        if ply.PlayerClassName ~= "furry" or not ply:Alive() then
+            if pnv_enabled then
+                pnv_enabled = false
+                surface.PlaySound("items/nvg_off.wav")
+                hook.Remove("RenderScreenspaceEffects","PNV_ColorCorrectionFur")
+                if IsValid(pnv_light) then
+                    pnv_light:Remove()
+                    pnv_light = nil
+                end
+            end
+            return
+        end
+
+        pnv_enabled = not pnv_enabled
+        transition_start = CurTime()
+
+        if pnv_enabled then
+            transitioning = true
+            surface.PlaySound("items/nvg_on.wav")
+            hook.Add("RenderScreenspaceEffects","PNV_ColorCorrectionFur",function()
+                if ply.PlayerClassName ~= "furry" then return end
+                local progress = math.min((CurTime() - transition_start)/transition_time,1)
+                local cc = table.Copy(pnv_color_1)
+                for k,v in pairs(cc) do
+                    cc[k] = v * progress
+                end
+                DrawColorModify(cc)
+                DrawBloom(0.1*progress,1*progress,2*progress,2*progress,1*progress,0.4*progress,1,1,1)
+                if progress >= 1 then transitioning = false end
+            end)
+        else
+            transitioning = false
+            surface.PlaySound("items/nvg_off.wav")
+            hook.Remove("RenderScreenspaceEffects","PNV_ColorCorrectionFur")
+        end
+    end
+
+    hook.Add("RenderScreenspaceEffects","PNV_ColorCorrectionFur",function()
+        local ply = LocalPlayer()
+        if ply.PlayerClassName ~= "furry" then return end
+        if pnv_enabled then
+            local cc = pnv_color_1
+            DrawColorModify(cc)
+            DrawBloom(0.1,0.5,2,2,1,0.4,1,1,1)
+        end
+    end)
+
+    hook.Add("PreDrawHalos","PNV_LightFur",function()
+        local ply = LocalPlayer()
+        if ply.PlayerClassName ~= "furry" then return end
+        if pnv_enabled then
+            if not IsValid(pnv_light) then
+                pnv_light = ProjectedTexture()
+                pnv_light:SetTexture("effects/flashlight001")
+                pnv_light:SetBrightness(2)
+                pnv_light:SetEnableShadows(false)
+                pnv_light:SetConstantAttenuation(0.02)
+                pnv_light:SetNearZ(12)
+                pnv_light:SetFOV(70)
+            end
+            pnv_light:SetPos(ply:EyePos())
+            pnv_light:SetAngles(ply:EyeAngles())
+            pnv_light:Update()
+        elseif IsValid(pnv_light) then
+            pnv_light:Remove()
+            pnv_light = nil
+        end
+    end)
+
+    hook.Add("Think","PNV_ThinkFur",function()
+        local ply = LocalPlayer()
+        if ply:Alive() and ply.PlayerClassName == "furry" then
+            if input.IsKeyDown(KEY_F) and not gui.IsGameUIVisible() and not IsValid(vgui.GetKeyboardFocus()) and (CurTime() > next_toggle_time) then
+                togglePNV()
+                next_toggle_time = CurTime() + toggle_cooldown
+            end
+        end
+        if not ply:Alive() and pnv_enabled then togglePNV() end
+        if ply.PlayerClassName ~= "furry" and pnv_enabled then togglePNV() end
+
+        if pnv_enabled and IsValid(pnv_light) then
+            pnv_light:SetPos(ply:EyePos())
+            pnv_light:SetAngles(ply:EyeAngles())
+            pnv_light:Update()
+        end
+    end)
+end

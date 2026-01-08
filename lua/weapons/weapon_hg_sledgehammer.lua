@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Sledgehammer"
-SWEP.Instructions = "The Sledgehammer is a two-handed tool which can be used as a melee weapon."
+SWEP.Instructions = "The Sledgehammer is a two-handed tool which can be used as a melee weapon.\n\nLMB to attack.\nRMB to block."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -13,11 +13,12 @@ SWEP.WorldModelReal = "models/weapons/tfa_nmrih/v_me_sledge.mdl"
 SWEP.WorldModelExchange = "models/weapons/tfa_nmrih/w_me_sledge.mdl"
 SWEP.ViewModel = ""
 
-SWEP.HoldType = "camera"
+SWEP.HoldType = "revolver"
 
 SWEP.DamageType = DMG_SLASH
 
 SWEP.HoldPos = Vector(-14,-2,1)
+SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.AttackTime = 0.4
 SWEP.AnimTime1 = 1.9
@@ -38,7 +39,7 @@ SWEP.weaponPos = Vector(0,0,0)
 SWEP.weaponAng = Angle(0,-90,0)
 
 SWEP.DamageType = DMG_CLUB
-SWEP.DamagePrimary = 70
+SWEP.DamagePrimary = 74
 SWEP.DamageSecondary = 34
 
 SWEP.PenetrationPrimary = 5
@@ -46,7 +47,7 @@ SWEP.PenetrationSecondary = 7
 
 SWEP.MaxPenLen = 6
 
-SWEP.PenetrationSizePrimary = 3
+SWEP.PenetrationSizePrimary = 4
 SWEP.PenetrationSizeSecondary = 1.25
 
 SWEP.StaminaPrimary = 50
@@ -98,6 +99,16 @@ function SWEP:PrimaryAttackAdd(ent)
     if hgIsDoor(ent) and math.random(7) > 3 then
         hgBlastThatDoor(ent,self:GetOwner():GetAimVector() * 50 + self:GetOwner():GetVelocity())
     end
+end
+
+function SWEP:CustomBlockAnim(addPosLerp, addAngLerp)
+    addPosLerp.z = addPosLerp.z + (self:GetBlocking() and -2 or 0)
+    addPosLerp.x = addPosLerp.x + (self:GetBlocking() and 2 or 0)
+    addPosLerp.y = addPosLerp.y + (self:GetBlocking() and -5 or 0)
+    addAngLerp.p = addAngLerp.p + (self:GetBlocking() and 15 or 0)
+    addAngLerp.r = addAngLerp.r + (self:GetBlocking() and 45 or 0)
+
+    return true
 end
 
 SWEP.NoHolster = true

@@ -1,5 +1,3 @@
--- "addons\\homigrad\\lua\\homigrad\\playerclass\\classes\\sh_infiltrator.lua"
--- Retrieved by https://github.com/lewisclark/glua-steal
 local CLASS = player.RegClass("sc_infiltrator")
 
 function CLASS.Off(self)
@@ -41,29 +39,31 @@ local mdls = {
 	["models/blacklist/spy1.mdl"] = true,
 }
 
+CLASS.NoGloves = true
 function CLASS.On(self)
-	if CLIENT then return end
-
-	if self:GetNWString("PlayerRole") == "sc_elite" then
-		self:SetModel("models/epangelmatikes/e3_elite_suit.mdl")
-		self:SetBodygroup(1, 0)
-	else
-		self:SetModel("models/kuma96/gta5_splintercell/gta5_splintercell_pm.mdl")
-		--self:SetBodygroup(1, math.random(0, 1))
-	end
-
 	self:SetPlayerColor(vector_origin)
 	self:SetSubMaterial()
 
-	ApplyAppearance(self,nil,nil,nil,true)
-	local Appearance = self.CurAppearance or hg.Appearance.GetRandomAppearance()
-    Appearance.AAttachments = ""
-    Appearance.AColthes = ""
-	self:SetNetVar("Accessories", "")
-	self.CurAppearance = Appearance
+	if SERVER then
+		if self:GetNWString("PlayerRole") == "sc_elite" then
+			self:SetModel("models/epangelmatikes/e3_elite_suit.mdl")
+			self:SetBodygroup(1, 0)
+		else
+			self:SetModel("models/kuma96/gta5_splintercell/gta5_splintercell_pm.mdl")
+			--self:SetBodygroup(1, math.random(0, 1))
+		end
 
-	local name = math.random(1, 2) == 1 and (subnames[math.random(#subnames)] .. Appearance.AName) or bb1[math.random(#bb1)] .. bb2[math.random(#bb2)]
-	self:SetNWString("PlayerName", name)
+		ApplyAppearance(self,nil,nil,nil,true)
+		local Appearance = self.CurAppearance or hg.Appearance.GetRandomAppearance()
+		Appearance.AAttachments = ""
+		Appearance.AColthes = ""
+		self:SetNetVar("Accessories", "")
+		self.CurAppearance = Appearance
+
+		local name = math.random(1, 2) == 1 and (subnames[math.random(#subnames)] .. Appearance.AName) or bb1[math.random(#bb1)] .. bb2[math.random(#bb2)]
+		self:SetNWString("PlayerName", name)
+	end
+
 	self:DrawShadow(false)
 end
 
@@ -167,7 +167,7 @@ hook.Add("Bones", "sc-stealthanim", function(ply)
 	end
 end)
 ------------------------ anims shit end ------------------------
-
+local render, hg = render, hg
 function zb.PreDrawPlayer(ply, ent, draw)
 	if ply.PlayerClassName == "sc_infiltrator" or mdls[ply:GetModel()] then
 		local vel = ply:GetVelocity():Length()
@@ -184,7 +184,7 @@ function zb.PreDrawPlayer(ply, ent, draw)
 		render.SetBlend(math.Clamp(1 * (vel / 50), 0.07, 1))
 		ent:DrawModel()
 		DrawPlayerRagdoll(ent, ply)
-		
+
 		render.SetBlend(1)
 
 		return ply, ent, false
@@ -216,7 +216,207 @@ hook.Add("HG_PlayerFootstep", "sc-stealthfootsteps", function(ply, pos, foot, sn
 	end
 end)
 
+if SERVER then
+	util.AddNetworkString("SC-BeingVictimOfDisarmament")
+	util.AddNetworkString("SC-DisarmingOther")
+end
+
+function GetPlayerTraceToOther(ply, aim_vector, dist)
+	local trace = hg.eyeTrace(ply, dist, nil, aim_vector)
+	if trace then
+		local aim_ent = trace.Entity
+		local other_ply = nil
+		if IsValid(aim_ent) then
+			if aim_ent:IsPlayer() then
+				other_ply = aim_ent
+			elseif aim_ent:IsRagdoll() then
+				if IsValid(aim_ent.ply) then other_ply = aim_ent.ply end
+			end
+		end
+		return aim_ent, other_ply, trace
+	else
+		return nil
+	end
+end
+
+function GetPlayerTraceToOtherVictim(ply, victim, dist)
+	if IsValid(victim) then
+		local ragdoll = victim.FakeRagdoll or victim:GetNWEntity("RagdollDeath", victim.FakeRagdoll)
+		if IsValid(ragdoll) then
+			--
+		else
+			ragdoll = victim
+		end
+
+		local bone_id = ragdoll:LookupBone("ValveBiped.Bip01_Spine2")
+		if bone_id then
+			local bone_matrix = ragdoll:GetBoneMatrix(bone_id)
+			if bone_matrix then
+				local pos, ang = bone_matrix:GetTranslation(), bone_matrix:GetAngles()
+				local ply_offset_normal = pos - ply:GetShootPos()
+				local ply_aim_normal = ply:GetAimVector()
+				ply_offset_normal:Normalize()
+				ply_aim_normal:Normalize()
+				local ang_diff = -(math.deg(math.acos(ply_aim_normal:DotProduct(-ply_offset_normal))) - 180)
+				if ang_diff < 80 then
+					local aim_ent, other_ply, trace = GetPlayerTraceToOther(ply, ply_offset_normal, dist)
+					if IsValid(aim_ent) then
+						return aim_ent, other_ply, trace
+					else
+						return GetPlayerTraceToOther(ply, dist)
+					end
+				else
+					return GetPlayerTraceToOther(ply, dist)
+				end
+			end
+		end
+	end
+end
+
+function CanPlayerDisarmOther(ply, aim_ent)
+	if aim_ent:IsRagdoll() then
+		local bone_id = aim_ent:LookupBone("ValveBiped.Bip01_Spine2")
+		if bone_id then
+			local bone_matrix = aim_ent:GetBoneMatrix(bone_id)
+			if bone_matrix then
+				local pos, ang = bone_matrix:GetTranslation(), bone_matrix:GetAngles()
+				local other_normal = ang:Right()
+				local ply_normal = pos - ply:GetShootPos()
+				local dist_z = math.abs(pos.z - ply:GetShootPos().z)
+				if dist_z < 50 then
+					ply_normal:Normalize()
+					local ang_diff = -(math.deg(math.acos(ply_normal:DotProduct(other_normal))) - 180)
+					if ang_diff < 90 then
+						return 2
+					else
+						return 1.5
+					end
+				end
+			end
+		end
+	elseif aim_ent:IsPlayer() then
+		local other_angle = aim_ent:EyeAngles()[2]
+		local ply_angle = (aim_ent:GetPos() - ply:GetPos()):Angle()[2] --ply:EyeAngles()[2]
+		local ang_diff = math.abs(math.AngleDifference(other_angle, ply_angle))
+		if ang_diff < 70 then
+			return 2
+		else
+			return 1.5
+		end
+	end
+	return false
+end
+
+function DisarmOther(ply, other_ply, aim_ent)
+	if other_ply:Alive() then
+		local weapon = other_ply:GetActiveWeapon()
+		if IsValid(weapon) and not weapon.NoDrop then
+			other_ply:DropWeapon(weapon)
+			ply:PickupWeapon(weapon, false)
+		end
+
+		hg.LightStunPlayer(other_ply)
+		timer.Simple(0, function()
+			local rag = hg.GetCurrentCharacter(other_ply)
+			if IsValid(rag) and rag ~= other_ply then
+				local bon = rag:LookupBone("ValveBiped.Bip01_Head1")
+				local physnum = rag:TranslateBoneToPhysBone(bon)
+				local phys = rag:GetPhysicsObjectNum(physnum)
+				local dist = 25 --phys:GetPos():Distance(ply:EyePos())
+				hg.SetCarryEnt2(ply, rag, bon, phys:GetMass(), Vector(-2, 0, 0), ply:GetAimVector() * dist + ply:EyeAngles():Up() * 5 + ply:EyeAngles():Right() * -5 + ply:GetShootPos(), ply:EyeAngles() + Angle(-90, 90, 0))
+			end
+		end)
+	end
+end
+
+function StartDisarmingOther(ply, other_ply)
+	ply.Ability_Disarm = {
+		Victim = other_ply,
+		Progress = 0,
+	}
+
+	other_ply.BeingVictimOfDisarmament = true
+	if SERVER then
+		-- other_ply:ViewPunch(Angle(0, -10, -10))
+		net.Start("SC-BeingVictimOfDisarmament")
+		net.WriteBool(true)
+		net.Send(other_ply)
+		net.Start("SC-DisarmingOther")
+		net.WriteBool(true)
+		net.WriteEntity(other_ply)
+		net.Send(ply)
+	end
+end
+
+function StopDisarmingOther(ply)
+	if ply.Ability_Disarm and IsValid(ply.Ability_Disarm.Victim) then ply.Ability_Disarm.Victim.BeingVictimOfDisarmament = false end
+	if SERVER and ply.Ability_Disarm and IsValid(ply.Ability_Disarm.Victim) then
+		net.Start("SC-BeingVictimOfDisarmament")
+		net.WriteBool(false)
+		net.Send(ply.Ability_Disarm.Victim)
+		net.Start("SC-DisarmingOther")
+		net.WriteBool(false)
+		net.Send(ply)
+	end
+
+	ply.Ability_Disarm = nil
+end
+
+function ContinueDisarmingOther(ply)
+	local ability_data = ply.Ability_Disarm
+	local victim = ability_data.Victim
+	local aim_ent, other_ply, trace = GetPlayerTraceToOtherVictim(ply, victim, DisarmReach)
+	if IsValid(aim_ent) and (aim_ent:IsPlayer() or aim_ent:IsRagdoll()) then
+		local disarm_strength = CanPlayerDisarmOther(ply, aim_ent)
+		if IsValid(victim) and victim:Alive() and disarm_strength and other_ply == victim then
+			ability_data.Progress = ability_data.Progress + FrameTime() * 250 * disarm_strength
+			if ability_data.Progress >= 100 then
+				if SERVER then DisarmOther(ply, victim, aim_ent) end
+				StopDisarmingOther(ply)
+			end
+		else
+			StopDisarmingOther(ply)
+		end
+	else
+		StopDisarmingOther(ply)
+	end
+end
+
+hook.Add("PlayerPostThink", "sc-disarm", function(ply)
+	if ply.PlayerClassName ~= "sc_infiltrator" or not mdls[ply:GetModel()] then return end
+	if ply:KeyDown(IN_WALK) then
+		if ply:KeyPressed(IN_USE) then
+			local aim_ent, other_ply, trace = GetPlayerTraceToOther(ply, nil, DisarmReach)
+			if IsValid(aim_ent) then if other_ply and CanPlayerDisarmOther(ply, aim_ent, DisarmReach) then StartDisarmingOther(ply, other_ply) end end
+		elseif ply:KeyDown(IN_USE) then
+			if ply.Ability_Disarm then ContinueDisarmingOther(ply) end
+		end
+
+		if ply:KeyReleased(IN_USE) then StopDisarmingOther(ply) end
+	else
+		StopDisarmingOther(ply)
+	end
+end)
+
 if CLIENT then
+	net.Receive("SC-BeingVictimOfDisarmament", function(len, ply)
+		LocalPlayer().BeingVictimOfDisarmament = net.ReadBool()
+		if LocalPlayer().BeingVictimOfDisarmament then
+			BeingVictimOfDisarmamentResetTime = CurTime() + 5
+		else
+			BeingVictimOfDisarmamentResetTime = nil
+		end
+	end)
+
+	net.Receive("SC-DisarmingOther", function(len, ply)
+		local status = net.ReadBool()
+		if status then
+			local other_ply = net.ReadEntity()
+			StartDisarmingOther(LocalPlayer(), other_ply)
+		else
+			StopDisarmingOther(LocalPlayer())
+		end
+	end)
 
 	------------------------ camera shit ------------------------
 	local lerpaim = 0

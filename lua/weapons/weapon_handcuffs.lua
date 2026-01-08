@@ -52,6 +52,7 @@ SWEP.AnimList = {
 }
 
 SWEP.HoldPos = Vector(0,-1,0)
+SWEP.HoldAng = Angle(0,0,0)
 
 SWEP.CallbackTimeAdjust = 0.5
 
@@ -74,7 +75,6 @@ end
 
 function SWEP:Think()
 	self:SetHold(self.HoldType)
-	self:SetHolding(math.max(self:GetHolding() - 4,0))
 end
 
 SWEP.traceLen = 5
@@ -153,6 +153,8 @@ function SWEP:Tie(tr)
 					ply:SelectWeapon("weapon_hands_sh")
 					ply:SetNetVar("handcuffed",true)
 				end
+				
+				self:GetOwner():SelectWeapon("weapon_hands_sh")
 
 				org.handcuffed = true
 				ent:SetNetVar("handcuffed",true)

@@ -88,7 +88,7 @@ if SERVER then
 
 		if hook.Run("WeaponsInv Loadout", ply) == nil then
 			weaponInv.CreateLimit(ply, 1, 1) --main
-			weaponInv.CreateLimit(ply, 2, 1) --secondary
+			weaponInv.CreateLimit(ply, 2, 2) --secondary
 			weaponInv.CreateLimit(ply, 3, 1) --melee
 			weaponInv.CreateLimit(ply, 4, 1) --traitor 22lr gun
 			weaponInv.CreateLimit(ply, 5, 1) --traitor knife

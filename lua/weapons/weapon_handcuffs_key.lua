@@ -37,7 +37,7 @@ SWEP.offsetAng = Angle(-5, 60, -90)
 SWEP.ModelScale = 1
 
 if SERVER then
-    function SWEP:OnRemove() end
+	function SWEP:OnRemove() end
 end
 
 function SWEP:DrawWorldModel()
@@ -84,23 +84,25 @@ end
 
 local bone, name
 function SWEP:BoneSet(lookup_name, vec, ang)
-    if IsValid(self:GetOwner()) and !self:GetOwner():IsPlayer() then return end
+	if IsValid(self:GetOwner()) and !self:GetOwner():IsPlayer() then return end
 	hg.bone.Set(self:GetOwner(), lookup_name, vec, ang)
 end
 
 local lang1, lang2 = Angle(0, -10, 0), Angle(0, 10, 0)
 function SWEP:Animation()
 	local hold = self:GetHolding()
-    self:BoneSet("r_upperarm", vector_origin, Angle(0, -10 - hold / 1.5, 10))
-    self:BoneSet("r_forearm", vector_origin, Angle(0, hold / 1, 0))
+	self:BoneSet("r_upperarm", vector_origin, Angle(0, -10 - hold / 1.5, 10))
+	self:BoneSet("r_forearm", vector_origin, Angle(0, hold / 1, 0))
 
-    self:BoneSet("l_upperarm", vector_origin, lang1)
-    self:BoneSet("l_forearm", vector_origin, lang2)
+	self:BoneSet("l_upperarm", vector_origin, lang1)
+	self:BoneSet("l_forearm", vector_origin, lang2)
 end
 
 function SWEP:Think()
 	self:SetHold(self:GetOwner():GetNetVar("handcuffed") and "normal" or self.HoldType)
-	self:SetHolding(math.max(self:GetHolding() - 5,0))
+	if not self:GetOwner():KeyDown(IN_ATTACK) then
+		self:SetHolding(math.max(self:GetHolding() - 5,0))
+	end
 end
 
 function SWEP:SetHandPos()
@@ -111,40 +113,19 @@ end
 
 SWEP.traceLen = 5
 
-local function eyeTrace(self, ply)
-	local ent = hg.GetCurrentCharacter(ply)
-	local att = ent:LookupAttachment("eyes")
-	if att then
-		att = ent:GetAttachment(att)
-	else
-		local tr = {
-			start = ply:EyePos(),
-			endpos = ply:EyePos() + ply:GetAimVector() * 32,
-			filter = ent
-		}
-		return util.TraceLine(tr)
-	end
-
-	local tr = {}
-	tr.start = att.Pos
-	tr.endpos = att.Pos + ply:GetAimVector() * 32
-	tr.filter = ent
-	return util.TraceLine(tr)
-end
-
 function SWEP:GetEyeTrace()
-	return hg.eyeTrace( self:GetOwner())
+	return hg.eyeTrace(self:GetOwner())
 end
 
 if CLIENT then
 	function SWEP:DrawHUD()
 		if GetViewEntity() ~= LocalPlayer() then return end
 		if LocalPlayer():InVehicle() then return end
-        local tr = self:GetEyeTrace()
-        local toScreen = tr.HitPos:ToScreen()
+		local tr = self:GetEyeTrace()
+		local toScreen = tr.HitPos:ToScreen()
 
-        surface.SetDrawColor(255,255,255,155)
-        surface.DrawRect(toScreen.x-2.5, toScreen.y-2.5, 5, 5)
+		surface.SetDrawColor(255,255,255,155)
+		surface.DrawRect(toScreen.x-2.5, toScreen.y-2.5, 5, 5)
 	end
 end
 
@@ -157,40 +138,38 @@ end
 
 SWEP.CoolDown = 0
 function SWEP:UnTie(ent)
-	--self:EmitSound()
 	if self.CoolDown > CurTime() then return end
-	self.CoolDown = CurTime() + 1
-	--timer.Simple(1,function()
-		if IsValid(ent) and IsValid(self) and IsValid(self:GetOwner()) and self:GetOwner():Alive() and self:GetOwner():GetPos():Distance(ent:GetPos()) < 500 then 
-			if IsValid(ent) and (ent:IsRagdoll() or ent:IsPlayer()) then
-				if not ( ent.handcuffed or ent:GetNetVar("handcuffed",false) ) then return end
+	self.CoolDown = CurTime() + 2
+	local owner = self:GetOwner()
+	if IsValid(ent) and IsValid(self) and IsValid(owner) and owner:Alive() and owner:GetPos():Distance(ent:GetPos()) < 500 then
+		if IsValid(ent) and (ent:IsRagdoll() or ent:IsPlayer()) then
+			if not ( ent.handcuffed or ent:GetNetVar("handcuffed",false) ) then return end
 
-				if ent.handcuffs then
-					if IsValid(ent.handcuffs[1]) then ent.handcuffs[1]:Remove() end
-					if IsValid(ent.handcuffs[2]) then ent.handcuffs[2]:Remove() end
-					ent.handcuffed = false
-				end
-
-				ent:EmitSound("weapons/357/357_reload1.wav")
-
-				local ply = hg.RagdollOwner(ent)
-				local org = ent.organism
-				org.handcuffed = false
-				ent:SetNetVar("handcuffed",false)
-				if ply then ply:SetNetVar("handcuffed",false) end
-
-				self:GetOwner():Give("weapon_handcuffs")
+			if ent.handcuffs then
+				if IsValid(ent.handcuffs[1]) then ent.handcuffs[1]:Remove() end
+				if IsValid(ent.handcuffs[2]) then ent.handcuffs[2]:Remove() end
+				ent.handcuffed = false
 			end
+
+			ent:EmitSound("weapons/357/357_reload1.wav")
+
+			local ply = hg.RagdollOwner(ent)
+			local org = ent.organism
+			org.handcuffed = false
+			ent:SetNetVar("handcuffed",false)
+			if ply then ply:SetNetVar("handcuffed",false) end
+
+			owner:Give("weapon_handcuffs")
 		end
-	--end)
+	end
 end
 
 function SWEP:PrimaryAttack()
 	if SERVER then
-        local ent = self:GetOwner():GetNetVar("handcuffed") and self:GetOwner() or self:GetEyeTrace().Entity
-		self:SetHolding(math.min(self:GetHolding() + 8, 100))
+		local ent = self:GetOwner():GetNetVar("handcuffed") and self:GetOwner() or self:GetEyeTrace().Entity
+		self:SetHolding(math.min(self:GetHolding() + 5, 100))
 		if self:GetHolding() < 100 then return end
-        self:UnTie(ent)
+		self:UnTie(ent)
 	end
 end
 
